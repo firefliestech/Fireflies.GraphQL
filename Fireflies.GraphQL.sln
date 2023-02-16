@@ -1,0 +1,84 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33205.214
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.GraphQL.Core", "Fireflies.GraphQL.Core\Fireflies.GraphQL.Core.csproj", "{C3F71681-7D56-4D72-8AC9-30FAFB20D941}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.GraphQL.AspNet", "Fireflies.GraphQL.AspNet\Fireflies.GraphQL.AspNet.csproj", "{1697E919-7746-498B-926B-0FFB7F3E43A3}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.GraphQL.Demo", "Fireflies.GraphQL.Demo\Fireflies.GraphQL.Demo.csproj", "{9A15B9E7-9730-4266-9DB8-A7B059F8B83C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.IoC.TinyIoC", "IoC\Fireflies.IoC.TinyIoC\Fireflies.IoC.TinyIoC.csproj", "{B9D63FB7-C24E-4160-A894-9F60B1C3F29E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.IoC.Autofac", "IoC\Fireflies.IoC.Autofac\Fireflies.IoC.Autofac.csproj", "{E134D1B0-E286-4AE0-925C-FF0058C805F2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "IoC", "IoC", "{29D825DB-FF7E-4807-9EA6-A766A4BA6541}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.IoC.Core", "IoC\Fireflies.IoC.Core\Fireflies.IoC.Core.csproj", "{B28F5ACB-E314-414A-B509-D5BA632B9FFA}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.GraphQL.Contract", "Fireflies.GraphQL.Contract\Fireflies.GraphQL.Contract.csproj", "{4ABEBE31-63C7-4591-93A5-A2FD846EF0E8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Logging", "Logging", "{CFEEDE25-87E4-4241-9F3B-8183067F07A9}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.Logging.Core", "Logging\Fireflies.Logging.Core\Fireflies.Logging.Core.csproj", "{120CE59C-A15F-4DAB-A379-376CC2A9AE42}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.Logging.NLog", "Logging\Fireflies.Logging.NLog\Fireflies.Logging.NLog.csproj", "{CED1A59B-A5E0-4EE4-B478-5ACAB0578477}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C3F71681-7D56-4D72-8AC9-30FAFB20D941}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3F71681-7D56-4D72-8AC9-30FAFB20D941}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3F71681-7D56-4D72-8AC9-30FAFB20D941}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3F71681-7D56-4D72-8AC9-30FAFB20D941}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1697E919-7746-498B-926B-0FFB7F3E43A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1697E919-7746-498B-926B-0FFB7F3E43A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1697E919-7746-498B-926B-0FFB7F3E43A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1697E919-7746-498B-926B-0FFB7F3E43A3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9A15B9E7-9730-4266-9DB8-A7B059F8B83C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9A15B9E7-9730-4266-9DB8-A7B059F8B83C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9A15B9E7-9730-4266-9DB8-A7B059F8B83C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9A15B9E7-9730-4266-9DB8-A7B059F8B83C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9D63FB7-C24E-4160-A894-9F60B1C3F29E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9D63FB7-C24E-4160-A894-9F60B1C3F29E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9D63FB7-C24E-4160-A894-9F60B1C3F29E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9D63FB7-C24E-4160-A894-9F60B1C3F29E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E134D1B0-E286-4AE0-925C-FF0058C805F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E134D1B0-E286-4AE0-925C-FF0058C805F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E134D1B0-E286-4AE0-925C-FF0058C805F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E134D1B0-E286-4AE0-925C-FF0058C805F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B28F5ACB-E314-414A-B509-D5BA632B9FFA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B28F5ACB-E314-414A-B509-D5BA632B9FFA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B28F5ACB-E314-414A-B509-D5BA632B9FFA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B28F5ACB-E314-414A-B509-D5BA632B9FFA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4ABEBE31-63C7-4591-93A5-A2FD846EF0E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4ABEBE31-63C7-4591-93A5-A2FD846EF0E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4ABEBE31-63C7-4591-93A5-A2FD846EF0E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4ABEBE31-63C7-4591-93A5-A2FD846EF0E8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{120CE59C-A15F-4DAB-A379-376CC2A9AE42}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{120CE59C-A15F-4DAB-A379-376CC2A9AE42}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{120CE59C-A15F-4DAB-A379-376CC2A9AE42}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{120CE59C-A15F-4DAB-A379-376CC2A9AE42}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CED1A59B-A5E0-4EE4-B478-5ACAB0578477}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CED1A59B-A5E0-4EE4-B478-5ACAB0578477}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CED1A59B-A5E0-4EE4-B478-5ACAB0578477}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CED1A59B-A5E0-4EE4-B478-5ACAB0578477}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B9D63FB7-C24E-4160-A894-9F60B1C3F29E} = {29D825DB-FF7E-4807-9EA6-A766A4BA6541}
+		{E134D1B0-E286-4AE0-925C-FF0058C805F2} = {29D825DB-FF7E-4807-9EA6-A766A4BA6541}
+		{B28F5ACB-E314-414A-B509-D5BA632B9FFA} = {29D825DB-FF7E-4807-9EA6-A766A4BA6541}
+		{120CE59C-A15F-4DAB-A379-376CC2A9AE42} = {CFEEDE25-87E4-4241-9F3B-8183067F07A9}
+		{CED1A59B-A5E0-4EE4-B478-5ACAB0578477} = {CFEEDE25-87E4-4241-9F3B-8183067F07A9}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {695A8354-BD19-4074-B3CB-A3822CBD24BE}
+	EndGlobalSection
+EndGlobal
