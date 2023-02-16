@@ -4,9 +4,9 @@ using Fireflies.GraphQL.Core;
 namespace Fireflies.GraphQL.FederationDemo;
 
 public class AuthorOperations {
-    private readonly GraphQLContext _context;
+    private readonly IGraphQLContext _context;
 
-    public AuthorOperations(GraphQLContext context) {
+    public AuthorOperations(IGraphQLContext context) {
         _context = context;
     }
 

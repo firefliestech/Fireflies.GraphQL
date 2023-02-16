@@ -4,10 +4,10 @@ using Fireflies.GraphQL.Core;
 namespace Fireflies.GraphQL.Demo;
 
 public class BookOperations {
-    private readonly GraphQLContext _context;
+    private readonly IGraphQLContext _context;
     private readonly InventoryBook _inventoryBook;
 
-    public BookOperations(GraphQLContext context) {
+    public BookOperations(IGraphQLContext context) {
         _context = context;
         _inventoryBook = new InventoryBook {
             BookId = 1,

@@ -8,17 +8,17 @@ using Newtonsoft.Json;
 
 namespace Fireflies.GraphQL.Core;
 
-public class GraphQLEngine : ASTVisitor<GraphQLContext> {
+public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
     private readonly GraphQLOptions _options;
     private readonly IDependencyResolver _dependencyResolver;
     private FragmentAccessor? _fragmentAccessor;
     private VariableAccessor? _valueAccessor;
 
-    public GraphQLContext Context { get; }
+    public IGraphQLContext Context { get; }
 
     private static readonly JsonSerializerSettings JsonSerializerSettings = new() { Converters = new List<JsonConverter> { new Newtonsoft.Json.Converters.StringEnumConverter() }, NullValueHandling = NullValueHandling.Include };
 
-    public GraphQLEngine(GraphQLOptions options, IDependencyResolver dependencyResolver, GraphQLContext context) {
+    public GraphQLEngine(GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context) {
         _options = options;
         _dependencyResolver = dependencyResolver;
         Context = context;
@@ -93,7 +93,7 @@ public class GraphQLEngine : ASTVisitor<GraphQLContext> {
         };
     }
 
-    protected override async ValueTask VisitOperationDefinitionAsync(GraphQLOperationDefinition operationDefinition, GraphQLContext context) {
+    protected override async ValueTask VisitOperationDefinitionAsync(GraphQLOperationDefinition operationDefinition, IGraphQLContext context) {
         if(operationDefinition.Operation is OperationType.Query or OperationType.Mutation)
             context.IncreaseExpectedOperations(operationDefinition.SelectionSet.Selections.Count);
 

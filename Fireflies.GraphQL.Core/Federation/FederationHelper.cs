@@ -16,7 +16,7 @@ public static class FederationHelper {
         EnumerableMethod = typeof(FederationHelper).GetMethod(nameof(GetEnumerableResult), BindingFlags.NonPublic | BindingFlags.Static)!;
     }
 
-    public static async Task<T?> ExecuteRequest<T>(ASTNode astNode, GraphQLContext context, string url, OperationType operation) {
+    public static async Task<T?> ExecuteRequest<T>(ASTNode astNode, IGraphQLContext context, string url, OperationType operation) {
         var query = await CreateFederationQuery<T>(astNode, context);
         var result = await HttpClient.PostAsync(url, new StringContent(FederationQueryBuilder.BuildQuery(query, operation, "")));
         var jObject = JObject.Parse(await result.Content.ReadAsStringAsync());
@@ -26,7 +26,7 @@ public static class FederationHelper {
         return GetResult<T>(jObject["data"]?[field.Name.StringValue]);
     }
 
-    private static async Task<string> CreateFederationQuery<T>(ASTNode astNode, GraphQLContext context) {
+    private static async Task<string> CreateFederationQuery<T>(ASTNode astNode, IGraphQLContext context) {
         var typeNameAdder = new TypeNameAdder();
         await typeNameAdder.VisitAsync(astNode, context);
 
@@ -35,7 +35,7 @@ public static class FederationHelper {
         return writer.ToString();
     }
 
-    public static async IAsyncEnumerable<T> ExecuteSubscription<T>(ASTNode astNode, GraphQLContext context, string url, OperationType operation, string operationName) {
+    public static async IAsyncEnumerable<T> ExecuteSubscription<T>(ASTNode astNode, IGraphQLContext context, string url, OperationType operation, string operationName) {
         var query = await CreateFederationQuery<T>(astNode, context);
         var client = new FederationWebsocket<T>(FederationQueryBuilder.BuildQuery(query, operation, ""), url, context, operationName);
         await foreach(var value in client.Results())
@@ -54,7 +54,7 @@ public static class FederationHelper {
             return default;
 
         if(typeof(T).IsEnumerable(out var elementType)) {
-            return (T)EnumerableMethod.MakeGenericMethod(elementType).Invoke(null, new object[] { token });
+            return (T)EnumerableMethod.MakeGenericMethod(elementType).Invoke(null, new object[] { token })!;
         }
 
         return CreateInstance<T>(token);
@@ -100,8 +100,8 @@ public static class FederationHelper {
         }
     }
 
-    private class TypeNameAdder : ASTVisitor<GraphQLContext> {
-        protected override ValueTask VisitSelectionSetAsync(GraphQLSelectionSet selectionSet, GraphQLContext context) {
+    private class TypeNameAdder : ASTVisitor<IGraphQLContext> {
+        protected override ValueTask VisitSelectionSetAsync(GraphQLSelectionSet selectionSet, IGraphQLContext context) {
             if(!selectionSet.Selections.Any(x => x.Kind == ASTNodeKind.Field && ((GraphQLField)x).Name.StringValue == "__typename")) {
                 selectionSet.Selections.Add(new GraphQLField {
                     Name = new GraphQLName("__typename")

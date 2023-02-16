@@ -5,7 +5,7 @@ namespace Fireflies.GraphQL.Core;
 
 internal class FragmentAccessor {
     private readonly GraphQLDocument _document;
-    private readonly GraphQLContext _context;
+    private readonly IGraphQLContext _context;
     private Dictionary<string, GraphQLFragmentDefinition>? _fragments;
 
     private static readonly FragmentVisitor FragmentVisitorInstance;
@@ -14,7 +14,7 @@ internal class FragmentAccessor {
         FragmentVisitorInstance = new FragmentVisitor();
     }
 
-    public FragmentAccessor(GraphQLDocument document, GraphQLContext context) {
+    public FragmentAccessor(GraphQLDocument document, IGraphQLContext context) {
         _document = document;
         _context = context;
     }
@@ -37,9 +37,9 @@ internal class FragmentAccessor {
     }
 
     private class FragmentVisitorContext : IASTVisitorContext {
-        private readonly GraphQLContext _context;
+        private readonly IGraphQLContext _context;
 
-        public FragmentVisitorContext(GraphQLContext context) {
+        public FragmentVisitorContext(IGraphQLContext context) {
             _context = context;
         }
 

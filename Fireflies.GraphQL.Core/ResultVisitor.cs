@@ -7,25 +7,24 @@ using Newtonsoft.Json.Linq;
 
 namespace Fireflies.GraphQL.Core;
 
-internal class ResultVisitor : ASTVisitor<GraphQLContext> {
+internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     private readonly FragmentAccessor _fragments;
     private readonly VariableAccessor _variableAccessor;
-    private readonly GraphQLContext _context;
+    private readonly IGraphQLContext _context;
 
     private readonly Stack<Level> _stack = new();
 
-    public ResultVisitor(object data, JObject subResult, FragmentAccessor fragments, VariableAccessor variableAccessor, GraphQLContext context) {
+    public ResultVisitor(object data, JObject subResult, FragmentAccessor fragments, VariableAccessor variableAccessor, IGraphQLContext context) {
         _fragments = fragments;
         _variableAccessor = variableAccessor;
         _context = context;
         _stack.Push(new Level(data, subResult, 0));
     }
 
-    protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, GraphQLContext context) {
-        var pushed = false;
+    protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, IGraphQLContext context) {
         if(inlineFragment.TypeCondition != null) {
             var currentType = _stack.Peek();
-            var matching = currentType.Data.GetType().GetAllClassesThatImplements().FirstOrDefault(x => x.GraphQLName() == inlineFragment.TypeCondition.Type.Name);
+            var matching = currentType.Data!.GetType().GetAllClassesThatImplements().FirstOrDefault(x => x.GraphQLName() == inlineFragment.TypeCondition.Type.Name);
             if(matching != null) {
                 await base.VisitInlineFragmentAsync(inlineFragment, context);
             }
@@ -34,7 +33,7 @@ internal class ResultVisitor : ASTVisitor<GraphQLContext> {
         }
     }
 
-    protected override async ValueTask VisitFieldAsync(GraphQLField field, GraphQLContext context) {
+    protected override async ValueTask VisitFieldAsync(GraphQLField field, IGraphQLContext context) {
         var parentLevel = _stack.Peek();
         if(parentLevel.Data == null)
             return;
@@ -132,11 +131,11 @@ internal class ResultVisitor : ASTVisitor<GraphQLContext> {
         return await methodInfo.ExecuteMethod(parentLevel.Data!, arguments);
     }
 
-    protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, GraphQLContext context) {
+    protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, IGraphQLContext context) {
         await VisitAsync(await _fragments.GetFragment(fragmentSpread.FragmentName), context);
     }
 
-    protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, GraphQLContext context) {
+    protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, IGraphQLContext context) {
         foreach(var selection in fragmentDefinition.SelectionSet.Selections) {
             await VisitAsync(selection, context);
         }

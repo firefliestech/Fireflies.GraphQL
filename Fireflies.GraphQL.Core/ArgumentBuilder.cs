@@ -5,18 +5,18 @@ using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core;
 
-internal class ArgumentBuilder : ASTVisitor<GraphQLContext> {
+internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
     private readonly GraphQLArguments? _arguments;
     private readonly MethodInfo _methodInfo;
     private readonly VariableAccessor _variableAccessor;
-    private readonly GraphQLContext _context;
+    private readonly IGraphQLContext _context;
     private readonly Dictionary<string, ParameterInfo> _parameters;
 
     public Dictionary<string, object?> Values { get; set; } = new();
 
     private readonly Stack<object?> _stack = new();
 
-    public ArgumentBuilder(GraphQLArguments? arguments, MethodInfo methodInfo, VariableAccessor variableAccessor, GraphQLContext context) {
+    public ArgumentBuilder(GraphQLArguments? arguments, MethodInfo methodInfo, VariableAccessor variableAccessor, IGraphQLContext context) {
         _arguments = arguments;
         _methodInfo = methodInfo;
         _variableAccessor = variableAccessor;
@@ -38,7 +38,7 @@ internal class ArgumentBuilder : ASTVisitor<GraphQLContext> {
         }).ToArray();
     }
 
-    protected override async ValueTask VisitArgumentAsync(GraphQLArgument argument, GraphQLContext context) {
+    protected override async ValueTask VisitArgumentAsync(GraphQLArgument argument, IGraphQLContext context) {
         if(_parameters.TryGetValue(argument.Name.StringValue, out var parameterInfo)) {
             if(argument.Value.Kind == ASTNodeKind.ObjectValue) {
                 var value = Activator.CreateInstance(parameterInfo.ParameterType);
@@ -58,32 +58,32 @@ internal class ArgumentBuilder : ASTVisitor<GraphQLContext> {
         }
     }
 
-    protected override ValueTask VisitNullValueAsync(GraphQLNullValue nullValue, GraphQLContext context) {
+    protected override ValueTask VisitNullValueAsync(GraphQLNullValue nullValue, IGraphQLContext context) {
         _stack.Push(null);
         return base.VisitNullValueAsync(nullValue, context);
     }
 
-    protected override ValueTask VisitIntValueAsync(GraphQLIntValue intValue, GraphQLContext context) {
+    protected override ValueTask VisitIntValueAsync(GraphQLIntValue intValue, IGraphQLContext context) {
         _stack.Push(int.Parse(intValue.Value));
         return ValueTask.CompletedTask;
     }
 
-    protected override ValueTask VisitBooleanValueAsync(GraphQLBooleanValue booleanValue, GraphQLContext context) {
+    protected override ValueTask VisitBooleanValueAsync(GraphQLBooleanValue booleanValue, IGraphQLContext context) {
         _stack.Push(booleanValue.BoolValue);
         return ValueTask.CompletedTask;
     }
 
-    protected override ValueTask VisitStringValueAsync(GraphQLStringValue stringValue, GraphQLContext context) {
+    protected override ValueTask VisitStringValueAsync(GraphQLStringValue stringValue, IGraphQLContext context) {
         _stack.Push(stringValue.Value.ToString());
         return ValueTask.CompletedTask;
     }
 
-    protected override async ValueTask VisitVariableAsync(GraphQLVariable variable, GraphQLContext context) {
+    protected override async ValueTask VisitVariableAsync(GraphQLVariable variable, IGraphQLContext context) {
         var value = await _variableAccessor.GetValue(variable);
         _stack.Push(value);
     }
 
-    protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, GraphQLContext context) {
+    protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IGraphQLContext context) {
         var parent = _stack.Peek()!;
         var propertyField = parent.GetType().GetGraphQLProperty(objectField.Name.StringValue);
         if(Type.GetTypeCode(propertyField.PropertyType) == TypeCode.Object) {

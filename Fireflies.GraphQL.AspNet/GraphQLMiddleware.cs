@@ -30,12 +30,13 @@ public class GraphQLMiddleware {
 
         var requestLifetimeScope = CreateRequestLifetimeScope(httpContext);
         var engine = requestLifetimeScope.Resolve<GraphQLEngine>();
+        var options = requestLifetimeScope.Resolve<GraphQLContext>();
         var loggerFactory = requestLifetimeScope.Resolve<IFirefliesLoggerFactory>();
         var logger = loggerFactory.GetLogger<GraphQLMiddleware>();
 
         try {
             if(httpContext.WebSockets.IsWebSocketRequest) {
-                engine.Context.WebSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
+                options.WebSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
                 ProcessWebSocket(httpContext, engine, logger);
             } else {
                 var input = await new StreamReader(httpContext.Request.Body).ReadToEndAsync();
@@ -71,7 +72,9 @@ public class GraphQLMiddleware {
         return _options.DependencyResolver.BeginLifetimeScope(builder => {
             builder.RegisterInstance(_options.LoggerFactory);
             builder.RegisterInstance(httpContext);
-            builder.RegisterInstance(new GraphQLContext());
+            var graphQLContext = new GraphQLContext(httpContext);
+            builder.RegisterInstance(graphQLContext);
+            builder.RegisterInstance((IGraphQLContext)graphQLContext);
             if(_options.DependencyResolver.TryResolve<IRequestDependencyResolverBuilder>(out var innerBuilder)) {
                 innerBuilder!.Build(builder, httpContext);
             }

@@ -32,9 +32,9 @@ public class FederationGenerator {
         }
 
         var operationsTypeBuilder = _dynamicModule.DefineType("Operations", TypeAttributes.Class | TypeAttributes.Public, typeof(FederationBase));
-        var baseConstructor = typeof(FederationBase).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(GraphQLContext) })!;
+        var baseConstructor = typeof(FederationBase).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(IGraphQLContext) })!;
         var baseParameters = baseConstructor.GetParameters();
-        var constructorBuilder = operationsTypeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { typeof(GraphQLContext) });
+        var constructorBuilder = operationsTypeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { typeof(IGraphQLContext) });
         constructorBuilder.DefineParameter(1, ParameterAttributes.None, baseParameters[0].Name);
 
         var constructorIlGenerator = constructorBuilder.GetILGenerator();

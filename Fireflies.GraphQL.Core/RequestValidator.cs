@@ -6,19 +6,18 @@ using Fireflies.IoC.Abstractions;
 
 namespace Fireflies.GraphQL.Core;
 
-internal class RequestValidator : ASTVisitor<GraphQLContext> {
+internal class RequestValidator : ASTVisitor<IGraphQLContext> {
     private readonly GraphQLRequest _request;
     private readonly FragmentAccessor _fragments;
     private readonly GraphQLOptions _options;
     private readonly IDependencyResolver _dependencyResolver;
-    private readonly GraphQLContext _context;
+    private readonly IGraphQLContext _context;
     private readonly List<string> _errors = new();
     private readonly HashSet<string> _usedVariables = new();
     private readonly Stack<Type> _fieldStack = new();
-    private List<OperationDescriptor> _operations;
     private OperationType _operationType;
 
-    public RequestValidator(GraphQLRequest request, FragmentAccessor fragments, GraphQLOptions options, IDependencyResolver dependencyResolver, GraphQLContext context) {
+    public RequestValidator(GraphQLRequest request, FragmentAccessor fragments, GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context) {
         _request = request;
         _fragments = fragments;
         _options = options;
@@ -40,7 +39,7 @@ internal class RequestValidator : ASTVisitor<GraphQLContext> {
         }
     }
 
-    protected override ValueTask VisitVariableAsync(GraphQLVariable variable, GraphQLContext context) {
+    protected override ValueTask VisitVariableAsync(GraphQLVariable variable, IGraphQLContext context) {
         _usedVariables.Add(variable.Name.StringValue);
 
         if(!(_request.Variables?.ContainsKey(variable.Name.StringValue) ?? false))
@@ -49,7 +48,7 @@ internal class RequestValidator : ASTVisitor<GraphQLContext> {
         return ValueTask.CompletedTask;
     }
 
-    protected override ValueTask VisitOperationDefinitionAsync(GraphQLOperationDefinition operationDefinition, GraphQLContext context) {
+    protected override ValueTask VisitOperationDefinitionAsync(GraphQLOperationDefinition operationDefinition, IGraphQLContext context) {
         _operationType = operationDefinition.Operation;
 
         if(operationDefinition.Operation == OperationType.Subscription && !context.IsWebSocket) {
@@ -59,7 +58,7 @@ internal class RequestValidator : ASTVisitor<GraphQLContext> {
         return base.VisitOperationDefinitionAsync(operationDefinition, context);
     }
 
-    protected override async ValueTask VisitFieldAsync(GraphQLField field, GraphQLContext context) {
+    protected override async ValueTask VisitFieldAsync(GraphQLField field, IGraphQLContext context) {
         var pushed = false;
 
         if(_fieldStack.Count == 0) {
@@ -143,7 +142,7 @@ internal class RequestValidator : ASTVisitor<GraphQLContext> {
         }
     }
 
-    protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, GraphQLContext context) {
+    protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, IGraphQLContext context) {
         var pushed = false;
         if(inlineFragment.TypeCondition != null) {
             var currentType = _fieldStack.Peek();
@@ -160,7 +159,7 @@ internal class RequestValidator : ASTVisitor<GraphQLContext> {
             _fieldStack.Pop();
     }
 
-    private async Task ValidateSelectionSets(GraphQLField field, GraphQLContext context) {
+    private async Task ValidateSelectionSets(GraphQLField field, IGraphQLContext context) {
         var selections = field.SelectionSet?.Selections ?? Enumerable.Empty<ASTNode>();
         var currentType = _fieldStack.Peek();
         var currentTypeName = currentType.GetGraphQLType().GraphQLName();
@@ -172,7 +171,7 @@ internal class RequestValidator : ASTVisitor<GraphQLContext> {
             await VisitAsync(selection, context);
     }
 
-    private async Task ValidateFieldAgainstActualParameters(GraphQLField field, GraphQLContext context, IEnumerable<ParameterInfo> parameters) {
+    private async Task ValidateFieldAgainstActualParameters(GraphQLField field, IGraphQLContext context, IEnumerable<ParameterInfo> parameters) {
         var remainingParameters = parameters.ToList();
 
         foreach(var arg in field.Arguments ?? Enumerable.Empty<GraphQLArgument>()) {
@@ -190,11 +189,11 @@ internal class RequestValidator : ASTVisitor<GraphQLContext> {
         }
     }
 
-    protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, GraphQLContext context) {
+    protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, IGraphQLContext context) {
         await VisitAsync(await _fragments.GetFragment(fragmentSpread.FragmentName), context);
     }
 
-    protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, GraphQLContext context) {
+    protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, IGraphQLContext context) {
         if(_fieldStack.Count == 0)
             return;
 

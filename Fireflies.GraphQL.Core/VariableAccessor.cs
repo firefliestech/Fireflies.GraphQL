@@ -4,10 +4,10 @@ using GraphQLParser.Visitors;
 namespace Fireflies.GraphQL.Core;
 
 internal class VariableAccessor {
-    private readonly GraphQLContext _context;
+    private readonly IGraphQLContext _context;
     private readonly ValueVisitor _visitor;
 
-    public VariableAccessor(Dictionary<string, object>? variables, GraphQLContext context) {
+    public VariableAccessor(Dictionary<string, object>? variables, IGraphQLContext context) {
         _context = context;
         _visitor = new ValueVisitor(variables);
     }
@@ -60,9 +60,9 @@ internal class VariableAccessor {
     }
 
     private class ValueVisitorContext : IASTVisitorContext {
-        private readonly GraphQLContext _context;
+        private readonly IGraphQLContext _context;
 
-        public ValueVisitorContext(GraphQLContext context) {
+        public ValueVisitorContext(IGraphQLContext context) {
             _context = context;
         }
 

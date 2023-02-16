@@ -3,10 +3,10 @@
 namespace Fireflies.GraphQL.Core.Federation;
 
 public class FederationBase : IASTNodeHandler {
-    protected readonly GraphQLContext _context;
-    public ASTNode ASTNode { get; set; }
+    protected readonly IGraphQLContext _context;
+    public ASTNode ASTNode { get; set; } = null!;
 
-    public FederationBase(GraphQLContext context) {
+    public FederationBase(IGraphQLContext context) {
         _context = context;
     }
 }

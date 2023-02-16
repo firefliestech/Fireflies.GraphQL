@@ -8,13 +8,13 @@ using Newtonsoft.Json.Linq;
 
 namespace Fireflies.GraphQL.Core;
 
-internal class OperationVisitor : ASTVisitor<GraphQLContext> {
+internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
     private readonly GraphQLOptions _options;
     private readonly IDependencyResolver _dependencyResolver;
     private readonly FragmentAccessor _fragments;
     private readonly VariableAccessor _variableAccessor;
     private readonly OperationType _operationType;
-    private readonly GraphQLContext _context;
+    private readonly IGraphQLContext _context;
 
     private static readonly MethodInfo GetResultMethod = null!;
 
@@ -22,7 +22,7 @@ internal class OperationVisitor : ASTVisitor<GraphQLContext> {
         GetResultMethod = typeof(OperationVisitor).GetMethod(nameof(GetResult), BindingFlags.NonPublic | BindingFlags.Instance)!;
     }
 
-    public OperationVisitor(GraphQLOptions options, IDependencyResolver dependencyResolver, FragmentAccessor fragments, VariableAccessor variableAccessor, OperationType operationType, GraphQLContext context) {
+    public OperationVisitor(GraphQLOptions options, IDependencyResolver dependencyResolver, FragmentAccessor fragments, VariableAccessor variableAccessor, OperationType operationType, IGraphQLContext context) {
         _options = options;
         _dependencyResolver = dependencyResolver;
         _fragments = fragments;
@@ -31,7 +31,7 @@ internal class OperationVisitor : ASTVisitor<GraphQLContext> {
         _context = context;
     }
 
-    protected override async ValueTask VisitSelectionSetAsync(GraphQLSelectionSet selectionSet, GraphQLContext context) {
+    protected override async ValueTask VisitSelectionSetAsync(GraphQLSelectionSet selectionSet, IGraphQLContext context) {
         foreach(var selection in selectionSet.Selections) {
             switch(selection) {
                 case GraphQLField graphQLField:
