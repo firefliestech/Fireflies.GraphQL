@@ -1,10 +1,12 @@
-﻿using System.Reflection;
+﻿using System.Collections.Concurrent;
+using System.Reflection;
 using Fireflies.GraphQL.Contract;
 
 namespace Fireflies.GraphQL.Core.Extensions;
 
 internal static class ReflectionExtensions {
     private static readonly MethodInfo _internalExecuteMethod;
+    private static readonly ConcurrentDictionary<Type, Type[]> TypeImplementationsCache = new();
 
     static ReflectionExtensions() {
         _internalExecuteMethod = typeof(ReflectionExtensions).GetMethod(nameof(InternalExecuteMethod), BindingFlags.Static | BindingFlags.NonPublic);
@@ -14,6 +16,7 @@ internal static class ReflectionExtensions {
         if(member is TypeInfo { IsInterface: true } && member.Name.Length > 1 && member.Name[0] == 'I' && char.IsUpper(member.Name[1])) {
             return LowerCaseFirstLetter(member.Name.Substring(1));
         }
+
         return LowerCaseFirstLetter(member.Name);
     }
 
@@ -116,5 +119,15 @@ internal static class ReflectionExtensions {
         }
 
         return invokeResult;
+    }
+
+    public static IEnumerable<Type> GetAllClassesThatImplements(this Type baseType) {
+        return TypeImplementationsCache.GetOrAdd(baseType, _ =>
+                AppDomain.CurrentDomain
+                    .GetAssemblies()
+                    .SelectMany(x => x.GetTypes())
+                    .Where(x => x.IsClass && x.IsAssignableTo(baseType))
+                    .ToArray()
+            );
     }
 }

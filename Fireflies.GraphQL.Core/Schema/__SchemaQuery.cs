@@ -93,7 +93,7 @@ public class __SchemaQuery {
         }
 
         if(startingObject.IsInterface) {
-            foreach(var implementingType in GetAllClassesThatImplements(startingObject)) {
+            foreach(var implementingType in startingObject.GetAllClassesThatImplements()) {
                 types.Add(implementingType);
             }
         }
@@ -176,8 +176,8 @@ public class __SchemaQuery {
             if(type.IsInterface) {
                 return new __Type(fields) {
                     Name = baseType.GraphQLName(),
-                    Kind = __TypeKind.INTERFACE,
-                    PossibleTypes = GetAllClassesThatImplements(baseType).Select(x => CreateType(x, false)).ToArray()
+                    Kind = type.HasCustomAttribute<GraphQLUnionAttribute>() ? __TypeKind.UNION : __TypeKind.INTERFACE,
+                    PossibleTypes = baseType.GetAllClassesThatImplements().Select(x => CreateType(x, false)).ToArray()
                 };
             } else {
                 return new __Type(fields) {
@@ -201,13 +201,6 @@ public class __SchemaQuery {
                 Kind = __TypeKind.INPUT_OBJECT
             };
         }
-    }
-
-    private IEnumerable<Type> GetAllClassesThatImplements(Type baseType) {
-        return AppDomain.CurrentDomain
-            .GetAssemblies()
-            .SelectMany(x => x.GetTypes())
-            .Where(x => x.IsClass && x.IsAssignableTo(baseType));
     }
 
     private List<__Field> GetFields(Type baseType) {
