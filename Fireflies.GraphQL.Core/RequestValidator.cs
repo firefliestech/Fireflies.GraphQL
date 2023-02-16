@@ -86,6 +86,9 @@ internal class RequestValidator : ASTVisitor<GraphQLContext> {
         } else {
             var currentType = _fieldStack.Peek();
             var currentTypeName = currentType.GetGraphQLType().GraphQLName();
+            if(field.Name.StringValue == "__typename")
+                return;
+
             var member = currentType.GetGraphQLMemberInfo(field.Name.StringValue);
             if(member == null || member.DeclaringType == typeof(object)) {
                 _errors.Add($"Cannot query field \"{field.Name}\" on type \"{currentTypeName}\"");

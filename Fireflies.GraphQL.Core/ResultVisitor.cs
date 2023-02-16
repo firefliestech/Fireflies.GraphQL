@@ -30,7 +30,7 @@ internal class ResultVisitor : ASTVisitor<GraphQLContext> {
             return;
 
         var type = parentLevel.Data.GetType();
-        var memberInfo = type.GetMember(field.Name.StringValue, BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy | BindingFlags.IgnoreCase).First();
+        var memberInfo = type.GetMember(field.Name.StringValue, BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy | BindingFlags.IgnoreCase).FirstOrDefault();
 
         Type? fieldType;
         object? fieldValue;
@@ -46,7 +46,14 @@ internal class ResultVisitor : ASTVisitor<GraphQLContext> {
                 fieldValue = await InvokeMethod(field, methodInfo, parentLevel);
                 break;
             default:
-                throw new NotImplementedException();
+                if(field.Name.StringValue == "__typename") {
+                    fieldType = typeof(string);
+                    fieldValue = type.GraphQLName();
+                } else {
+                    throw new NotImplementedException();
+                }
+
+                break;
         }
 
         var isEnumerable = fieldType.IsAssignableTo(typeof(IEnumerable));
