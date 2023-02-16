@@ -11,6 +11,9 @@ internal static class ReflectionExtensions {
     }
 
     public static string GraphQLName(this MemberInfo member) {
+        if(member is TypeInfo { IsInterface: true } && member.Name.Length > 1 && member.Name[0] == 'I' && char.IsUpper(member.Name[1])) {
+            return LowerCaseFirstLetter(member.Name.Substring(1));
+        }
         return LowerCaseFirstLetter(member.Name);
     }
 
