@@ -80,6 +80,17 @@ public class __SchemaQuery {
         if(Type.GetTypeCode(startingObject) != TypeCode.Object)
             return;
 
+        if(startingObject.IsInterface) {
+            foreach(var impl in startingObject.GetAllClassesThatImplements())
+                FindAllTypes(types, impl);
+        } else {
+            foreach(var interf in startingObject.GetInterfaces()) {
+                FindAllTypes(types, interf);
+                foreach(var impl in interf.GetAllClassesThatImplements())
+                    FindAllTypes(types, impl);
+            }
+        }
+
         foreach(var method in startingObject.GetAllGraphQLMethods()) {
             foreach(var parameter in method.GetParameters()) {
                 FindAllTypes(types, parameter.ParameterType);
@@ -174,16 +185,25 @@ public class __SchemaQuery {
             }
 
             if(type.IsInterface) {
-                return new __Type(fields) {
+                var interfaceType = new __Type(fields) {
                     Name = baseType.GraphQLName(),
                     Kind = type.HasCustomAttribute<GraphQLUnionAttribute>() ? __TypeKind.UNION : __TypeKind.INTERFACE,
-                    PossibleTypes = baseType.GetAllClassesThatImplements().Select(x => CreateType(x, false)).ToArray()
                 };
+
+                if(!isTypeReference)
+                    interfaceType.PossibleTypes = baseType.GetAllClassesThatImplements().Select(x => CreateType(x, true)).ToArray();
+
+                return interfaceType;
             } else {
-                return new __Type(fields) {
+                var objectType = new __Type(fields) {
                     Name = baseType.GraphQLName(),
                     Kind = __TypeKind.OBJECT,
                 };
+
+                if(!isTypeReference)
+                    objectType.Interfaces = baseType.GetInterfaces().Select(x => CreateType(x, true)).Where(x => x.Kind == __TypeKind.INTERFACE).ToArray();
+
+                return objectType;
             }
         } else {
             var inputValues = new List<__InputValue>();
