@@ -13,6 +13,8 @@ public class __Field {
     public bool IsDeprecated { get; set; }
     public string? DeprecationReason { get; set; }
 
+    // ReSharper disable once UnusedMember.Global
+    // Used when Json.NET deserialize schema for federated queries
     public __Field() {
     }
 
@@ -20,17 +22,17 @@ public class __Field {
         Name = memberInfo.GraphQLName();
         Description = GetFieldDescription(memberInfo);
 
-        var deprecationAttribute = memberInfo.GetCustomAttribute<GraphQLDeprecatedAttribute>();
-        IsDeprecated = deprecationAttribute != null;
-        DeprecationReason = deprecationAttribute?.Reason;
+        var deprecatedReason = memberInfo.GetDeprecatedReason();
+        IsDeprecated = deprecatedReason != null;
+        DeprecationReason = deprecatedReason;
     }
 
     private string? GetFieldDescription(MemberInfo memberInfo) {
         string? description = null;
 
-        var descriptionAttribute = memberInfo.GetCustomAttribute<GraphQLDescriptionAttribute>();
+        var descriptionAttribute = memberInfo.GetDescription();
         if(descriptionAttribute != null)
-            description += descriptionAttribute.Description;
+            description += descriptionAttribute;
 
         var authorizationAttributes = memberInfo.GetCustomAttributes<GraphQLAuthorizationAttribute>();
         if(authorizationAttributes.Any()) {

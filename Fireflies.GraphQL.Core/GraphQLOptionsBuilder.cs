@@ -14,6 +14,7 @@ public class GraphQLOptionsBuilder {
     private string _url = "/graphql";
     private IFirefliesLoggerFactory _loggerFactory = new NullLoggerFactory();
     private readonly HashSet<(string Name, string Url)> _federations = new();
+    private string? _schemaDescription;
 
     public GraphQLOptionsBuilder() {
         _operationTypes.Add(typeof(__SchemaQuery));
@@ -29,6 +30,11 @@ public class GraphQLOptionsBuilder {
         return this;
     }
 
+    public GraphQLOptionsBuilder SetSchemaDescription(string schemaDescription) {
+        _schemaDescription = schemaDescription;
+        return this;
+    }
+
     public GraphQLOptionsBuilder SetUrl(string url) {
         _url = url;
         return this;
@@ -36,7 +42,8 @@ public class GraphQLOptionsBuilder {
 
     public async Task<GraphQLOptions> Build() {
         var options = new GraphQLOptions {
-            Url = _url
+            Url = _url,
+            SchemaDescription = _schemaDescription
         };
 
         foreach(var federation in _federations) {

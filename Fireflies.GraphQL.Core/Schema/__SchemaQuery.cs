@@ -27,7 +27,7 @@ public class __SchemaQuery {
 
         __Type? queryType = null;
         if(_options.QueryOperations.Any()) {
-            queryType = new __Type(CreateQueryFields(_options.QueryOperations)) {
+            queryType = new __Type(null, CreateQueryFields(_options.QueryOperations)) {
                 Name = "Query",
                 Kind = __TypeKind.OBJECT
             };
@@ -35,7 +35,7 @@ public class __SchemaQuery {
 
         __Type? mutationType = null;
         if(_options.MutationsOperations.Any()) {
-            mutationType = new __Type(CreateQueryFields(_options.MutationsOperations)) {
+            mutationType = new __Type(null, CreateQueryFields(_options.MutationsOperations)) {
                 Name = "Mutation",
                 Kind = __TypeKind.OBJECT,
             };
@@ -43,7 +43,7 @@ public class __SchemaQuery {
 
         __Type? subscriptionType = null;
         if(_options.SubscriptionOperations.Any()) {
-            subscriptionType = new __Type(CreateQueryFields(_options.SubscriptionOperations)) {
+            subscriptionType = new __Type(null, CreateQueryFields(_options.SubscriptionOperations)) {
                 Name = "Subscription",
                 Kind = __TypeKind.OBJECT
             };
@@ -58,6 +58,7 @@ public class __SchemaQuery {
             allTypesIncludingRootTypes = allTypesIncludingRootTypes.Union(new[] { subscriptionType });
 
         var schema = new __Schema {
+            Description = _options.SchemaDescription,
             QueryType = queryType,
             MutationType = mutationType,
             SubscriptionType = subscriptionType,
@@ -127,48 +128,48 @@ public class __SchemaQuery {
         var baseType = GetBaseType(type);
         if(baseType.IsEnum) {
             if(type.IsEnumerable(out _)) {
-                return new __Type {
+                return new __Type(baseType) {
                     Kind = __TypeKind.LIST,
                     OfType = WrapNullable(Nullable.GetUnderlyingType(baseType) != null, CreateType(baseType, true))
                 };
-            } else {
-                return new __Type(null, isTypeReference ? Array.Empty<__EnumValue>() : CreateEnumValues(baseType)) {
-                    Name = type.GraphQLName(),
-                    Kind = __TypeKind.ENUM,
-                };
             }
+
+            return new __Type(baseType, null, isTypeReference ? Array.Empty<__EnumValue>() : CreateEnumValues(baseType)) {
+                Name = type.GraphQLName(),
+                Kind = __TypeKind.ENUM,
+            };
         }
 
         if(type.IsEnumerable()) {
-            return new __Type {
+            return new __Type(type) {
                 Kind = __TypeKind.LIST,
                 OfType = WrapNullable(Nullable.GetUnderlyingType(baseType) != null, CreateType(baseType, true))
             };
         }
 
         if(baseType == typeof(int)) {
-            return new __Type {
+            return new __Type(type) {
                 Name = "Int",
                 Kind = __TypeKind.SCALAR,
             };
         }
 
         if(baseType == typeof(string)) {
-            return new __Type {
+            return new __Type(type) {
                 Name = "String",
                 Kind = __TypeKind.SCALAR
             };
         }
 
         if(baseType == typeof(bool)) {
-            return new __Type {
+            return new __Type(type) {
                 Name = "Boolean",
                 Kind = __TypeKind.SCALAR
             };
         }
 
         if(baseType == typeof(decimal)) {
-            return new __Type {
+            return new __Type(type) {
                 Name = "Float",
                 Kind = __TypeKind.SCALAR,
             };
@@ -185,9 +186,10 @@ public class __SchemaQuery {
             }
 
             if(type.IsInterface) {
-                var interfaceType = new __Type(fields) {
+                var interfaceType = new __Type(type, fields) {
                     Name = baseType.GraphQLName(),
                     Kind = type.HasCustomAttribute<GraphQLUnionAttribute>() ? __TypeKind.UNION : __TypeKind.INTERFACE,
+                    Description = baseType.GetDescription()
                 };
 
                 if(!isTypeReference)
@@ -195,9 +197,10 @@ public class __SchemaQuery {
 
                 return interfaceType;
             } else {
-                var objectType = new __Type(fields) {
+                var objectType = new __Type(type, fields) {
                     Name = baseType.GraphQLName(),
                     Kind = __TypeKind.OBJECT,
+                    Description = baseType.GetDescription()
                 };
 
                 if(!isTypeReference)
@@ -211,14 +214,15 @@ public class __SchemaQuery {
             foreach(var property in baseType.GetAllGraphQLProperties()) {
                 inputValues.Add(new __InputValue {
                     Name = property.GraphQLName(),
-                    Type = WrapNullable(NullabilityChecker.IsNullable(property),
-                        CreateType(property.PropertyType, true))
+                    Type = WrapNullable(NullabilityChecker.IsNullable(property), CreateType(property.PropertyType, true)),
+                    Description = property.GetDescription()
                 });
             }
 
-            return new __Type(inputValues: inputValues) {
+            return new __Type(baseType, inputValues: inputValues) {
                 Name = baseType.GraphQLName(),
-                Kind = __TypeKind.INPUT_OBJECT
+                Kind = __TypeKind.INPUT_OBJECT,
+                Description = baseType.GetDescription()
             };
         }
     }
@@ -250,7 +254,8 @@ public class __SchemaQuery {
             args.Add(new __InputValue {
                 Name = parameter.GraphQLName(),
                 Type = CreateType(parameter.ParameterType, true),
-                DefaultValue = GetDefaultValue(parameter)
+                DefaultValue = GetDefaultValue(parameter),
+                Description = parameter.GetDescription()
             });
         }
 
@@ -274,7 +279,7 @@ public class __SchemaQuery {
             return typeToBeWrapped;
         }
 
-        return new __Type {
+        return new __Type(null) {
             Kind = __TypeKind.NON_NULL,
             OfType = typeToBeWrapped
         };
@@ -315,6 +320,11 @@ public class __SchemaQuery {
     }
 
     private __EnumValue[] CreateEnumValues(Type type) {
-        return Enum.GetNames(type).Select(x => new __EnumValue { Name = x }).ToArray();
+        return Enum.GetNames(type).Select(x => {
+            var fieldInfo = type.GetField(x)!;
+            var deprecationReason  = fieldInfo.GetDeprecatedReason();
+            var description = fieldInfo.GetDescription();
+            return new __EnumValue { Name = x, Description = description, DeprecationReason = deprecationReason };
+        }).ToArray();
     }
 }

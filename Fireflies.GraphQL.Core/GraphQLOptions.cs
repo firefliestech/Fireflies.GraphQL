@@ -12,4 +12,5 @@ public class GraphQLOptions {
     internal List<OperationDescriptor> QueryOperations { get; } = new();
     internal List<OperationDescriptor> MutationsOperations { get; } = new();
     internal List<OperationDescriptor> SubscriptionOperations { get; } = new();
+    internal string SchemaDescription { get; set; }
 }

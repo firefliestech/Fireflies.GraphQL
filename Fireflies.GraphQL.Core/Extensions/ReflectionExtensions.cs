@@ -36,7 +36,19 @@ internal static class ReflectionExtensions {
     }
 
     public static bool HasCustomAttribute<T>(this MemberInfo memberInfo) where T : Attribute {
-        return memberInfo.GetCustomAttributes<T>(true).Any();
+        return memberInfo.HasCustomAttribute<T>(out _);
+    }
+
+    public static bool HasCustomAttribute<T>(this MemberInfo memberInfo, out T? attribute) where T : Attribute {
+        var attributes = memberInfo.GetCustomAttributes<T>(true);
+        attribute = attributes.FirstOrDefault();
+        return attribute != null;
+    }
+
+    public static bool HasCustomAttribute<T>(this ParameterInfo parameterInfo, out T? attribute) where T : Attribute {
+        var attributes = parameterInfo.GetCustomAttributes<T>(true);
+        attribute = attributes.FirstOrDefault();
+        return attribute != null;
     }
 
     public static Type GetGraphQLType(this Type type) {
@@ -123,11 +135,31 @@ internal static class ReflectionExtensions {
 
     public static IEnumerable<Type> GetAllClassesThatImplements(this Type baseType) {
         return TypeImplementationsCache.GetOrAdd(baseType, _ =>
-                AppDomain.CurrentDomain
-                    .GetAssemblies()
-                    .SelectMany(x => x.GetTypes())
-                    .Where(x => x.IsClass && x.IsAssignableTo(baseType))
-                    .ToArray()
-            );
+            AppDomain.CurrentDomain
+                .GetAssemblies()
+                .SelectMany(x => x.GetTypes())
+                .Where(x => x.IsClass && x.IsAssignableTo(baseType))
+                .ToArray());
+    }
+
+    public static string? GetDescription(this MemberInfo memberInfo) {
+        if(memberInfo.HasCustomAttribute<GraphQLDescriptionAttribute>(out var attribute))
+            return attribute!.Description;
+
+        return null;
+    }
+
+    public static string? GetDescription(this ParameterInfo parameterInfo) {
+        if(parameterInfo.HasCustomAttribute<GraphQLDescriptionAttribute>(out var attribute))
+            return attribute!.Description;
+
+        return null;
+    }
+
+    public static string? GetDeprecatedReason(this MemberInfo memberInfo) {
+        if(memberInfo.HasCustomAttribute<GraphQLDeprecatedAttribute>(out var attribute))
+            return attribute!.Reason;
+
+        return null;
     }
 }
