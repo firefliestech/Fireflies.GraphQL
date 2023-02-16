@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Reflection;
-using Fireflies.GraphQL.Contract;
+using Fireflies.GraphQL.Abstractions;
 
 namespace Fireflies.GraphQL.Core.Extensions;
 

@@ -13,13 +13,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.IoC.Autofac", "Io
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "IoC", "IoC", "{29D825DB-FF7E-4807-9EA6-A766A4BA6541}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.IoC.Core", "IoC\Fireflies.IoC.Core\Fireflies.IoC.Core.csproj", "{B28F5ACB-E314-414A-B509-D5BA632B9FFA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.IoC.Abstractions", "IoC\Fireflies.IoC.Abstractions\Fireflies.IoC.Abstractions.csproj", "{B28F5ACB-E314-414A-B509-D5BA632B9FFA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.GraphQL.Contract", "Fireflies.GraphQL.Contract\Fireflies.GraphQL.Contract.csproj", "{4ABEBE31-63C7-4591-93A5-A2FD846EF0E8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.GraphQL.Abstractions", "Fireflies.GraphQL.Abstractions\Fireflies.GraphQL.Abstractions.csproj", "{4ABEBE31-63C7-4591-93A5-A2FD846EF0E8}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Logging", "Logging", "{CFEEDE25-87E4-4241-9F3B-8183067F07A9}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.Logging.Core", "Logging\Fireflies.Logging.Core\Fireflies.Logging.Core.csproj", "{120CE59C-A15F-4DAB-A379-376CC2A9AE42}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.Logging.Abstractions", "Logging\Fireflies.Logging.Abstractions\Fireflies.Logging.Abstractions.csproj", "{120CE59C-A15F-4DAB-A379-376CC2A9AE42}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.Logging.NLog", "Logging\Fireflies.Logging.NLog\Fireflies.Logging.NLog.csproj", "{CED1A59B-A5E0-4EE4-B478-5ACAB0578477}"
 EndProject

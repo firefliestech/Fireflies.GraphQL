@@ -1,5 +1,5 @@
 ﻿using System.Reflection;
-using Fireflies.GraphQL.Contract;
+using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Extensions;
 
 namespace Fireflies.GraphQL.Core.Schema;

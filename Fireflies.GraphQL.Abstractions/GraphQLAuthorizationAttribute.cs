@@ -1,4 +1,4 @@
-﻿namespace Fireflies.GraphQL.Contract;
+﻿namespace Fireflies.GraphQL.Abstractions;
 
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Method | AttributeTargets.Class)]
 public abstract class GraphQLAuthorizationAttribute : GraphQLAttribute {

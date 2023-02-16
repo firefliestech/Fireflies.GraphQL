@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Reflection;
 using Fireflies.GraphQL.Core.Extensions;
-using Fireflies.IoC.Core;
+using Fireflies.IoC.Abstractions;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 using Newtonsoft.Json.Linq;

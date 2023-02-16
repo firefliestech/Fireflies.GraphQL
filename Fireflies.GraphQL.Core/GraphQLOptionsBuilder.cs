@@ -3,9 +3,9 @@ using System.Reflection;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Schema;
-using Fireflies.IoC.Core;
+using Fireflies.IoC.Abstractions;
 using Fireflies.IoC.TinyIoC;
-using Fireflies.Logging.Core;
+using Fireflies.Logging.Abstractions;
 
 namespace Fireflies.GraphQL.Core;
 

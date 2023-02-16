@@ -1,4 +1,4 @@
-﻿using Fireflies.Logging.Core;
+﻿using Fireflies.Logging.Abstractions;
 using NLog;
 
 namespace Fireflies.Logging.NLog;

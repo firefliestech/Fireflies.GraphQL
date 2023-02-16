@@ -1,5 +1,5 @@
 using Fireflies.GraphQL.AspNet;
-using Fireflies.IoC.Core;
+using Fireflies.IoC.Abstractions;
 
 namespace Fireflies.GraphQL.FederationDemo; 
 

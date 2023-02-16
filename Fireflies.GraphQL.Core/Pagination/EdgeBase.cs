@@ -1,5 +1,5 @@
 ﻿using System.Reflection;
-using Fireflies.GraphQL.Contract;
+using Fireflies.GraphQL.Abstractions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 

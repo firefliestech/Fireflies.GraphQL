@@ -1,5 +1,4 @@
-﻿using Fireflies.IoC.Core;
-using TinyIoC;
+﻿using Fireflies.IoC.Abstractions;
 
 namespace Fireflies.IoC.TinyIoC;
 

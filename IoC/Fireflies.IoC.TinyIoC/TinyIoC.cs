@@ -90,20 +90,16 @@
 #endif
 
 #endregion
+
+using System.Reflection;
 #if SERIALIZABLE
 using System.Runtime.Serialization;
 #endif
 
-namespace TinyIoC
+namespace Fireflies.IoC.TinyIoC
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Reflection;
-
 #if EXPRESSIONS
     using System.Linq.Expressions;
-    using System.Threading;
 
 #endif
 

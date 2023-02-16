@@ -4,6 +4,9 @@
 		<TargetFramework>net6.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<Authors>Fireflies.Tech</Authors>
+		<Description>Fireflies GraphQL asp.net middleware</Description>
+		<Copyright>2023 Fireflies.tech</Copyright>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -13,7 +16,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Fireflies.GraphQL.Core\Fireflies.GraphQL.Core.csproj" />
-		<ProjectReference Include="..\IoC\Fireflies.IoC.Core\Fireflies.IoC.Core.csproj" />
+		<ProjectReference Include="..\IoC\Fireflies.IoC.Abstractions\Fireflies.IoC.Abstractions.csproj" />
 	</ItemGroup>
 
 </Project>

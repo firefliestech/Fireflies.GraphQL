@@ -1,4 +1,4 @@
-﻿namespace Fireflies.IoC.Core;
+﻿namespace Fireflies.IoC.Abstractions;
 
 public interface IDependencyResolver : IDisposable {
     IDependencyResolver BeginLifetimeScope(Action<ILifetimeScopeBuilder> builder);

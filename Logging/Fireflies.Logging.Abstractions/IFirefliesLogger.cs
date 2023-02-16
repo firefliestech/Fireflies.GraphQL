@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel;
 
-namespace Fireflies.Logging.Core;
+namespace Fireflies.Logging.Abstractions;
 
 public interface IFirefliesLogger {
     void Error(Exception exception, [Localizable(false)] string message);

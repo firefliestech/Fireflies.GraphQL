@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>$author$</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <description>$description$</description>
+    <copyright>$copyright$</copyright>
+    <tags>fireflies logging nlog</tags>
+  </metadata>
+  <dependencies>
+    <dependency id="Fireflies.Logging.Abstractions" version="$version$" />
+    <dependency id="NLog" version="5.1.1" />
+  </dependencies>
+</package>

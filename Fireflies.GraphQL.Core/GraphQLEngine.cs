@@ -1,4 +1,4 @@
-﻿using Fireflies.IoC.Core;
+﻿using Fireflies.IoC.Abstractions;
 using GraphQLParser;
 using GraphQLParser.AST;
 using GraphQLParser.Exceptions;

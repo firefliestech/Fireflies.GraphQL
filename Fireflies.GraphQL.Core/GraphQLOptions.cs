@@ -1,5 +1,5 @@
-﻿using Fireflies.IoC.Core;
-using Fireflies.Logging.Core;
+﻿using Fireflies.IoC.Abstractions;
+using Fireflies.Logging.Abstractions;
 
 namespace Fireflies.GraphQL.Core;
 

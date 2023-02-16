@@ -1,4 +1,4 @@
-﻿namespace Fireflies.IoC.Core;
+﻿namespace Fireflies.IoC.Abstractions;
 
 public interface ILifetimeScopeBuilder {
     void RegisterType<T>() where T : notnull;

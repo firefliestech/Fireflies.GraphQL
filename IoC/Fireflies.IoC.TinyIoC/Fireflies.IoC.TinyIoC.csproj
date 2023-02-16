@@ -1,13 +1,16 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+	<Authors>Fireflies.Tech</Authors>
+	<Description>Fireflies IoC TinyIoC integration</Description>
+	<Copyright>2023 Fireflies.tech</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Fireflies.IoC.Core\Fireflies.IoC.Core.csproj" />
+    <ProjectReference Include="..\Fireflies.IoC.Abstractions\Fireflies.IoC.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

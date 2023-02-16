@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
-using Fireflies.GraphQL.Contract;
+using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Schema;
 using GraphQLParser.AST;
 using Newtonsoft.Json.Linq;

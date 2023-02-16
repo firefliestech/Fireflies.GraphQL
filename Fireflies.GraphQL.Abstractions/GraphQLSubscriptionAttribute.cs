@@ -1,4 +1,4 @@
-﻿namespace Fireflies.GraphQL.Contract;
+﻿namespace Fireflies.GraphQL.Abstractions;
 
 public class GraphQLSubscriptionAttribute : GraphQLOperationAttribute {
 }

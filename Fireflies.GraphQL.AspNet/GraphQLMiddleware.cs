@@ -1,8 +1,8 @@
 ﻿using System.Net;
 using System.Net.WebSockets;
 using Fireflies.GraphQL.Core;
-using Fireflies.IoC.Core;
-using Fireflies.Logging.Core;
+using Fireflies.IoC.Abstractions;
+using Fireflies.Logging.Abstractions;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 

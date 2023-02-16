@@ -2,7 +2,7 @@
 using GraphQLParser.Visitors;
 using System.Reflection;
 using Fireflies.GraphQL.Core.Extensions;
-using Fireflies.IoC.Core;
+using Fireflies.IoC.Abstractions;
 
 namespace Fireflies.GraphQL.Core;
 

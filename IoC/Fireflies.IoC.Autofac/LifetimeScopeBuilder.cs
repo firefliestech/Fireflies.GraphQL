@@ -1,5 +1,5 @@
 ﻿using Autofac;
-using Fireflies.IoC.Core;
+using Fireflies.IoC.Abstractions;
 
 namespace Fireflies.IoC.Autofac;
 

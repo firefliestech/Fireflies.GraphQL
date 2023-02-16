@@ -1,10 +1,10 @@
 ﻿using Autofac;
-using Fireflies.IoC.Core;
+using Fireflies.IoC.Abstractions;
 
 namespace Fireflies.IoC.Autofac;
 
 public class AutofacDependencyResolver : IDependencyResolver {
-    private ILifetimeScope _rootContainer;
+    private ILifetimeScope _rootContainer = null!;
 
     internal AutofacDependencyResolver() {
     }

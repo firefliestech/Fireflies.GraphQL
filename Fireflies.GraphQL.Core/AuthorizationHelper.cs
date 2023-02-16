@@ -1,6 +1,6 @@
-﻿using Fireflies.GraphQL.Contract;
-using Fireflies.IoC.Core;
-using System.Reflection;
+﻿using System.Reflection;
+using Fireflies.GraphQL.Abstractions;
+using Fireflies.IoC.Abstractions;
 
 namespace Fireflies.GraphQL.Core;
 

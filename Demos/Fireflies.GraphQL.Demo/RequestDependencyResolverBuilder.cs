@@ -1,6 +1,7 @@
 using Fireflies.GraphQL.AspNet;
-using Fireflies.GraphQL.Demo;
-using Fireflies.IoC.Core;
+using Fireflies.IoC.Abstractions;
+
+namespace Fireflies.GraphQL.Demo; 
 
 public class RequestDependencyResolverBuilder : IRequestDependencyResolverBuilder {
     public void Build(ILifetimeScopeBuilder builder, HttpContext context) {

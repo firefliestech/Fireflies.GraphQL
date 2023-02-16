@@ -1,4 +1,4 @@
-﻿using Fireflies.IoC.Core;
+﻿using Fireflies.IoC.Abstractions;
 using Microsoft.AspNetCore.Http;
 
 namespace Fireflies.GraphQL.AspNet;
