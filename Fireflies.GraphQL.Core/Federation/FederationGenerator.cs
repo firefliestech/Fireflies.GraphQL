@@ -13,14 +13,13 @@ public class FederationGenerator {
     private readonly ModuleBuilder _dynamicModule;
 
     private readonly Dictionary<string, Type> _nameLookup = new();
-    private readonly AssemblyName _assemblyName;
 
     public FederationGenerator((string Name, string Url) federation, __Schema federationSchema) {
         _federation = federation;
         _federationSchema = federationSchema;
 
-        _assemblyName = new AssemblyName($"Fireflies.GraphQL.Federation.{_federation.Name}.ProxyAssembly");
-        var dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(_assemblyName, AssemblyBuilderAccess.Run);
+        var assemblyName = new AssemblyName($"Fireflies.GraphQL.Federation.{_federation.Name}.ProxyAssembly");
+        var dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
 
         _dynamicModule = dynamicAssembly.DefineDynamicModule("Main");
     }
@@ -86,8 +85,8 @@ public class FederationGenerator {
 
         var fieldMethodILGenerator = methodBuilder.GetILGenerator();
 
-        var astNodeProperty = typeof(FederationBase).GetProperty(nameof(FederationBase.ASTNode), BindingFlags.Public | BindingFlags.Instance)!;
-        var contextField = typeof(FederationBase).GetField("_context", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var astNodeProperty = typeof(FederationBase).GetProperty(nameof(FederationBase.GraphQLNode), BindingFlags.Public | BindingFlags.Instance)!;
+        var contextField = typeof(FederationBase).GetField("GraphQLContext", BindingFlags.NonPublic | BindingFlags.Instance)!;
 
         fieldMethodILGenerator.Emit(OpCodes.Ldarg_0);
         fieldMethodILGenerator.EmitCall(OpCodes.Call, astNodeProperty.GetMethod!, Type.EmptyTypes);
@@ -163,7 +162,7 @@ public class FederationGenerator {
             if(interfaceType != null) {
                 var overridingMethod = interfaceType.GetMethod(field.Name, BindingFlags.Public | BindingFlags.Instance);
                 if(overridingMethod != null) {
-                    generatedType.DefineMethodOverride(fieldMethod, overridingMethod!);
+                    generatedType.DefineMethodOverride(fieldMethod, overridingMethod);
                 }
             }
 
@@ -172,7 +171,7 @@ public class FederationGenerator {
 
             if(!isInterface) {
                 var valueMethod = typeof(FederationHelper).GetMethod(nameof(FederationHelper.GetField), BindingFlags.Static | BindingFlags.Public)!.MakeGenericMethod(returnType);
-                var instanceField = baseType!.GetField("_data", BindingFlags.NonPublic | BindingFlags.Instance)!;
+                var instanceField = typeof(FederationEntity).GetField("GraphQLData", BindingFlags.NonPublic | BindingFlags.Instance)!;
 
                 var fieldMethodILGenerator = fieldMethod.GetILGenerator();
                 fieldMethodILGenerator.Emit(OpCodes.Ldarg_0);

@@ -40,7 +40,7 @@ public class FederationWebsocket<T> {
             var content = System.Text.Encoding.UTF8.GetString(bytes);
             var json = JsonConvert.DeserializeObject<JObject>(content);
 
-            var data = json["data"]?[_operationName];
+            var data = json?["data"]?[_operationName];
             if(data == null)
                 continue;
 

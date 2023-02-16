@@ -11,8 +11,8 @@ namespace Fireflies.GraphQL.Core;
 public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
     private readonly GraphQLOptions _options;
     private readonly IDependencyResolver _dependencyResolver;
-    private FragmentAccessor? _fragmentAccessor;
-    private VariableAccessor? _valueAccessor;
+    private FragmentAccessor _fragmentAccessor = null!;
+    private VariableAccessor _valueAccessor = null!;
 
     public IGraphQLContext Context { get; }
 
@@ -97,7 +97,7 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
         if(operationDefinition.Operation is OperationType.Query or OperationType.Mutation)
             context.IncreaseExpectedOperations(operationDefinition.SelectionSet.Selections.Count);
 
-        var visitor = new OperationVisitor(_options, _dependencyResolver, _fragmentAccessor!, _valueAccessor!, operationDefinition.Operation, context);
+        var visitor = new OperationVisitor(_options, _dependencyResolver, _fragmentAccessor, _valueAccessor, operationDefinition.Operation, context);
         await visitor.VisitAsync(operationDefinition, context);
     }
 }

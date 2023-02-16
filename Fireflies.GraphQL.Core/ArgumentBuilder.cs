@@ -41,8 +41,8 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
     protected override async ValueTask VisitArgumentAsync(GraphQLArgument argument, IGraphQLContext context) {
         if(_parameters.TryGetValue(argument.Name.StringValue, out var parameterInfo)) {
             if(argument.Value.Kind == ASTNodeKind.ObjectValue) {
-                var value = Activator.CreateInstance(parameterInfo.ParameterType);
-                _stack.Push(value!);
+                var value = Activator.CreateInstance(parameterInfo.ParameterType)!;
+                _stack.Push(value);
                 await VisitAsync(argument.Value, context);
                 Values[parameterInfo.Name!] = _stack.Pop();
             } else {
@@ -87,8 +87,8 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
         var parent = _stack.Peek()!;
         var propertyField = parent.GetType().GetGraphQLProperty(objectField.Name.StringValue);
         if(Type.GetTypeCode(propertyField.PropertyType) == TypeCode.Object) {
-            var value = Activator.CreateInstance(propertyField.PropertyType);
-            _stack.Push(value!);
+            var value = Activator.CreateInstance(propertyField.PropertyType)!;
+            _stack.Push(value);
             await VisitAsync(objectField.Value, context);
             propertyField.SetValue(parent, _stack.Pop());
         } else {

@@ -15,7 +15,7 @@ public static class FederationHelper {
     }
 
     public static async Task<T?> ExecuteRequest<T>(ASTNode astNode, IGraphQLContext context, string url, OperationType operation) {
-        var query = await CreateFederationQuery<T>(astNode, context);
+        var query = await CreateFederationQuery(astNode, context);
 
         var request = new HttpRequestMessage(HttpMethod.Post, url);
         foreach(var item in context.RequestHeaders)
@@ -30,20 +30,20 @@ public static class FederationHelper {
         return GetResult<T>(jObject["data"]?[field.Name.StringValue]);
     }
 
-    private static async Task<string> CreateFederationQuery<T>(ASTNode astNode, IGraphQLContext context) {
+    public static async IAsyncEnumerable<T> ExecuteSubscription<T>(ASTNode astNode, IGraphQLContext context, string url, OperationType operation, string operationName) {
+        var query = await CreateFederationQuery(astNode, context);
+        var client = new FederationWebsocket<T>(FederationQueryBuilder.BuildQuery(query, operation, ""), url, context, operationName);
+        await foreach(var value in client.Results())
+            yield return value;
+    }
+
+    private static async Task<string> CreateFederationQuery(ASTNode astNode, IGraphQLContext context) {
         var typeNameAdder = new TypeNameAdder();
         await typeNameAdder.VisitAsync(astNode, context);
 
         var writer = new StringWriter();
         await new SDLPrinter().PrintAsync(astNode, writer, context.CancellationToken);
         return writer.ToString();
-    }
-
-    public static async IAsyncEnumerable<T> ExecuteSubscription<T>(ASTNode astNode, IGraphQLContext context, string url, OperationType operation, string operationName) {
-        var query = await CreateFederationQuery<T>(astNode, context);
-        var client = new FederationWebsocket<T>(FederationQueryBuilder.BuildQuery(query, operation, ""), url, context, operationName);
-        await foreach(var value in client.Results())
-            yield return value;
     }
 
     public static T? GetField<T>(JObject? data, string field) {

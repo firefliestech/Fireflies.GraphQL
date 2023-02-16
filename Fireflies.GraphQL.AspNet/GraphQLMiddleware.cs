@@ -17,6 +17,7 @@ public class GraphQLMiddleware {
         _next = next;
     }
 
+    // ReSharper disable once UnusedMember.Global
     public async Task InvokeAsync(HttpContext httpContext) {
         if(!httpContext.Request.Path.StartsWithSegments(_options.Url)) {
             await _next(httpContext);
@@ -61,6 +62,7 @@ public class GraphQLMiddleware {
                 try {
                     await engine.Context.WebSocket!.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
                 } catch {
+                    // Noop
                 }
             }
 

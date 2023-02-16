@@ -72,9 +72,9 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
         var fieldName = field.Alias?.Name.StringValue ?? field.Name.StringValue;
         if(field.SelectionSet == null) {
             if(fieldType.IsEnumerable(out _)) {
-                parentLevel.Add(fieldName, new JArray(fieldValue));
+                parentLevel.Add(fieldName, fieldValue != null ? new JArray(fieldValue) : null);
             } else {
-                parentLevel.Add(fieldName, new JValue(fieldValue));
+                parentLevel.Add(fieldName, fieldValue != null ? new JValue(fieldValue) : null);
             }
         } else {
             if(fieldValue == null) {

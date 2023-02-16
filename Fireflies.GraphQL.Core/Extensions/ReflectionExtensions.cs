@@ -5,11 +5,11 @@ using Fireflies.GraphQL.Abstractions;
 namespace Fireflies.GraphQL.Core.Extensions;
 
 internal static class ReflectionExtensions {
-    private static readonly MethodInfo _internalExecuteMethod;
+    private static readonly MethodInfo InternalExecuteMethodInfo;
     private static readonly ConcurrentDictionary<Type, Type[]> TypeImplementationsCache = new();
 
     static ReflectionExtensions() {
-        _internalExecuteMethod = typeof(ReflectionExtensions).GetMethod(nameof(InternalExecuteMethod), BindingFlags.Static | BindingFlags.NonPublic)!;
+        InternalExecuteMethodInfo = typeof(ReflectionExtensions).GetMethod(nameof(InternalExecuteMethod), BindingFlags.Static | BindingFlags.NonPublic)!;
     }
 
     public static string GraphQLName(this MemberInfo member) {
@@ -21,7 +21,7 @@ internal static class ReflectionExtensions {
     }
 
     public static string GraphQLName(this ParameterInfo parameter) {
-        return LowerCaseFirstLetter(parameter.Name);
+        return LowerCaseFirstLetter(parameter.Name!);
     }
 
     private static string LowerCaseFirstLetter(string name) {
@@ -106,7 +106,7 @@ internal static class ReflectionExtensions {
         var returnType = methodInfo.ReturnType;
         if(returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
             returnType = returnType.GetGenericArguments()[0];
-        var result = await (Task<object?>)_internalExecuteMethod.MakeGenericMethod(returnType).Invoke(null, new[] { methodInfo, instance, arguments })!;
+        var result = await (Task<object?>)InternalExecuteMethodInfo.MakeGenericMethod(returnType).Invoke(null, new[] { methodInfo, instance, arguments })!;
         return result;
     }
 

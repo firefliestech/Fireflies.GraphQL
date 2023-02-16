@@ -167,8 +167,15 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             _errors.Add($"Field of type \"{field.Name}\" of type \"{currentTypeName}\" must have a selection of sub fields");
         }
 
-        foreach(var selection in selections)
+        var any = false;
+        foreach(var selection in selections) {
+            any = true;
             await VisitAsync(selection, context);
+        }
+
+        if(!any) {
+
+        }
     }
 
     private async Task ValidateFieldAgainstActualParameters(GraphQLField field, IGraphQLContext context, IEnumerable<ParameterInfo> parameters) {

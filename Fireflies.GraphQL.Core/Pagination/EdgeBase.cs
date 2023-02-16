@@ -6,6 +6,7 @@ using Newtonsoft.Json.Linq;
 namespace Fireflies.GraphQL.Core.Pagination;
 
 public abstract class EdgeBase<TBase> {
+    // ReSharper disable once StaticMemberInGenericType
     private static readonly IEnumerable<PropertyInfo> IdProperties;
 
     static EdgeBase() {

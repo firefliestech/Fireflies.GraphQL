@@ -16,15 +16,18 @@ internal static class AuthorizationHelper {
     }
 
     private static async Task Authorize(IDependencyResolver dependencyResolver, IEnumerable<GraphQLAuthorizationAttribute> authorizationAttributes) {
-        if(!authorizationAttributes.Any())
-            return;
+        var any = false;
 
         foreach(var authorizationAttribute in authorizationAttributes) {
+            any = true;
             var authorization = (GraphQLAuthorizationAttribute)dependencyResolver.Resolve(authorizationAttribute.GetType());
             if(await authorization.Authorize().ConfigureAwait(false)) {
                 return;
             }
         }
+
+        if(!any)
+            return;
 
         throw new GraphQLUnauthorizedException();
     }

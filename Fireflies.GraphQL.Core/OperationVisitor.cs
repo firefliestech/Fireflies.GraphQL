@@ -16,7 +16,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
     private readonly OperationType _operationType;
     private readonly IGraphQLContext _context;
 
-    private static readonly MethodInfo GetResultMethod = null!;
+    private static readonly MethodInfo GetResultMethod;
 
     static OperationVisitor() {
         GetResultMethod = typeof(OperationVisitor).GetMethod(nameof(GetResult), BindingFlags.NonPublic | BindingFlags.Instance)!;
@@ -40,12 +40,12 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                     var operations = _dependencyResolver.Resolve(operationDescriptor.Type);
 
                     if(operations is IASTNodeHandler astNodeHandler) {
-                        astNodeHandler.ASTNode = graphQLField;
+                        astNodeHandler.GraphQLNode = graphQLField;
                     }
                     var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _variableAccessor, _context);
 
                     var returnType = operationDescriptor.Method.DiscardTaskFromReturnType();
-                    var asyncEnumerable = (IAsyncEnumerable<object>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder, context.CancellationToken })!;
+                    var asyncEnumerable = (IAsyncEnumerable<object>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder })!;
                     await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken)) {
                         var jObject = new JObject();
 
@@ -90,14 +90,14 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
         };
     }
 
-    private async IAsyncEnumerable<object> GetResult<T>(OperationDescriptor operationDescriptor, object query, ArgumentBuilder argumentBuilder, CancellationToken cancellationToken) {
+    private async IAsyncEnumerable<object?> GetResult<T>(OperationDescriptor operationDescriptor, object query, ArgumentBuilder argumentBuilder) {
         var arguments = await argumentBuilder.Build();
         if(_operationType is OperationType.Query or OperationType.Mutation) {
             var resultTask = await operationDescriptor.Method.ExecuteMethod(query, arguments);
             yield return resultTask;
         } else {
             var asyncEnumerable = (IAsyncEnumerable<T>)operationDescriptor.Method.Invoke(query, arguments)!;
-            await foreach(var obj in asyncEnumerable.WithCancellation(cancellationToken)) {
+            await foreach(var obj in asyncEnumerable.WithCancellation(_context.CancellationToken)) {
                 yield return obj;
             }
         }

@@ -3,9 +3,9 @@
 namespace Fireflies.GraphQL.Core.Federation;
 
 public class FederationEntity {
-    protected readonly JObject _data;
+    protected readonly JObject GraphQLData;
 
     public FederationEntity(JObject data) {
-        _data = data;
+        GraphQLData = data;
     }
 }
