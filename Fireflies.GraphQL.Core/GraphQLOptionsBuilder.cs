@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Reflection;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Schema;
@@ -68,6 +69,9 @@ public class GraphQLOptionsBuilder {
                 }
             }
         });
+
+        var validator = new SchemaValidator(options.AllOperations);
+        validator.Validate();
 
         options.LoggerFactory = _loggerFactory;
 
