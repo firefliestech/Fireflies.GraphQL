@@ -143,7 +143,7 @@ internal class ResultVisitor : ASTVisitor<GraphQLContext> {
         public void Add(string fieldName, JToken? value) {
             switch(Result) {
                 case JObject jObject:
-                    jObject.Add(fieldName, value);
+                    jObject.TryAdd(fieldName, value);
                     return;
                 case JArray jArray:
                     jArray.Add(value);
