@@ -2,6 +2,7 @@
 using System.Reflection.Emit;
 using Fireflies.GraphQL.Contract;
 using Fireflies.GraphQL.Core.Schema;
+using GraphQLParser.AST;
 using Newtonsoft.Json.Linq;
 
 namespace Fireflies.GraphQL.Core.Federation;
@@ -42,28 +43,33 @@ public class FederationGenerator {
         constructorIlGenerator.Emit(OpCodes.Call, baseConstructor);
         constructorIlGenerator.Emit(OpCodes.Ret);
 
-        GenerateOperation(_federationSchema.QueryType?.Name, operationsTypeBuilder, mb => mb.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLQueryAttribute).GetConstructors().First(), Array.Empty<object>())));
-        GenerateOperation(_federationSchema.MutationType?.Name, operationsTypeBuilder, mb => mb.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLMutationAttribute).GetConstructors().First(), Array.Empty<object>())));
-        GenerateOperation(_federationSchema.SubscriptionType?.Name, operationsTypeBuilder, mb => mb.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLSubscriptionAttribute).GetConstructors().First(), Array.Empty<object>())));
+        GenerateOperation(OperationType.Query, operationsTypeBuilder);
+        GenerateOperation(OperationType.Mutation, operationsTypeBuilder);
+        GenerateOperation(OperationType.Subscription, operationsTypeBuilder);
 
         return operationsTypeBuilder.CreateType()!;
     }
 
-    private void GenerateOperation(string? typeName, TypeBuilder operationsType, Action<MethodBuilder> addExtrasCallback) {
-        var operationType = _federationSchema.Types.FirstOrDefault(t => t.Name == typeName);
-        if(operationType == null) {
+    private void GenerateOperation(OperationType operation, TypeBuilder operationsType) {
+        __Type? operationType = operation switch {
+            OperationType.Query => _federationSchema.Types.FirstOrDefault(t => t.Name == _federationSchema.QueryType?.Name),
+            OperationType.Mutation => _federationSchema.Types.FirstOrDefault(t => t.Name == _federationSchema.MutationType?.Name),
+            OperationType.Subscription => _federationSchema.Types.FirstOrDefault(t => t.Name == _federationSchema.SubscriptionType?.Name),
+            _ => throw new ArgumentOutOfRangeException(nameof(operation), operation, null)
+        };
+
+        if(operationType == null)
             return;
-        }
 
         foreach(var field in operationType.Fields(true)) {
             if(field.Name.StartsWith("__"))
                 continue;
 
-            GenerateOperation(operationsType, field, addExtrasCallback);
+            GenerateOperation(operation, operationsType, field);
         }
     }
 
-    private void GenerateOperation(TypeBuilder typeBuilder, __Field field, Action<MethodBuilder> addExtrasCallback) {
+    private void GenerateOperation(OperationType operation, TypeBuilder typeBuilder, __Field field) {
         var argTypes = new List<Type>();
         foreach(var argType in field.Args) {
             var argumentType = GetTypeFromSchemaType(argType.Type);
@@ -71,26 +77,48 @@ public class FederationGenerator {
         }
 
         var returnType = GetTypeFromSchemaType(field.Type);
-        var taskReturnType = typeof(Task<>).MakeGenericType(returnType);
+        var taskReturnType = operation == OperationType.Subscription ? typeof(IAsyncEnumerable<>).MakeGenericType(returnType) : typeof(Task<>).MakeGenericType(returnType);
+
         var methodBuilder = typeBuilder.DefineMethod(field.Name, MethodAttributes.Public, taskReturnType, argTypes.ToArray());
         DefineParameters(argTypes, methodBuilder, field);
         AddAttributes(field, methodBuilder);
+        AddOperationAttribute(operation, methodBuilder);
 
         var fieldMethodILGenerator = methodBuilder.GetILGenerator();
 
         var astNodeProperty = typeof(FederationBase).GetProperty(nameof(FederationBase.ASTNode), BindingFlags.Public | BindingFlags.Instance)!;
         var contextField = typeof(FederationBase).GetField("_context", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var executeMethod = typeof(FederationHelper).GetMethod(nameof(FederationHelper.ExecuteRequest), BindingFlags.Static | BindingFlags.Public)!.MakeGenericMethod(returnType);
 
         fieldMethodILGenerator.Emit(OpCodes.Ldarg_0);
         fieldMethodILGenerator.EmitCall(OpCodes.Call, astNodeProperty.GetMethod!, Type.EmptyTypes);
         fieldMethodILGenerator.Emit(OpCodes.Ldarg_0);
         fieldMethodILGenerator.Emit(OpCodes.Ldfld, contextField);
         fieldMethodILGenerator.Emit(OpCodes.Ldstr, _federation.Url);
-        fieldMethodILGenerator.EmitCall(OpCodes.Call, executeMethod, Type.EmptyTypes);
-        fieldMethodILGenerator.Emit(OpCodes.Ret);
+        fieldMethodILGenerator.Emit(OpCodes.Ldc_I4, (int)operation);
+        if (operation != OperationType.Subscription) {
+            var requestMethod = typeof(FederationHelper).GetMethod(nameof(FederationHelper.ExecuteRequest), BindingFlags.Static | BindingFlags.Public)!.MakeGenericMethod(returnType);
+            fieldMethodILGenerator.EmitCall(OpCodes.Call, requestMethod, Type.EmptyTypes);
+        } else {
+            var subscribeMethod = typeof(FederationHelper).GetMethod(nameof(FederationHelper.ExecuteSubscription), BindingFlags.Static | BindingFlags.Public)!.MakeGenericMethod(returnType);
+            fieldMethodILGenerator.Emit(OpCodes.Ldstr, field.Name);
+            fieldMethodILGenerator.EmitCall(OpCodes.Call, subscribeMethod, Type.EmptyTypes);
+        }
 
-        addExtrasCallback(methodBuilder);
+        fieldMethodILGenerator.Emit(OpCodes.Ret);
+    }
+
+    private static void AddOperationAttribute(OperationType operation, MethodBuilder methodBuilder) {
+        switch(operation) {
+            case OperationType.Query:
+                methodBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLQueryAttribute).GetConstructors().First(), Array.Empty<object>()));
+                break;
+            case OperationType.Mutation:
+                methodBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLMutationAttribute).GetConstructors().First(), Array.Empty<object>()));
+                break;
+            case OperationType.Subscription:
+                methodBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLSubscriptionAttribute).GetConstructors().First(), Array.Empty<object>()));
+                break;
+        }
     }
 
     private Type GenerateType(__Type schemaType, Action<TypeBuilder>? extras = null, Type? interfaceType = null) {
@@ -256,3 +284,9 @@ public class FederationGenerator {
         return type.Name is not ("Int" or "Float" or "String" or "Boolean" or "ID");
     }
 }
+
+//public class Test {
+//    public void X() {
+//        FederationHelper.ExecuteRequest<string>(OperationType.Mutation, null, null, null);
+//    }
+//}

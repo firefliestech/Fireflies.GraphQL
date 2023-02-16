@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Reflection;
 using System.Reflection.Emit;
 using Fireflies.GraphQL.Core.Extensions;
 using GraphQLParser.AST;
@@ -15,19 +16,30 @@ public static class FederationHelper {
         EnumerableMethod = typeof(FederationHelper).GetMethod(nameof(GetEnumerableResult), BindingFlags.NonPublic | BindingFlags.Static)!;
     }
 
-    public static async Task<T?> ExecuteRequest<T>(ASTNode astNode, GraphQLContext context, string url) {
-        var typeNameAdder = new TypeNameAdder();
-        await typeNameAdder.VisitAsync(astNode, context);
-
-        var writer = new StringWriter();
-        await new SDLPrinter().PrintAsync(astNode, writer, context.CancellationToken);
-
-        var result = await HttpClient.PostAsync(url, new StringContent(FederationQueryBuilder.BuildQuery(writer.ToString(), OperationType.Query, "")));
+    public static async Task<T?> ExecuteRequest<T>(ASTNode astNode, GraphQLContext context, string url, OperationType operation) {
+        var query = await CreateFederationQuery<T>(astNode, context);
+        var result = await HttpClient.PostAsync(url, new StringContent(FederationQueryBuilder.BuildQuery(query, operation, "")));
         var jObject = JObject.Parse(await result.Content.ReadAsStringAsync());
 
         var field = (GraphQLField)astNode;
 
         return GetResult<T>(jObject["data"]?[field.Name.StringValue]);
+    }
+
+    private static async Task<string> CreateFederationQuery<T>(ASTNode astNode, GraphQLContext context) {
+        var typeNameAdder = new TypeNameAdder();
+        await typeNameAdder.VisitAsync(astNode, context);
+
+        var writer = new StringWriter();
+        await new SDLPrinter().PrintAsync(astNode, writer, context.CancellationToken);
+        return writer.ToString();
+    }
+
+    public static async IAsyncEnumerable<T> ExecuteSubscription<T>(ASTNode astNode, GraphQLContext context, string url, OperationType operation, string operationName) {
+        var query = await CreateFederationQuery<T>(astNode, context);
+        var client = new FederationWebsocket<T>(FederationQueryBuilder.BuildQuery(query, operation, ""), url, context, operationName);
+        await foreach(var value in client.Results())
+            yield return value;
     }
 
     public static T? GetField<T>(JObject? data, string field) {
@@ -37,7 +49,7 @@ public static class FederationHelper {
         return GetResult<T>(data[field]);
     }
 
-    private static T? GetResult<T>(JToken? token) {
+    public static T? GetResult<T>(JToken? token) {
         if(token == null)
             return default;
 
