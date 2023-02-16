@@ -17,12 +17,16 @@ public class FederationWebsocket<T> {
         _context = context;
         _operationName = operationName;
         _client = new ClientWebSocket();
+        
+        foreach(var item in context.RequestHeaders)
+            _client.Options.SetRequestHeader(item.Key, string.Join(",", item));
     }
 
     public async IAsyncEnumerable<T> Results() {
         try {
             await _client.ConnectAsync(new Uri(_url.Replace("http://", "ws://").Replace("https://", "wss://")), _context.CancellationToken);
-        } catch(Exception ex) {
+        } catch(Exception) {
+            //TODO: Add logging
             yield break;
         }
 

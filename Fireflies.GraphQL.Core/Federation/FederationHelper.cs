@@ -1,6 +1,4 @@
-﻿using System;
-using System.Reflection;
-using System.Reflection.Emit;
+﻿using System.Reflection;
 using Fireflies.GraphQL.Core.Extensions;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
@@ -18,7 +16,13 @@ public static class FederationHelper {
 
     public static async Task<T?> ExecuteRequest<T>(ASTNode astNode, IGraphQLContext context, string url, OperationType operation) {
         var query = await CreateFederationQuery<T>(astNode, context);
-        var result = await HttpClient.PostAsync(url, new StringContent(FederationQueryBuilder.BuildQuery(query, operation, "")));
+
+        var request = new HttpRequestMessage(HttpMethod.Post, url);
+        foreach(var item in context.RequestHeaders)
+            request.Headers.TryAddWithoutValidation(item.Key, item.Value);
+        request.Content = new StringContent(FederationQueryBuilder.BuildQuery(query, operation, ""));
+
+        var result = await HttpClient.SendAsync(request, context.CancellationToken);
         var jObject = JObject.Parse(await result.Content.ReadAsStringAsync());
 
         var field = (GraphQLField)astNode;
