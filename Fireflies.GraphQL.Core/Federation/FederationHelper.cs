@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Reflection.Emit;
 using Fireflies.GraphQL.Core.Extensions;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
@@ -15,6 +16,9 @@ public static class FederationHelper {
     }
 
     public static async Task<T?> ExecuteRequest<T>(ASTNode astNode, GraphQLContext context, string url) {
+        var typeNameAdder = new TypeNameAdder();
+        await typeNameAdder.VisitAsync(astNode, context);
+
         var writer = new StringWriter();
         await new SDLPrinter().PrintAsync(astNode, writer, context.CancellationToken);
 
@@ -33,7 +37,7 @@ public static class FederationHelper {
         return GetResult<T>(data[field]);
     }
 
-    public static T? GetResult<T>(JToken? token) {
+    private static T? GetResult<T>(JToken? token) {
         if(token == null)
             return default;
 
@@ -73,7 +77,26 @@ public static class FederationHelper {
                 return token.Value<T>();
 
             default:
+                var typename = token.Value<string>("__typename");
+                if(typename != null) {
+                    var assembly = typeof(T).Assembly;
+                    var implementation = assembly.GetType(typename)!;
+                    return (T)Activator.CreateInstance(implementation, token)!;
+                }
+
                 return (T)Activator.CreateInstance(typeof(T), token)!;
+        }
+    }
+
+    private class TypeNameAdder : ASTVisitor<GraphQLContext> {
+        protected override ValueTask VisitSelectionSetAsync(GraphQLSelectionSet selectionSet, GraphQLContext context) {
+            if(!selectionSet.Selections.Any(x => x.Kind == ASTNodeKind.Field && ((GraphQLField)x).Name.StringValue == "__typename")) {
+                selectionSet.Selections.Add(new GraphQLField {
+                    Name = new GraphQLName("__typename")
+                });
+            }
+
+            return base.VisitSelectionSetAsync(selectionSet, context);
         }
     }
 }

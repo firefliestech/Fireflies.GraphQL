@@ -12,21 +12,22 @@ public class FederationGenerator {
     private readonly ModuleBuilder _dynamicModule;
 
     private readonly Dictionary<string, Type> _nameLookup = new();
+    private readonly AssemblyName _assemblyName;
 
     public FederationGenerator((string Name, string Url) federation, __Schema federationSchema) {
         _federation = federation;
         _federationSchema = federationSchema;
 
-        var assemblyName = new AssemblyName($"Fireflies.GraphQL.Federation.{_federation.Name}.ProxyAssembly");
-        var dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+        _assemblyName = new AssemblyName($"Fireflies.GraphQL.Federation.{_federation.Name}.ProxyAssembly");
+        var dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(_assemblyName, AssemblyBuilderAccess.Run);
 
         _dynamicModule = dynamicAssembly.DefineDynamicModule("Main");
     }
 
     public Type Generate() {
         var typesToGenerate = FindTypesToGenerate();
-        foreach(var type in typesToGenerate) {
-            GenerateType(type, tb => { });
+        foreach(var type in typesToGenerate.OrderBy(x => x.Kind is __TypeKind.INTERFACE or __TypeKind.UNION ? 0 : 1)) {
+            GenerateType(type, _ => { });
         }
 
         var operationsTypeBuilder = _dynamicModule.DefineType("Operations", TypeAttributes.Class | TypeAttributes.Public, typeof(FederationBase));
@@ -36,11 +37,8 @@ public class FederationGenerator {
         constructorBuilder.DefineParameter(1, ParameterAttributes.None, baseParameters[0].Name);
 
         var constructorIlGenerator = constructorBuilder.GetILGenerator();
-        var i = 0;
-        constructorIlGenerator.Emit(OpCodes.Ldarg_S, i++);
-        constructorIlGenerator.Emit(OpCodes.Ldarg_S, i++);
-        constructorIlGenerator.Emit(OpCodes.Ldstr, _federation.Url);
-        constructorIlGenerator.Emit(OpCodes.Ldstr, _federation.Name);
+        constructorIlGenerator.Emit(OpCodes.Ldarg_0);
+        constructorIlGenerator.Emit(OpCodes.Ldarg_1);
         constructorIlGenerator.Emit(OpCodes.Call, baseConstructor);
         constructorIlGenerator.Emit(OpCodes.Ret);
 
@@ -84,9 +82,9 @@ public class FederationGenerator {
         var contextField = typeof(FederationBase).GetField("_context", BindingFlags.NonPublic | BindingFlags.Instance)!;
         var executeMethod = typeof(FederationHelper).GetMethod(nameof(FederationHelper.ExecuteRequest), BindingFlags.Static | BindingFlags.Public)!.MakeGenericMethod(returnType);
 
-        //var executeRequest = typeof(FederationBase).GetMethod("ExecuteRequest", BindingFlags.NonPublic | BindingFlags.Instance)!.MakeGenericMethod(returnType);
         fieldMethodILGenerator.Emit(OpCodes.Ldarg_0);
         fieldMethodILGenerator.EmitCall(OpCodes.Call, astNodeProperty.GetMethod!, Type.EmptyTypes);
+        fieldMethodILGenerator.Emit(OpCodes.Ldarg_0);
         fieldMethodILGenerator.Emit(OpCodes.Ldfld, contextField);
         fieldMethodILGenerator.Emit(OpCodes.Ldstr, _federation.Url);
         fieldMethodILGenerator.EmitCall(OpCodes.Call, executeMethod, Type.EmptyTypes);
@@ -95,18 +93,34 @@ public class FederationGenerator {
         addExtrasCallback(methodBuilder);
     }
 
-    private Type GenerateType(__Type schemaType, Action<TypeBuilder> extras) {
+    private Type GenerateType(__Type schemaType, Action<TypeBuilder>? extras = null, Type? interfaceType = null) {
         var typeName = GenerateName(schemaType);
 
-        var baseType = typeof(FederationEntity);
-        var generatedType = _dynamicModule.DefineType(typeName, TypeAttributes.Class, baseType);
-        var baseConstructor = baseType.GetConstructors(BindingFlags.Public | BindingFlags.Instance).First();
-        var constructorBuilder = generatedType.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { typeof(JObject) });
-        var constructorGenerator = constructorBuilder.GetILGenerator();
-        constructorGenerator.Emit(OpCodes.Ldarg_0);
-        constructorGenerator.Emit(OpCodes.Ldarg_1);
-        constructorGenerator.Emit(OpCodes.Call, baseConstructor);
-        constructorGenerator.Emit(OpCodes.Ret);
+        if(_nameLookup.TryGetValue(typeName, out var existingType)) {
+            return existingType;
+        }
+
+        var isInterface = schemaType.Kind is __TypeKind.INTERFACE or __TypeKind.UNION;
+        var isUnion = schemaType.Kind is __TypeKind.UNION;
+
+        var baseType = isInterface ? null : typeof(FederationEntity);
+        var generatedType = _dynamicModule.DefineType(typeName, isInterface ? TypeAttributes.Interface | TypeAttributes.Abstract : TypeAttributes.Class, baseType);
+
+        if(interfaceType != null) {
+            generatedType.AddInterfaceImplementation(interfaceType);
+        }
+
+        if(!isInterface) {
+            var baseConstructor = baseType!.GetConstructors(BindingFlags.Public | BindingFlags.Instance).First();
+            var constructorBuilder = generatedType.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { typeof(JObject) });
+            var constructorGenerator = constructorBuilder.GetILGenerator();
+            constructorGenerator.Emit(OpCodes.Ldarg_0);
+            constructorGenerator.Emit(OpCodes.Ldarg_1);
+            constructorGenerator.Emit(OpCodes.Call, baseConstructor);
+            constructorGenerator.Emit(OpCodes.Ret);
+        } else if(isUnion) {
+            generatedType.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLUnionAttribute).GetConstructor(BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes)!, Array.Empty<object>()));
+        }
 
         foreach(var field in schemaType.Fields(true)) {
             var argTypes = new List<Type>();
@@ -116,25 +130,42 @@ public class FederationGenerator {
             }
 
             var returnType = GetTypeFromSchemaType(field.Type);
-            var fieldMethod = generatedType.DefineMethod(field.Name, MethodAttributes.Public, returnType, argTypes.ToArray());
+            var methodAttributes = isInterface ? MethodAttributes.Virtual | MethodAttributes.Abstract | MethodAttributes.Public : MethodAttributes.Public | MethodAttributes.Virtual;
+            var fieldMethod = generatedType.DefineMethod(field.Name, methodAttributes, returnType, argTypes.ToArray());
+            if(interfaceType != null) {
+                var overridingMethod = interfaceType.GetMethod(field.Name, BindingFlags.Public | BindingFlags.Instance);
+                if(overridingMethod != null) {
+                    generatedType.DefineMethodOverride(fieldMethod, overridingMethod!);
+                }
+            }
+
             AddAttributes(field, fieldMethod);
             DefineParameters(argTypes, fieldMethod, field);
 
-            var valueMethod = typeof(FederationHelper).GetMethod(nameof(FederationHelper.GetField), BindingFlags.Static | BindingFlags.Public)!.MakeGenericMethod(returnType);
-            var instanceField = baseType.GetField("_data", BindingFlags.NonPublic | BindingFlags.Instance);
+            if(!isInterface) {
+                var valueMethod = typeof(FederationHelper).GetMethod(nameof(FederationHelper.GetField), BindingFlags.Static | BindingFlags.Public)!.MakeGenericMethod(returnType);
+                var instanceField = baseType.GetField("_data", BindingFlags.NonPublic | BindingFlags.Instance);
 
-            var fieldMethodILGenerator = fieldMethod.GetILGenerator();
-            fieldMethodILGenerator.Emit(OpCodes.Ldarg_0);
-            fieldMethodILGenerator.Emit(OpCodes.Ldfld, instanceField);
-            fieldMethodILGenerator.Emit(OpCodes.Ldstr, field.Name);
-            fieldMethodILGenerator.EmitCall(OpCodes.Call, valueMethod, Type.EmptyTypes);
-            fieldMethodILGenerator.Emit(OpCodes.Ret);
+                var fieldMethodILGenerator = fieldMethod.GetILGenerator();
+                fieldMethodILGenerator.Emit(OpCodes.Ldarg_0);
+                fieldMethodILGenerator.Emit(OpCodes.Ldfld, instanceField);
+                fieldMethodILGenerator.Emit(OpCodes.Ldstr, field.Name);
+                fieldMethodILGenerator.EmitCall(OpCodes.Call, valueMethod, Type.EmptyTypes);
+                fieldMethodILGenerator.Emit(OpCodes.Ret);
+            }
         }
 
-        extras(generatedType);
+        extras?.Invoke(generatedType);
 
         var finalType = generatedType.CreateType()!;
         _nameLookup.Add(typeName, finalType);
+
+        if(isInterface) {
+            foreach(var implementation in schemaType.PossibleTypes) {
+                var implementationType = _federationSchema.Types.First(x => x.Name == implementation.Name);
+                GenerateType(implementationType, null, finalType);
+            }
+        }
 
         return finalType;
     }

@@ -21,6 +21,19 @@ internal class ResultVisitor : ASTVisitor<GraphQLContext> {
         _stack.Push(new Level(data, subResult, 0));
     }
 
+    protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, GraphQLContext context) {
+        var pushed = false;
+        if(inlineFragment.TypeCondition != null) {
+            var currentType = _stack.Peek();
+            var matching = currentType.Data.GetType().GetAllClassesThatImplements().FirstOrDefault(x => x.GraphQLName() == inlineFragment.TypeCondition.Type.Name);
+            if(matching != null) {
+                await base.VisitInlineFragmentAsync(inlineFragment, context);
+            }
+        } else {
+            await base.VisitInlineFragmentAsync(inlineFragment, context);
+        }
+    }
+
     protected override async ValueTask VisitFieldAsync(GraphQLField field, GraphQLContext context) {
         var parentLevel = _stack.Peek();
         if(parentLevel.Data == null)

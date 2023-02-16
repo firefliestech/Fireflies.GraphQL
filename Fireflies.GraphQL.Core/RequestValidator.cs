@@ -143,6 +143,23 @@ internal class RequestValidator : ASTVisitor<GraphQLContext> {
         }
     }
 
+    protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, GraphQLContext context) {
+        var pushed = false;
+        if(inlineFragment.TypeCondition != null) {
+            var currentType = _fieldStack.Peek();
+            var matching = currentType.GetAllClassesThatImplements().FirstOrDefault(x => x.GraphQLName() == inlineFragment.TypeCondition.Type.Name);
+            if(matching != null) {
+                _fieldStack.Push(matching);
+                pushed = true;
+            }
+        }
+
+        await base.VisitInlineFragmentAsync(inlineFragment, context);
+
+        if(pushed)
+            _fieldStack.Pop();
+    }
+
     private async Task ValidateSelectionSets(GraphQLField field, GraphQLContext context) {
         var selections = field.SelectionSet?.Selections ?? Enumerable.Empty<ASTNode>();
         var currentType = _fieldStack.Peek();
