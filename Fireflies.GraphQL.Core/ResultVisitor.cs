@@ -158,7 +158,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
                     jObject.TryAdd(fieldName, value);
                     return;
                 case JArray jArray:
-                    jArray.Add(value);
+                    jArray.Add(value!);
                     return;
             }
 

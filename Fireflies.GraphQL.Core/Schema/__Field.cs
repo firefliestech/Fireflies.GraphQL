@@ -26,7 +26,7 @@ public class __Field {
     }
 
     private string? GetFieldDescription(MemberInfo memberInfo) {
-        string description = null;
+        string? description = null;
 
         var descriptionAttribute = memberInfo.GetCustomAttribute<GraphQLDescriptionAttribute>();
         if(descriptionAttribute != null)

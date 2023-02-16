@@ -9,7 +9,7 @@ internal static class ReflectionExtensions {
     private static readonly ConcurrentDictionary<Type, Type[]> TypeImplementationsCache = new();
 
     static ReflectionExtensions() {
-        _internalExecuteMethod = typeof(ReflectionExtensions).GetMethod(nameof(InternalExecuteMethod), BindingFlags.Static | BindingFlags.NonPublic);
+        _internalExecuteMethod = typeof(ReflectionExtensions).GetMethod(nameof(InternalExecuteMethod), BindingFlags.Static | BindingFlags.NonPublic)!;
     }
 
     public static string GraphQLName(this MemberInfo member) {

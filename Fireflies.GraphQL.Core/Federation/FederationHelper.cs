@@ -78,19 +78,19 @@ public static class FederationHelper {
             case TypeCode.UInt64:
             case TypeCode.Byte:
             case TypeCode.SByte:
-                return token.Value<T>();
+                return token.Value<T>()!;
 
             case TypeCode.Boolean:
-                return token.Value<T>();
+                return token.Value<T>()!;
 
             case TypeCode.Char:
             case TypeCode.String:
-                return token.Value<T>();
+                return token.Value<T>()!;
 
             case TypeCode.Single:
             case TypeCode.Double:
             case TypeCode.Decimal:
-                return token.Value<T>();
+                return token.Value<T>()!;
 
             default:
                 var typename = token.Value<string>("__typename");

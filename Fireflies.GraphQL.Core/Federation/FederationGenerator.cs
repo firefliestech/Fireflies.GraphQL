@@ -172,7 +172,7 @@ public class FederationGenerator {
 
             if(!isInterface) {
                 var valueMethod = typeof(FederationHelper).GetMethod(nameof(FederationHelper.GetField), BindingFlags.Static | BindingFlags.Public)!.MakeGenericMethod(returnType);
-                var instanceField = baseType.GetField("_data", BindingFlags.NonPublic | BindingFlags.Instance);
+                var instanceField = baseType!.GetField("_data", BindingFlags.NonPublic | BindingFlags.Instance)!;
 
                 var fieldMethodILGenerator = fieldMethod.GetILGenerator();
                 fieldMethodILGenerator.Emit(OpCodes.Ldarg_0);
@@ -251,10 +251,10 @@ public class FederationGenerator {
             throw new NotImplementedException("ID type is yet to be implemented");
 
         if(type.Kind == __TypeKind.NON_NULL)
-            return GetTypeFromSchemaType(type.OfType);
+            return GetTypeFromSchemaType(type.OfType!);
 
         if(type.Kind == __TypeKind.LIST)
-            return typeof(IEnumerable<>).MakeGenericType(GetTypeFromSchemaType(type.OfType));
+            return typeof(IEnumerable<>).MakeGenericType(GetTypeFromSchemaType(type.OfType!));
 
         var generateName = GenerateName(type);
         if(_nameLookup.TryGetValue(generateName, out var existingType)) {
@@ -266,10 +266,10 @@ public class FederationGenerator {
 
     private string GenerateName(__Type type) {
         if(type.Kind == __TypeKind.LIST)
-            return GenerateName(type.OfType);
+            return GenerateName(type.OfType!);
 
         if(type.Kind == __TypeKind.NON_NULL)
-            return GenerateName(type.OfType);
+            return GenerateName(type.OfType!);
 
         return type.Name;
     }

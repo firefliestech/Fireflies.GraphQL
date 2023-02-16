@@ -1,9 +1,6 @@
 ﻿using Fireflies.GraphQL.Core.Schema;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Data;
-using System.ComponentModel;
-using Fireflies.GraphQL.Core.Extensions;
 using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Federation;
@@ -24,22 +21,13 @@ internal class FederationClient {
 
         var readAsStringAsync = await result.Content.ReadAsStringAsync();
         var deserializeObject = JsonConvert.DeserializeObject<JObject>(readAsStringAsync);
-        return deserializeObject["data"]["__schema"].ToObject<__Schema>();
+        if(deserializeObject?["data"]?["__schema"] == null)
+            throw new FederationException("Invalid schema received");
+
+        return deserializeObject!["data"]!["__schema"]!.ToObject<__Schema>();
     }
 
     private class QueryResult {
         public __Schema Data { get; set; }
     }
 }
-
-//public class XBase : FederationBase {
-//    public XBase(GraphQLContext context) : base(context, "min url", "mitt namn") {
-//    }
-
-//    public Task<Author> Author(int authorId) {
-//        return ExecuteRequest<Author>();
-//    }
-//}
-
-//public class Author {
-//}
