@@ -1,9 +1,8 @@
-﻿using System.Collections.Concurrent;
-using System.Net.WebSockets;
+﻿using System.Net.WebSockets;
 using Fireflies.GraphQL.Core;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Primitives;
 using Newtonsoft.Json.Linq;
+using Nito.AsyncEx;
 
 namespace Fireflies.GraphQL.AspNet;
 
@@ -11,7 +10,7 @@ public class GraphQLContext : IGraphQLContext {
     private readonly HttpContext _httpContext;
     private int _outstandingOperations;
 
-    private readonly BlockingCollection<JObject> _results = new();
+    private readonly AsyncProducerConsumerQueue<JObject> _results = new();
     private readonly CancellationTokenSource _cancellationTokenSource = new();
 
     public GraphQLContext(HttpContext httpContext) {
@@ -25,7 +24,8 @@ public class GraphQLContext : IGraphQLContext {
     public WebSocket? WebSocket { get; set; }
 
     public async IAsyncEnumerator<JObject> GetAsyncEnumerator(CancellationToken cancellationToken = new()) {
-        foreach(var obj in _results.GetConsumingEnumerable(cancellationToken)) {
+        while(!CancellationToken.IsCancellationRequested) {
+            var obj = await _results.DequeueAsync(CancellationToken);
             yield return obj;
 
             if(IsWebSocket)
@@ -33,14 +33,13 @@ public class GraphQLContext : IGraphQLContext {
 
             var newOutstandingOperations = Interlocked.Decrement(ref _outstandingOperations);
             if(newOutstandingOperations == 0) {
-                _results.Dispose();
                 yield break;
             }
         }
     }
 
     public void PublishResult(JObject result) {
-        _results.Add(result);
+        _results.Enqueue(result, CancellationToken);
     }
 
     public void Done() {
