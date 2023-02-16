@@ -12,14 +12,14 @@ public class AuthorOperations {
 
     [GraphQLQuery]
     public Task<IAuthor> Author(int authorId = 10, string filter = null) {
-        var author = new Author { Id = authorId, Name = "Lars" };
+        var author = new RealAuthor { Id = authorId, Name = "Lars" };
         return Task.FromResult<IAuthor>(author);
     }
 
     [GraphQLQuery]
-    public Task<IEnumerable<Author>> Authors() {
-        var author1 = new Author { Id = 101, Name = "Lars", Emails = new[] { "kalle@abc.com", "banan@abc.com" } };
-        var author2 = new Author { Id = 102, Name = "Kalle", Emails = new[] { "kalle@abc.com" }};
-        return Task.FromResult((IEnumerable<Author>)new[] { author1, author2 });
+    public Task<IEnumerable<RealAuthor>> Authors() {
+        var author1 = new RealAuthor { Id = 101, Name = "Lars", Emails = new[] { "kalle@abc.com", "banan@abc.com" } };
+        var author2 = new RealAuthor { Id = 102, Name = "Kalle", Emails = new[] { "kalle@abc.com" }};
+        return Task.FromResult((IEnumerable<RealAuthor>)new[] { author1, author2 });
     }
 }

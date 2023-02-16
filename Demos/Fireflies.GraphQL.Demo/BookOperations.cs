@@ -65,7 +65,17 @@ public class BookOperations {
         };
     }
 
-    public async Task<InventoryBook> Book() {
-        return _inventoryBook;
+    [GraphQLQuery]
+    public IBook Book() {
+        return new RemoteBook { BookId = 101, ISBN = "lddldl", Title = "Min nyaste"};
     }
+
+    [GraphQLQuery]
+    public IEnumerable<IBook> FewBook()
+    {
+        yield return new RemoteBook { BookId = 101, ISBN = "lddldl", Title = "Min nyaste" };
+        yield return new InventoryBook { BookId = 102, ISBN = "sdfsdfsadf", Title = "Min absolut nyaste", ExactInventory = 10};
+    }
+
+
 }

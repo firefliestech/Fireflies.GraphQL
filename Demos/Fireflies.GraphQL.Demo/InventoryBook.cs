@@ -18,7 +18,7 @@ public class InventoryBook : IBook {
         return "Du angav ett mindre än " + (i + 1);
     }
     
-    [MustBeSysopToSee]
+    //[MustBeSysopToSee]
     [GraphQLDescription("Kalle anka")]
     [GraphQLDeprecated("Du borde veta")]
     public int ExactInventory { get; set; }

@@ -2,6 +2,7 @@
 
 namespace Fireflies.GraphQL.Demo;
 
+[GraphQLUnion]
 public interface IBook {
     public int BookId { get; set; }
 
