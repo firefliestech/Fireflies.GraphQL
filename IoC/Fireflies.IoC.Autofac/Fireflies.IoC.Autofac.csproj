@@ -1,20 +1,22 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-	<Authors>Fireflies.Tech</Authors>
-	<Description>Fireflies IoC Autofac integration</Description>
-	<Copyright>2023 Fireflies.tech</Copyright>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<Authors>Fireflies.Tech</Authors>
+		<Description>Fireflies IoC Autofac integration</Description>
+		<Copyright>2023 Fireflies.tech</Copyright>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Autofac" Version="6.5.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Autofac" Version="6.5.0" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Fireflies.IoC.Abstractions\Fireflies.IoC.Abstractions.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Fireflies.IoC.Abstractions\Fireflies.IoC.Abstractions.csproj" />
+	</ItemGroup>
 
 </Project>

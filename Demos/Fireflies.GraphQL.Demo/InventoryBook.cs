@@ -9,17 +9,12 @@ public class InventoryBook : IBook {
     public string Title { get; set; }
     public string ISBN { get; set; }
 
-    public string Echo(int i) {
-        return "Du angav " + i;
+    public async Task<decimal> CalculatePrice() {
+        return (decimal)23.3;
     }
 
-    public async Task<string> Echo2(int i)
-    {
-        return "Du angav ett mindre än " + (i + 1);
-    }
-    
-    //[MustBeSysopToSee]
-    [GraphQLDescription("Kalle anka")]
-    [GraphQLDeprecated("Du borde veta")]
+    [MustBeSalesman]
+    [GraphQLDescription("Returns the exact inventory")]
+    [GraphQLDeprecated("Will be 0 from 2024-01-01")]
     public int ExactInventory { get; set; }
 }

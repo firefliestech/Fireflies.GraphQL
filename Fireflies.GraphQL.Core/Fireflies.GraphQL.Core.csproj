@@ -1,24 +1,26 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-	<Authors>Fireflies.Tech</Authors>
-	<Description>Fireflies GraphQL core</Description>
-	<Copyright>2023 Fireflies.tech</Copyright>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<Authors>Fireflies.Tech</Authors>
+		<Description>Fireflies GraphQL core</Description>
+		<Copyright>2023 Fireflies.tech</Copyright>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="GraphQL-Parser" Version="8.1.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="GraphQL-Parser" Version="8.1.0" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Fireflies.GraphQL.Abstractions\Fireflies.GraphQL.Abstractions.csproj" />
-    <ProjectReference Include="..\IoC\Fireflies.IoC.Abstractions\Fireflies.IoC.Abstractions.csproj" />
-    <ProjectReference Include="..\IoC\Fireflies.IoC.TinyIoC\Fireflies.IoC.TinyIoC.csproj" />
-    <ProjectReference Include="..\Logging\Fireflies.Logging.Abstractions\Fireflies.Logging.Abstractions.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Fireflies.GraphQL.Abstractions\Fireflies.GraphQL.Abstractions.csproj" />
+		<ProjectReference Include="..\IoC\Fireflies.IoC.Abstractions\Fireflies.IoC.Abstractions.csproj" />
+		<ProjectReference Include="..\IoC\Fireflies.IoC.TinyIoC\Fireflies.IoC.TinyIoC.csproj" />
+		<ProjectReference Include="..\Logging\Fireflies.Logging.Abstractions\Fireflies.Logging.Abstractions.csproj" />
+	</ItemGroup>
 
 </Project>

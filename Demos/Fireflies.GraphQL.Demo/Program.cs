@@ -35,7 +35,7 @@ config.LoggingRules.Add(new LoggingRule("*", LogLevel.Debug, consoleTarget));
 LogManager.Configuration = config;
 
 var containerBuilder = new ContainerBuilder();
-containerBuilder.RegisterType<MustBeSysopToSeeAttribute>();
+containerBuilder.RegisterType<MustBeSalesmanAttribute>();
 containerBuilder.RegisterType<RequestDependencyResolverBuilder>().As<IRequestDependencyResolverBuilder>();
 var container = containerBuilder.Build();
 

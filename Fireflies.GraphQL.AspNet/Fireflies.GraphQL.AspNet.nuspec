@@ -6,7 +6,6 @@
 		<title>$title$</title>
 		<authors>$author$</authors>
 		<requireLicenseAcceptance>false</requireLicenseAcceptance>
-		<license type="expression">MIT</license>
 		<description>$description$</description>
 		<copyright>$copyright$</copyright>
 		<tags>fireflies graphql aspnet</tags>

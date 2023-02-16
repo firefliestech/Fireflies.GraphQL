@@ -5,8 +5,10 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<Authors>Fireflies.Tech</Authors>
-		<Description>Fireflies GraphQL asp.net middleware</Description>
+		<Description>Fireflies GraphQL ASP.NET middleware</Description>
 		<Copyright>2023 Fireflies.tech</Copyright>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>
 
 	<ItemGroup>
