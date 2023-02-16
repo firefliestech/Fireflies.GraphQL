@@ -19,7 +19,7 @@ public class __SchemaQuery {
             .Select(x => x.Type)
             .SelectMany(qt =>
                 qt.GetAllGraphQLMethods()
-                    .SelectMany(x => new[] { x.ReturnType.GetGenericArguments()[0] }.Union(x.GetParameters().Select(y => y.ParameterType)))).Distinct();
+                    .SelectMany(x => new[] { x.DiscardTaskFromReturnType() }.Union(x.GetParameters().Select(y => y.ParameterType)))).Distinct();
 
         var allTypes = new HashSet<Type>();
         foreach(var type in topLevelTypes)
@@ -104,7 +104,7 @@ public class __SchemaQuery {
 
         foreach(var query in operations.Select(x => x.Method)) {
             fields.Add(new __Field(query) {
-                Type = CreateType(query.ReturnType.GetGenericArguments()[0], true),
+                Type = CreateType(query.DiscardTaskFromReturnType(), true),
                 Args = GetArguments(query).ToArray()
             });
         }
@@ -126,6 +126,13 @@ public class __SchemaQuery {
                     Kind = __TypeKind.ENUM,
                 };
             }
+        }
+
+        if(type.IsEnumerable()) {
+            return new __Type {
+                Kind = __TypeKind.LIST,
+                OfType = WrapNullable(Nullable.GetUnderlyingType(baseType) != null, CreateType(baseType, true))
+            };
         }
 
         if(baseType == typeof(int)) {
@@ -157,13 +164,6 @@ public class __SchemaQuery {
         }
 
         // Todo: ID is missing
-
-        if(type.IsEnumerable()) {
-            return new __Type {
-                Kind = __TypeKind.LIST,
-                OfType = WrapNullable(Nullable.GetUnderlyingType(baseType) != null, CreateType(baseType, true))
-            };
-        }
 
         var isInputType = baseType.IsAssignableTo(typeof(GraphQLInput));
 

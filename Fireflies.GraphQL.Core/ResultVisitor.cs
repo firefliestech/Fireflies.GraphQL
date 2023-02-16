@@ -52,7 +52,11 @@ internal class ResultVisitor : ASTVisitor<GraphQLContext> {
         var isEnumerable = fieldType.IsAssignableTo(typeof(IEnumerable));
         var fieldName = field.Alias?.Name.StringValue ?? field.Name.StringValue;
         if(field.SelectionSet == null) {
-            parentLevel.Add(fieldName, new JValue(fieldValue));
+            if(fieldType.IsEnumerable(out _)) {
+                parentLevel.Add(fieldName, new JArray(fieldValue));
+            } else {
+                parentLevel.Add(fieldName, new JValue(fieldValue));
+            }
         } else {
             if(fieldValue == null) {
                 parentLevel.Add(fieldName, null);

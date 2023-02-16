@@ -35,13 +35,14 @@ internal class OperationVisitor : ASTVisitor<GraphQLContext> {
         foreach(var selection in selectionSet.Selections) {
             switch(selection) {
                 case GraphQLField graphQLField:
-                    var handler = GetHandler(graphQLField);
+                    var operationDescriptor = GetHandler(graphQLField);
 
-                    var query = _dependencyResolver.Resolve(handler.Type);
-                    var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, handler.Method, _variableAccessor, _context);
+                    var operations = _dependencyResolver.Resolve(operationDescriptor.Type);
 
-                    var returnType = handler.Method.DiscardTaskFromReturnType();
-                    var asyncEnumerable = (IAsyncEnumerable<object>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { handler, query, argumentBuilder, context.CancellationToken })!;
+                    var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _variableAccessor, _context);
+
+                    var returnType = operationDescriptor.Method.DiscardTaskFromReturnType();
+                    var asyncEnumerable = (IAsyncEnumerable<object>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder, context.CancellationToken })!;
                     await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken)) {
                         var jObject = new JObject();
 
@@ -86,13 +87,13 @@ internal class OperationVisitor : ASTVisitor<GraphQLContext> {
         };
     }
 
-    private async IAsyncEnumerable<object> GetResult<T>(OperationDescriptor handler, object query, ArgumentBuilder argumentBuilder, CancellationToken cancellationToken) {
+    private async IAsyncEnumerable<object> GetResult<T>(OperationDescriptor operationDescriptor, object query, ArgumentBuilder argumentBuilder, CancellationToken cancellationToken) {
         var arguments = await argumentBuilder.Build();
         if(_operationType is OperationType.Query or OperationType.Mutation) {
-            var resultTask = await handler.Method.ExecuteMethod(query, arguments);
+            var resultTask = await operationDescriptor.Method.ExecuteMethod(query, arguments);
             yield return resultTask;
         } else {
-            var asyncEnumerable = (IAsyncEnumerable<T>)handler.Method.Invoke(query, arguments)!;
+            var asyncEnumerable = (IAsyncEnumerable<T>)operationDescriptor.Method.Invoke(query, arguments)!;
             await foreach(var obj in asyncEnumerable.WithCancellation(cancellationToken)) {
                 yield return obj;
             }

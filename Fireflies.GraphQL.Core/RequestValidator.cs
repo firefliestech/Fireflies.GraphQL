@@ -76,7 +76,7 @@ internal class RequestValidator : ASTVisitor<GraphQLContext> {
                 _errors.Add($"Unauthorized access to query field \"{field.Name}\" on type \"Query\"");
             }
 
-            var returnType = queryType.Method.ReturnType.GetGenericArguments()[0];
+            var returnType = queryType.Method.DiscardTaskFromReturnType();
             returnType = returnType.GetGraphQLType();
             _fieldStack.Push(returnType);
 

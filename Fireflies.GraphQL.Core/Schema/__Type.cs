@@ -15,15 +15,15 @@ public class __Type {
     public string Name { get; set; }
     public string? Description { get; set; }
 
-    public Task<__Field[]> Fields(bool includeDeprecated = false) {
-        return Task.FromResult(includeDeprecated ? _fields.ToArray() : _fields.Where(f => !f.IsDeprecated).ToArray());
+    public __Field[] Fields(bool includeDeprecated = false) {
+        return includeDeprecated ? _fields.ToArray() : _fields.Where(f => !f.IsDeprecated).ToArray();
     }
 
     public __Type[] Interfaces { get; set; } = Array.Empty<__Type>();
     public __Type[] PossibleTypes { get; set; }
 
-    public Task<__EnumValue[]> EnumValues(bool includeDeprecated = false) {
-        return Task.FromResult(includeDeprecated ? _enumValues.ToArray() : _enumValues.Where(f => !f.IsDeprecated).ToArray());
+    public __EnumValue[] EnumValues(bool includeDeprecated = false) {
+        return includeDeprecated ? _enumValues.ToArray() : _enumValues.Where(f => !f.IsDeprecated).ToArray();
     }
 
     public __InputValue[] InputFields { get; set; }

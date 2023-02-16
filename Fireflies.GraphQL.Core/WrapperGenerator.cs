@@ -69,7 +69,7 @@ internal static class WrapperGenerator {
 
             var methodBuilder = wrappedType.DefineMethod(baseMethod.Name, MethodAttributes.Public, CallingConventions.Standard, wrappedReturnType, baseMethodParameters.Select(x => x.ParameterType).ToArray());
             var needsConversion = originalType != wrapperType;
-            WrapMethod(methodBuilder, baseMethodParameters, baseMethod, wrappedReturnType, instanceField, isEnumerable, wrapperType, originalType, needsConversion);
+            WrapMethod(methodBuilder, baseMethodParameters, baseMethod, instanceField, isEnumerable, wrapperType, originalType, needsConversion);
             CopyAttributes(baseMethod, ab => methodBuilder.SetCustomAttribute(ab));
 
             if(baseMethod.HasCustomAttribute<GraphQlPaginationAttribute>()) {
@@ -77,16 +77,33 @@ internal static class WrapperGenerator {
             }
         }
 
-        foreach(var baseProperty in baseType.GetAllGraphQLProperties()) {
-            var baseGetParameters = baseProperty.GetMethod!.GetParameters();
-            var (wrappedReturnType, isEnumerable, originalType, wrapperType) = GetWrappedReturnType(baseProperty.GetMethod!);
-            var getterMethodBuilder = wrappedType.DefineMethod("get_" + baseProperty.Name, MethodAttributes.Public | MethodAttributes.SpecialName, CallingConventions.Standard, baseProperty.PropertyType, baseGetParameters.Select(x => x.ParameterType).ToArray());
-            var needsConversion = originalType != wrapperType;
-            WrapMethod(getterMethodBuilder, baseGetParameters, baseProperty.GetMethod!, wrappedReturnType, instanceField, isEnumerable, wrapperType, originalType, needsConversion);
+        IEnumerable<(PropertyInfo PropertyInfo, Type? DeclaringType)> propertiesToWrap = baseType.GetAllGraphQLProperties().Select(property => (property, (Type?)null));
 
-            var propertyBuilder = wrappedType.DefineProperty(baseProperty.Name, PropertyAttributes.None, baseProperty.PropertyType, null);
-            propertyBuilder.SetGetMethod(getterMethodBuilder);
+        foreach(var entry in propertiesToWrap) {
+            var baseProperty = entry.PropertyInfo;
+            var propertyBuilder = wrappedType.DefineProperty(baseProperty.Name, PropertyAttributes.None, baseProperty.PropertyType, Type.EmptyTypes);
             CopyAttributes(baseProperty, ab => propertyBuilder.SetCustomAttribute(ab));
+
+            if(baseProperty.GetMethod != null) {
+                var baseGetParameters = baseProperty.GetMethod!.GetParameters();
+                var (wrappedReturnType, isEnumerable, originalType, wrapperType) = GetWrappedReturnType(baseProperty.GetMethod!);
+                var getterMethodBuilder = wrappedType.DefineMethod("get_" + baseProperty.Name, MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.Virtual, CallingConventions.Standard, baseProperty.PropertyType, baseGetParameters.Select(x => x.ParameterType).ToArray());
+                if(entry.DeclaringType != null) {
+                    wrappedType.DefineMethodOverride(getterMethodBuilder, entry.DeclaringType.GetMethod($"get_{baseProperty.Name}")!);
+                }
+
+                var needsConversion = originalType != wrapperType;
+                WrapMethod(getterMethodBuilder, baseGetParameters, baseProperty.GetMethod!, instanceField, isEnumerable, wrapperType, originalType, needsConversion);
+                propertyBuilder.SetGetMethod(getterMethodBuilder);
+            }
+
+            if(entry.DeclaringType != null && baseProperty.SetMethod != null) { // Only do setters for interfaces
+                var baseSetParameters = baseProperty.SetMethod?.GetParameters();
+                var setterMethodBuilder = wrappedType.DefineMethod("set_" + baseProperty.Name, MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.Virtual, CallingConventions.Standard, typeof(void), baseSetParameters.Select(x => x.ParameterType).ToArray());
+                wrappedType.DefineMethodOverride(setterMethodBuilder, entry.DeclaringType.GetMethod($"set_{baseProperty.Name}")!);
+                WrapMethod(setterMethodBuilder, baseSetParameters, baseProperty.SetMethod!, instanceField, false, typeof(void), typeof(void), false);
+                propertyBuilder.SetSetMethod(setterMethodBuilder);
+            }
 
             if(baseProperty.HasCustomAttribute<GraphQlPaginationAttribute>()) {
                 AddConnectionMethod(wrappedType, baseProperty.Name, baseProperty.GetMethod!, instanceField);
@@ -160,11 +177,10 @@ internal static class WrapperGenerator {
         methodIlGenerator.Emit(OpCodes.Ret);
     }
 
-    private static void WrapMethod(MethodBuilder methodBuilder, ParameterInfo[] baseMethodParameters, MethodInfo baseMethod, Type wrappedReturnType, FieldInfo instanceField, bool isEnumerable, Type wrapperType, Type originalType, bool needsConversion) {
+    private static void WrapMethod(MethodBuilder methodBuilder, ParameterInfo[] baseMethodParameters, MethodInfo baseMethod, FieldInfo instanceField, bool isEnumerable, Type wrapperType, Type originalType, bool needsConversion) {
         methodBuilder.DefineParameters(baseMethodParameters);
         var methodIlGenerator = methodBuilder.GetILGenerator();
 
-        methodIlGenerator.Emit(OpCodes.Nop);
         methodIlGenerator.Emit(OpCodes.Ldarg_0);
         methodIlGenerator.Emit(OpCodes.Ldfld, instanceField);
         var i = 1;
