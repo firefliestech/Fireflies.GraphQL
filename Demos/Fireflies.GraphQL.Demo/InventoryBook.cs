@@ -17,12 +17,9 @@ public class InventoryBook : IBook {
     {
         return "Du angav ett mindre än " + (i + 1);
     }
-
-    [GraphQlPagination]
-    public IEnumerable<Author> Authors { get; set; }
-
+    
     [MustBeSysopToSee]
-    [GraphQLDescription(Description = "Kalle anka")]
-    [GraphQLDeprecated(Reason = "Du borde veta")]
+    [GraphQLDescription("Kalle anka")]
+    [GraphQLDeprecated("Du borde veta")]
     public int ExactInventory { get; set; }
 }

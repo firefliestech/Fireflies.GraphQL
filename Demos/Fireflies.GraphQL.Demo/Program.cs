@@ -39,13 +39,14 @@ containerBuilder.RegisterType<MustBeSysopToSeeAttribute>();
 containerBuilder.RegisterType<RequestDependencyResolverBuilder>().As<IRequestDependencyResolverBuilder>();
 var container = containerBuilder.Build();
 
+await Task.Delay(1000);
 var graphQLOptions = new GraphQLOptionsBuilder();
 graphQLOptions.SetLoggerFactory(new FirefliesNLogFactory());
 graphQLOptions.Add<BookOperations>();
-//graphQLOptions.AddMutationType<BooksMutation>();
+graphQLOptions.AddFederation("Author", "https://localhost:7274/graphql");
 graphQLOptions.SetDependencyResolver(new AutofacDependencyResolver(container));
 app.UseWebSockets();
-app.UseGraphQL(graphQLOptions.Build());
+app.UseGraphQL(await graphQLOptions.Build());
 
 app.MapGet("/", () => "Hello World!");
 

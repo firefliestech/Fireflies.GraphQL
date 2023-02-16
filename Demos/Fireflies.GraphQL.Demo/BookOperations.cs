@@ -6,16 +6,13 @@ namespace Fireflies.GraphQL.Demo;
 public class BookOperations {
     private readonly GraphQLContext _context;
     private readonly InventoryBook _inventoryBook;
-    private readonly Author _author;
 
     public BookOperations(GraphQLContext context) {
         _context = context;
-        _author = new Author { Name = "Lars" };
         _inventoryBook = new InventoryBook {
             BookId = 1,
             Title = "Min första bok",
             ISBN = "01234",
-            Authors = new[] { _author },
             ExactInventory = 15
         };
     }
@@ -29,7 +26,6 @@ public class BookOperations {
                 BookId = 2,
                 Title = "Min andra bok",
                 ISBN = "56789",
-                Authors = new Author[] { _author },
                 ExactInventory = 29
             }
         };
@@ -45,7 +41,6 @@ public class BookOperations {
                 BookId = 2,
                 Title = "Min andra bok",
                 ISBN = "56789",
-                Authors = new Author[] { _author },
                 ExactInventory = 29
             }
         }.Where(x => filter == null || string.IsNullOrWhiteSpace(filter.Title) || x.Title == filter.Title);

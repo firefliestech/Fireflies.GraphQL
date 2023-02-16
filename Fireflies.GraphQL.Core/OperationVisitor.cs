@@ -39,6 +39,9 @@ internal class OperationVisitor : ASTVisitor<GraphQLContext> {
 
                     var operations = _dependencyResolver.Resolve(operationDescriptor.Type);
 
+                    if(operations is IASTNodeHandler astNodeHandler) {
+                        astNodeHandler.ASTNode = graphQLField;
+                    }
                     var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _variableAccessor, _context);
 
                     var returnType = operationDescriptor.Method.DiscardTaskFromReturnType();

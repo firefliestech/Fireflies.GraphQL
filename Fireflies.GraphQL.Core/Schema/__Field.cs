@@ -13,6 +13,9 @@ public class __Field {
     public bool IsDeprecated { get; set; }
     public string? DeprecationReason { get; set; }
 
+    public __Field() {
+    }
+
     public __Field(MemberInfo memberInfo) {
         Name = memberInfo.GraphQLName();
         Description = GetFieldDescription(memberInfo);

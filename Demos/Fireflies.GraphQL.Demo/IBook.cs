@@ -7,7 +7,4 @@ public interface IBook {
 
     string Title { get; set; }
     string ISBN { get; set; }
-
-    [GraphQlPagination]
-    public IEnumerable<Author> Authors { get; set; }
 }

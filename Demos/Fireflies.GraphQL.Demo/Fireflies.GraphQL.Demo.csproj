@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Autofac" Version="6.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Fireflies.GraphQL.AspNet\Fireflies.GraphQL.AspNet.csproj" />
+    <ProjectReference Include="..\..\Fireflies.GraphQL.Contract\Fireflies.GraphQL.Contract.csproj" />
+    <ProjectReference Include="..\..\Fireflies.GraphQL.Core\Fireflies.GraphQL.Core.csproj" />
+    <ProjectReference Include="..\..\IoC\Fireflies.IoC.Autofac\Fireflies.IoC.Autofac.csproj" />
+    <ProjectReference Include="..\..\Logging\Fireflies.Logging.NLog\Fireflies.Logging.NLog.csproj" />
+  </ItemGroup>
+
+</Project>

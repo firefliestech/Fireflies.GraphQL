@@ -78,6 +78,10 @@ internal static class WrapperGenerator {
         }
 
         IEnumerable<(PropertyInfo PropertyInfo, Type? DeclaringType)> propertiesToWrap = baseType.GetAllGraphQLProperties().Select(property => (property, (Type?)null));
+        if(baseType.GetInterfaces().Contains(typeof(IASTNodeHandler))) {
+            wrappedType.AddInterfaceImplementation(typeof(IASTNodeHandler));
+            propertiesToWrap = propertiesToWrap.Union(new[] { (baseType.GetProperty("ASTNode")!, typeof(IASTNodeHandler)) });
+        }
 
         foreach(var entry in propertiesToWrap) {
             var baseProperty = entry.PropertyInfo;

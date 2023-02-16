@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Schema;
 using Fireflies.IoC.Core;
 using Fireflies.IoC.TinyIoC;
@@ -12,6 +13,7 @@ public class GraphQLOptionsBuilder {
     private IDependencyResolver _dependencyResolver = new TinyIoCDependencyResolver();
     private string _url = "/graphql";
     private IFirefliesLoggerFactory _loggerFactory = new NullLoggerFactory();
+    private readonly HashSet<(string Name, string Url)> _federations = new();
 
     public GraphQLOptionsBuilder() {
         _operationTypes.Add(typeof(__SchemaQuery));
@@ -32,10 +34,17 @@ public class GraphQLOptionsBuilder {
         return this;
     }
 
-    public GraphQLOptions Build() {
+    public async Task<GraphQLOptions> Build() {
         var options = new GraphQLOptions {
             Url = _url
         };
+
+        foreach(var federation in _federations) {
+            var federationSchema = await new FederationClient(federation.Url).FetchSchema();
+            var generator = new FederationGenerator(federation, federationSchema);
+            var generatedType = generator.Generate();
+            _operationTypes.Add(generatedType);
+        }
 
         options.DependencyResolver = _dependencyResolver.BeginLifetimeScope(builder => {
             builder.RegisterInstance(options);
@@ -79,5 +88,9 @@ public class GraphQLOptionsBuilder {
 
     public void SetLoggerFactory(IFirefliesLoggerFactory loggerFactory) {
         _loggerFactory = loggerFactory;
+    }
+
+    public void AddFederation(string name, string url) {
+        _federations.Add((name, url));
     }
 }
