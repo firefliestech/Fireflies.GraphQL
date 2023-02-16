@@ -12,7 +12,7 @@ internal static class WrapperGenerator {
     private static readonly Dictionary<Type, Type> WrappedTypes = new();
 
     static WrapperGenerator() {
-        var assemblyName = new AssemblyName("GraphQLProxyAssembly");
+        var assemblyName = new AssemblyName("Fireflies.GraphQL.ProxyAssembly");
         var dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
         DynamicModule = dynamicAssembly.DefineDynamicModule("Main");
     }
@@ -22,7 +22,7 @@ internal static class WrapperGenerator {
             return existingType;
         }
 
-        var wrappedType = DynamicModule.DefineType($"{baseType.Name}Wrapper",
+        var wrappedType = DynamicModule.DefineType($"{baseType.Name}",
             TypeAttributes.Public |
             TypeAttributes.Class |
             TypeAttributes.AutoClass |
@@ -80,7 +80,7 @@ internal static class WrapperGenerator {
         IEnumerable<(PropertyInfo PropertyInfo, Type? DeclaringType)> propertiesToWrap = baseType.GetAllGraphQLProperties().Select(property => (property, (Type?)null));
         if(baseType.GetInterfaces().Contains(typeof(IASTNodeHandler))) {
             wrappedType.AddInterfaceImplementation(typeof(IASTNodeHandler));
-            propertiesToWrap = propertiesToWrap.Union(new[] { (baseType.GetProperty("ASTNode")!, typeof(IASTNodeHandler)) });
+            propertiesToWrap = propertiesToWrap.Union(new[] { (baseType.GetProperty("ASTNode")!, (Type?)typeof(IASTNodeHandler)) });
         }
 
         foreach(var entry in propertiesToWrap) {
@@ -287,8 +287,6 @@ internal static class WrapperGenerator {
         constructorIlGenerator.Emit(OpCodes.Ldarg_0);
         constructorIlGenerator.Emit(OpCodes.Ldarg_1);
         constructorIlGenerator.Emit(OpCodes.Call, baseConstructor);
-        constructorIlGenerator.Emit(OpCodes.Nop);
-        constructorIlGenerator.Emit(OpCodes.Nop);
         constructorIlGenerator.Emit(OpCodes.Ret);
 
         return edgeType.CreateType()!;
