@@ -14,7 +14,11 @@ public class TinyIoCDependencyResolver : IDependencyResolver {
     }
 
     public IDependencyResolver BeginLifetimeScope(Action<ILifetimeScopeBuilder> builder) {
-        return new TinyIoCDependencyResolver(_rootContainer.GetChildContainer());
+        var childContainer = _rootContainer.GetChildContainer();
+        builder(new LifetimeScopeBuilder(childContainer));
+        var newContainer = new TinyIoCDependencyResolver(childContainer);
+        childContainer.Register<IDependencyResolver>(newContainer);
+        return newContainer;
     }
 
     public T Resolve<T>() where T : class {

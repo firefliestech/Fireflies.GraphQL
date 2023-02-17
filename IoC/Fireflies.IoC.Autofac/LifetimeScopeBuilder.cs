@@ -10,7 +10,7 @@ public class LifetimeScopeBuilder : ILifetimeScopeBuilder {
         _containerBuilder = containerBuilder;
     }
 
-    public void RegisterType<T>() where T : notnull {
+    public void RegisterType<T>() where T : class {
         _containerBuilder.RegisterType<T>();
     }
 
