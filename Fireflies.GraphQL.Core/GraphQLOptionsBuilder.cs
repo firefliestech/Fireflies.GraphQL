@@ -74,6 +74,10 @@ public class GraphQLOptionsBuilder {
                     options.SubscriptionOperations.Add(operation);
                 }
             }
+
+            var schemaBuilder = new SchemaBuilder(options);
+            var schema = schemaBuilder.GenerateSchema();
+            builder.RegisterInstance(schema);
         });
 
         var validator = new SchemaValidator(options.AllOperations);
