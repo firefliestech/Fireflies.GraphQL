@@ -73,6 +73,10 @@ internal class SchemaBuilder {
             return;
         }
 
+        var underlyingType = Nullable.GetUnderlyingType(startingObject);
+        if(underlyingType != null)
+            startingObject = underlyingType;
+
         if(!types.Add(startingObject))
             return;
 
@@ -236,10 +240,15 @@ internal class SchemaBuilder {
         }
 
         foreach(var property in baseType.GetAllGraphQLProperties()) {
+            var propertyType = property.PropertyType;
+            var isNullable = NullabilityChecker.IsNullable(property);
+            var underlyingType = Nullable.GetUnderlyingType(propertyType);
+            if (underlyingType != null)
+                propertyType = underlyingType;
+
             fields.Add(new __Field(property) {
                 Name = property.GraphQLName(),
-                Type = WrapNullable(NullabilityChecker.IsNullable(property),
-                    CreateType(property.PropertyType, true))
+                Type = WrapNullable(isNullable, CreateType(propertyType, true))
             });
         }
 
@@ -285,6 +294,10 @@ internal class SchemaBuilder {
 
     private Type GetBaseType(Type type) {
         type = type.GetGraphQLType();
+
+        var underlyingType = Nullable.GetUnderlyingType(type);
+        if(underlyingType != null)
+            type = underlyingType;
 
         if(type.IsEnum)
             return type;
