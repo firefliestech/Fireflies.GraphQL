@@ -10,6 +10,7 @@
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>Icon-128x128.png</PackageIcon>
+		<RepositoryUrl>https://github.com/firefliestech/fireflies.graphql</RepositoryUrl>
 	</PropertyGroup>
 
 	<ItemGroup>
