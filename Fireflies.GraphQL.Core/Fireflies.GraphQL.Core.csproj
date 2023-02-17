@@ -9,10 +9,12 @@
 		<Copyright>2023 Fireflies.tech</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>Icon-128x128.png</PackageIcon>
 	</PropertyGroup>
 	
 	<ItemGroup>
-		<None Include="README.md" Pack="true" PackagePath="\"/>
+		<None Include="README.md" Pack="true" PackagePath="\" />
+		<None Include="..\Images\Icon-128x128.png" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
 	<ItemGroup>
