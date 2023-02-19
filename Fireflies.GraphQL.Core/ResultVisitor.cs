@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Reflection;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.IoC.Abstractions;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 using Newtonsoft.Json.Linq;
@@ -13,11 +14,13 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     private readonly IGraphQLContext _context;
 
     private readonly Stack<Level> _stack = new();
+    private readonly IDependencyResolver _dependencyResolver;
 
-    public ResultVisitor(object data, JObject subResult, FragmentAccessor fragments, VariableAccessor variableAccessor, IGraphQLContext context) {
+    public ResultVisitor(object data, JObject subResult, FragmentAccessor fragments, VariableAccessor variableAccessor, IGraphQLContext context, IDependencyResolver dependencyResolver) {
         _fragments = fragments;
         _variableAccessor = variableAccessor;
         _context = context;
+        _dependencyResolver = dependencyResolver;
         _stack.Push(new Level(data, subResult, 0));
     }
 
@@ -126,7 +129,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     }
 
     private async Task<object?> InvokeMethod(GraphQLField graphQLField, MethodInfo methodInfo, Level parentLevel) {
-        var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, _variableAccessor, _context);
+        var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, _variableAccessor, _context, _dependencyResolver);
         var arguments = await argumentBuilder.Build();
         return await methodInfo.ExecuteMethod(parentLevel.Data!, arguments);
     }

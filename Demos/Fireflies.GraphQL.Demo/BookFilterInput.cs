@@ -1,8 +1,6 @@
-﻿using Fireflies.GraphQL.Abstractions;
+﻿namespace Fireflies.GraphQL.Demo;
 
-namespace Fireflies.GraphQL.Demo;
-
-public class BookFilterInput : GraphQLInput {
+public class BookFilterInput {
     public string? Title { get; set; }
     public StringFilterOperatorInput? ISBN { get; set; }
 }

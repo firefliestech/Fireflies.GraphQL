@@ -42,7 +42,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                     if(operations is IASTNodeHandler astNodeHandler) {
                         astNodeHandler.GraphQLNode = graphQLField;
                     }
-                    var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _variableAccessor, _context);
+                    var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _variableAccessor, _context, _dependencyResolver);
 
                     var returnType = operationDescriptor.Method.DiscardTaskFromReturnType();
                     var asyncEnumerable = (IAsyncEnumerable<object>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder })!;
@@ -56,7 +56,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                                 var subResult = new JObject();
                                 container.Add(subResult);
                                 foreach(var subSelection in graphQLField.SelectionSet!.Selections) {
-                                    var resultVisitor = new ResultVisitor(obj, subResult, _fragments, _variableAccessor, _context);
+                                    var resultVisitor = new ResultVisitor(obj, subResult, _fragments, _variableAccessor, _context, _dependencyResolver);
                                     await resultVisitor.VisitAsync(subSelection, context);
                                 }
                             }
@@ -64,7 +64,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                             var subResult = new JObject();
                             jObject.Add(graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue, subResult);
                             foreach(var subSelection in graphQLField.SelectionSet!.Selections) {
-                                var resultVisitor = new ResultVisitor(result, subResult, _fragments, _variableAccessor, _context);
+                                var resultVisitor = new ResultVisitor(result, subResult, _fragments, _variableAccessor, _context, _dependencyResolver);
                                 await resultVisitor.VisitAsync(subSelection, context);
                             }
                         }

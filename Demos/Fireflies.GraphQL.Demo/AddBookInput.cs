@@ -1,7 +1,5 @@
-﻿using Fireflies.GraphQL.Abstractions;
+﻿namespace Fireflies.GraphQL.Demo;
 
-namespace Fireflies.GraphQL.Demo;
-
-public class AddBookInput : GraphQLInput {
+public class AddBookInput {
     public string Title { get; set; }
 }

@@ -45,6 +45,10 @@ internal static class ReflectionExtensions {
         return attribute != null;
     }
 
+    public static bool HasCustomAttribute<T>(this ParameterInfo parameterInfo) where T : Attribute {
+        return parameterInfo.HasCustomAttribute<T>(out _);
+    }
+
     public static bool HasCustomAttribute<T>(this ParameterInfo parameterInfo, out T? attribute) where T : Attribute {
         var attributes = parameterInfo.GetCustomAttributes<T>(true);
         attribute = attributes.FirstOrDefault();
@@ -112,6 +116,10 @@ internal static class ReflectionExtensions {
 
     private static IEnumerable<MethodInfo> GetAllAccessibleMethods(Type type) {
         return type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy).Where(p => p.DeclaringType != typeof(object) && !p.IsSpecialName);
+    }
+
+    public static IEnumerable<ParameterInfo> GetAllGraphQLParameters(this MethodInfo methodInfo) {
+        return methodInfo.GetParameters().Where(x => !x.HasCustomAttribute<ResolvedAttribute>());
     }
 
     public static async Task<object?> ExecuteMethod(this MethodInfo methodInfo, object instance, object?[] arguments) {

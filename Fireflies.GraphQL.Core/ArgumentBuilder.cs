@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.IoC.Abstractions;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 
@@ -10,23 +11,31 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
     private readonly MethodInfo _methodInfo;
     private readonly VariableAccessor _variableAccessor;
     private readonly IGraphQLContext _context;
+    private readonly IDependencyResolver _dependencyResolver;
     private readonly Dictionary<string, ParameterInfo> _parameters;
 
     public Dictionary<string, object?> Values { get; set; } = new();
 
     private readonly Stack<object?> _stack = new();
 
-    public ArgumentBuilder(GraphQLArguments? arguments, MethodInfo methodInfo, VariableAccessor variableAccessor, IGraphQLContext context) {
+    public ArgumentBuilder(GraphQLArguments? arguments, MethodInfo methodInfo, VariableAccessor variableAccessor, IGraphQLContext context, IDependencyResolver dependencyResolver) {
         _arguments = arguments;
         _methodInfo = methodInfo;
         _variableAccessor = variableAccessor;
         _context = context;
+        _dependencyResolver = dependencyResolver;
         _parameters = methodInfo.GetParameters().ToDictionary(x => x.Name!);
     }
 
     public async Task<object?[]> Build() {
         await VisitAsync(_arguments, _context).ConfigureAwait(false);
         return _methodInfo.GetParameters().Select(x => {
+            if(x.HasCustomAttribute<ResolvedAttribute>(out _)) {
+                return x.ParameterType == typeof(CancellationToken) ?
+                    _context.CancellationToken :
+                    _dependencyResolver.Resolve(x.ParameterType);
+            }
+
             if(x.ParameterType == typeof(CancellationToken))
                 return _context.CancellationToken;
 

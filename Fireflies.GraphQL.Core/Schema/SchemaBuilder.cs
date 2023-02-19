@@ -6,6 +6,8 @@ namespace Fireflies.GraphQL.Core.Schema;
 
 internal class SchemaBuilder {
     private readonly GraphQLOptions _options;
+    private HashSet<Type> _inputTypes = new();
+    private int _inputLevel;
 
     // ReSharper disable once UnusedMember.Global
     public SchemaBuilder(GraphQLOptions options) {
@@ -13,15 +15,9 @@ internal class SchemaBuilder {
     }
 
     public __Schema GenerateSchema() {
-        var topLevelTypes = _options.AllOperations
-            .Select(x => x.Type)
-            .SelectMany(qt =>
-                qt.GetAllGraphQLMethods()
-                    .SelectMany(x => new[] { x.DiscardTaskFromReturnType() }.Union(x.GetParameters().Select(y => y.ParameterType)))).Distinct();
-
         var allTypes = new HashSet<Type>();
-        foreach(var type in topLevelTypes)
-            FindAllTypes(allTypes, type);
+        foreach(var type in _options.AllOperations)
+            FindAllTypes(allTypes, type.Type);
 
         __Type? queryType = null;
         if(_options.QueryOperations.Any()) {
@@ -95,14 +91,19 @@ internal class SchemaBuilder {
         }
 
         foreach(var method in startingObject.GetAllGraphQLMethods()) {
-            foreach(var parameter in method.GetParameters()) {
+            foreach(var parameter in method.GetAllGraphQLParameters()) {
+                _inputLevel++;
+                _inputTypes.Add(parameter.ParameterType);
                 FindAllTypes(types, parameter.ParameterType);
+                _inputLevel--;
             }
 
             FindAllTypes(types, method.ReturnType.GetGraphQLType());
         }
 
         foreach(var property in startingObject.GetAllGraphQLProperties()) {
+            if(_inputLevel > 0)
+                _inputTypes.Add(property.PropertyType);
             FindAllTypes(types, property.PropertyType);
         }
 
@@ -179,38 +180,7 @@ internal class SchemaBuilder {
 
         // Todo: ID is missing
 
-        var isInputType = baseType.IsAssignableTo(typeof(GraphQLInput));
-
-        if(!isInputType) {
-            var fields = new List<__Field>();
-            if(!isTypeReference) {
-                fields.AddRange(GetFields(baseType));
-            }
-
-            if(type.IsInterface) {
-                var interfaceType = new __Type(type, fields) {
-                    Name = baseType.GraphQLName(),
-                    Kind = type.HasCustomAttribute<GraphQLUnionAttribute>() ? __TypeKind.UNION : __TypeKind.INTERFACE,
-                    Description = baseType.GetDescription()
-                };
-
-                if(!isTypeReference)
-                    interfaceType.PossibleTypes = baseType.GetAllClassesThatImplements().Select(x => CreateType(x, true)).ToArray();
-
-                return interfaceType;
-            } else {
-                var objectType = new __Type(type, fields) {
-                    Name = baseType.GraphQLName(),
-                    Kind = __TypeKind.OBJECT,
-                    Description = baseType.GetDescription()
-                };
-
-                if(!isTypeReference)
-                    objectType.Interfaces = baseType.GetInterfaces().Select(x => CreateType(x, true)).Where(x => x.Kind == __TypeKind.INTERFACE).ToArray();
-
-                return objectType;
-            }
-        } else {
+        if(_inputTypes.Contains(baseType)) {
             var inputValues = new List<__InputValue>();
 
             foreach(var property in baseType.GetAllGraphQLProperties()) {
@@ -227,6 +197,35 @@ internal class SchemaBuilder {
                 Description = baseType.GetDescription()
             };
         }
+
+        var fields = new List<__Field>();
+        if(!isTypeReference) {
+            fields.AddRange(GetFields(baseType));
+        }
+
+        if(type.IsInterface) {
+            var interfaceType = new __Type(type, fields) {
+                Name = baseType.GraphQLName(),
+                Kind = type.HasCustomAttribute<GraphQLUnionAttribute>() ? __TypeKind.UNION : __TypeKind.INTERFACE,
+                Description = baseType.GetDescription()
+            };
+
+            if(!isTypeReference)
+                interfaceType.PossibleTypes = baseType.GetAllClassesThatImplements().Select(x => CreateType(x, true)).ToArray();
+
+            return interfaceType;
+        }
+
+        var objectType = new __Type(type, fields) {
+            Name = baseType.GraphQLName(),
+            Kind = __TypeKind.OBJECT,
+            Description = baseType.GetDescription()
+        };
+
+        if(!isTypeReference)
+            objectType.Interfaces = baseType.GetInterfaces().Select(x => CreateType(x, true)).Where(x => x.Kind == __TypeKind.INTERFACE).ToArray();
+
+        return objectType;
     }
 
     private List<__Field> GetFields(Type baseType) {
@@ -257,7 +256,7 @@ internal class SchemaBuilder {
 
     private List<__InputValue> GetArguments(MethodInfo method) {
         var args = new List<__InputValue>();
-        foreach(var parameter in method.GetParameters()) {
+        foreach(var parameter in method.GetAllGraphQLParameters()) {
             args.Add(new __InputValue {
                 Name = parameter.GraphQLName(),
                 Type = CreateType(parameter.ParameterType, true),

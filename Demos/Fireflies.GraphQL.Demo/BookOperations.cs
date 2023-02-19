@@ -4,12 +4,6 @@ using Fireflies.GraphQL.Core;
 namespace Fireflies.GraphQL.Demo;
 
 public class BookOperations {
-    private readonly IGraphQLContext _context;
-
-    public BookOperations(IGraphQLContext context) {
-        _context = context;
-    }
-
     [GraphQlPagination]
     [GraphQLQuery]
     public async Task<IEnumerable<InventoryBook>> Books(BookFilterInput? filter) {
@@ -28,8 +22,8 @@ public class BookOperations {
     }
 
     [GraphQLSubscription]
-    public async IAsyncEnumerable<InventoryBook> BookUpdated(int bookId) {
-        while(!_context.CancellationToken.IsCancellationRequested) {
+    public async IAsyncEnumerable<InventoryBook> BookUpdated(int bookId, [Resolved] CancellationToken cancellation) {
+        while(!cancellation.IsCancellationRequested) {
             await Task.Delay(2000);
             yield return new() { BookId = 1, Title = "My first book was updated", ISBN = "1234", ExactInventory = 20 };
         }
