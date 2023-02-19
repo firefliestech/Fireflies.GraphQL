@@ -13,12 +13,6 @@ app.UseGraphQL(await graphQLOptions.Build());
 ## Operation definition
 ```
 public class BookOperations {
-    private readonly IGraphQLContext _context;
-
-    public BookOperations(IGraphQLContext context) {
-        _context = context;
-    }
-
     [GraphQlPagination]
     [GraphQLQuery]
     public async Task<IEnumerable<InventoryBook>> Books(BookFilterInput? filter) {
@@ -37,21 +31,21 @@ public class BookOperations {
     }
 
     [GraphQLSubscription]
-    public async IAsyncEnumerable<InventoryBook> BookUpdated(int bookId) {
-        while(!_context.CancellationToken.IsCancellationRequested) {
+    public async IAsyncEnumerable<InventoryBook> BookUpdated(int bookId, CancellationToken cancellationToken) {
+        while(!cancellationToken.IsCancellationRequested) {
             await Task.Delay(2000);
             yield return new() { BookId = 1, Title = "My first book was updated", ISBN = "1234", ExactInventory = 20 };
         }
     }
 }
 
-public class BookFilterInput : GraphQLInput {
+public class BookFilterInput {
     public string? Title { get; set; }
     public StringFilterOperatorInput? ISBN { get; set; }
 }
 
 
-public class AddBookInput : GraphQLInput {
+public class AddBookInput {
     public string Title { get; set; }
 }
 
