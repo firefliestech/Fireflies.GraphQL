@@ -1,5 +1,6 @@
 ﻿using System.Net.WebSockets;
 using Fireflies.GraphQL.Core;
+using Fireflies.IoC.Abstractions;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json.Linq;
 using Nito.AsyncEx;
@@ -21,7 +22,8 @@ public class GraphQLContext : IGraphQLContext {
 
     public CancellationToken CancellationToken => _cancellationTokenSource.Token;
     public bool IsWebSocket => WebSocket != null;
-    public WebSocket? WebSocket { get; set; }
+    public WebSocket? WebSocket { get; internal set; }
+    public IDependencyResolver DependencyResolver { get; internal set; }
 
     public async IAsyncEnumerator<JObject> GetAsyncEnumerator(CancellationToken cancellationToken = new()) {
         while(!CancellationToken.IsCancellationRequested) {

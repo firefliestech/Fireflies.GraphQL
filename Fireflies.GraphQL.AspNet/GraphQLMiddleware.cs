@@ -71,16 +71,19 @@ public class GraphQLMiddleware {
     }
 
     private IDependencyResolver CreateRequestLifetimeScope(HttpContext httpContext) {
-        return _options.DependencyResolver.BeginLifetimeScope(builder => {
+        var graphQLContext = new GraphQLContext(httpContext);
+
+        var lifetimeScopeResolver = _options.DependencyResolver.BeginLifetimeScope(builder => {
             builder.RegisterInstance(_options.LoggerFactory);
             builder.RegisterInstance(httpContext);
-            var graphQLContext = new GraphQLContext(httpContext);
             builder.RegisterInstance(graphQLContext);
             builder.RegisterInstance((IGraphQLContext)graphQLContext);
             if(_options.DependencyResolver.TryResolve<IRequestDependencyResolverBuilder>(out var innerBuilder)) {
                 innerBuilder!.Build(builder, httpContext);
             }
         });
+        graphQLContext.DependencyResolver = lifetimeScopeResolver;
+        return lifetimeScopeResolver;
     }
 
     private async void ProcessWebSocket(HttpContext httpContext, GraphQLEngine engine, IFirefliesLogger firefliesLogger) {
