@@ -6,10 +6,10 @@ namespace Fireflies.GraphQL.Core.Schema;
 
 // ReSharper disable once InconsistentNaming
 public class __Field {
-    public string Name { get; set; }
+    public string Name { get; set; } = null!;
     public string? Description { get; set; }
     public __InputValue[] Args { get; set; } = Array.Empty<__InputValue>();
-    public __Type Type { get; set; }
+    public __Type Type { get; set; } = null!;
     public bool IsDeprecated { get; set; }
     public string? DeprecationReason { get; set; }
 

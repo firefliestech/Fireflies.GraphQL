@@ -17,9 +17,21 @@ public class FederationWebsocket<T> {
         _context = context;
         _operationName = operationName;
         _client = new ClientWebSocket();
-        
-        foreach(var item in context.RequestHeaders)
+
+        var headersToCopy = context.RequestHeaders.Where(x => ShouldCopyHeader(x.Key));
+        foreach(var item in headersToCopy)
             _client.Options.SetRequestHeader(item.Key, string.Join(",", item));
+    }
+
+    private static bool ShouldCopyHeader(string key) {
+        switch(key) {
+            case "Connection":
+            case "Upgrade":
+            case "Host":
+                return false;
+            default:
+                return !key.StartsWith("Sec-WebSocket");
+        }
     }
 
     public async IAsyncEnumerable<T> Results() {
