@@ -7,21 +7,23 @@ namespace Fireflies.GraphQL.Core.Schema;
 internal class SchemaBuilder {
     private readonly GraphQLOptions _options;
     private HashSet<Type> _inputTypes = new();
+    private readonly HashSet<Type> _ignore = new();
     private int _inputLevel;
 
     // ReSharper disable once UnusedMember.Global
     public SchemaBuilder(GraphQLOptions options) {
         _options = options;
+        _ignore.Add(typeof(IASTNodeHandler));
     }
 
     public __Schema GenerateSchema() {
         var allTypes = new HashSet<Type>();
         foreach(var type in _options.AllOperations)
-            FindAllTypes(allTypes, type.Type);
+            FindAllTypes(allTypes, type.Type, true);
 
         __Type? queryType = null;
         if(_options.QueryOperations.Any()) {
-            queryType = new __Type(null, CreateQueryFields(_options.QueryOperations)) {
+            queryType = new __Type(null, CreateQueryFields(_options.QueryOperations.Where(qo => !qo.Name.StartsWith("__")))) {
                 Name = "Query",
                 Kind = __TypeKind.OBJECT
             };
@@ -63,8 +65,11 @@ internal class SchemaBuilder {
         return schema;
     }
 
-    private void FindAllTypes(HashSet<Type> types, Type startingObject) {
-        if(startingObject.IsEnumerable(out var elementType)) {
+    private void FindAllTypes(HashSet<Type> types, Type startingObject, bool isOperation = false) {
+        if(_ignore.Contains(startingObject))
+            return;
+
+        if (startingObject.IsEnumerable(out var elementType)) {
             FindAllTypes(types, elementType);
             return;
         }
@@ -73,20 +78,18 @@ internal class SchemaBuilder {
         if(underlyingType != null)
             startingObject = underlyingType;
 
-        if(!types.Add(startingObject))
+        if(!isOperation && !types.Add(startingObject))
             return;
 
         if(Type.GetTypeCode(startingObject) != TypeCode.Object)
             return;
 
         if(startingObject.IsInterface) {
-            foreach(var impl in startingObject.GetAllClassesThatImplements())
+            foreach (var impl in startingObject.GetAllClassesThatImplements())
                 FindAllTypes(types, impl);
         } else {
             foreach(var interf in startingObject.GetInterfaces()) {
                 FindAllTypes(types, interf);
-                foreach(var impl in interf.GetAllClassesThatImplements())
-                    FindAllTypes(types, impl);
             }
         }
 
@@ -101,10 +104,12 @@ internal class SchemaBuilder {
             FindAllTypes(types, method.ReturnType.GetGraphQLType());
         }
 
-        foreach(var property in startingObject.GetAllGraphQLProperties()) {
-            if(_inputLevel > 0)
-                _inputTypes.Add(property.PropertyType);
-            FindAllTypes(types, property.PropertyType);
+        if(!isOperation) {
+            foreach(var property in startingObject.GetAllGraphQLProperties()) {
+                if(_inputLevel > 0)
+                    _inputTypes.Add(property.PropertyType);
+                FindAllTypes(types, property.PropertyType);
+            }
         }
 
         if(startingObject.IsInterface) {
@@ -138,7 +143,7 @@ internal class SchemaBuilder {
             }
 
             return new __Type(baseType, null, isTypeReference ? Array.Empty<__EnumValue>() : CreateEnumValues(baseType)) {
-                Name = type.GraphQLName(),
+                Name = type.Name,
                 Kind = __TypeKind.ENUM,
             };
         }
@@ -192,7 +197,7 @@ internal class SchemaBuilder {
             }
 
             return new __Type(baseType, inputValues: inputValues) {
-                Name = baseType.GraphQLName(),
+                Name = baseType.Name,
                 Kind = __TypeKind.INPUT_OBJECT,
                 Description = baseType.GetDescription()
             };
@@ -205,7 +210,7 @@ internal class SchemaBuilder {
 
         if(type.IsInterface) {
             var interfaceType = new __Type(type, fields) {
-                Name = baseType.GraphQLName(),
+                Name = baseType.Name,
                 Kind = type.HasCustomAttribute<GraphQLUnionAttribute>() ? __TypeKind.UNION : __TypeKind.INTERFACE,
                 Description = baseType.GetDescription()
             };
@@ -217,7 +222,7 @@ internal class SchemaBuilder {
         }
 
         var objectType = new __Type(type, fields) {
-            Name = baseType.GraphQLName(),
+            Name = baseType.Name,
             Kind = __TypeKind.OBJECT,
             Description = baseType.GetDescription()
         };
@@ -242,7 +247,7 @@ internal class SchemaBuilder {
             var propertyType = property.PropertyType;
             var isNullable = NullabilityChecker.IsNullable(property);
             var underlyingType = Nullable.GetUnderlyingType(propertyType);
-            if (underlyingType != null)
+            if(underlyingType != null)
                 propertyType = underlyingType;
 
             fields.Add(new __Field(property) {
