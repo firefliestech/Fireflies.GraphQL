@@ -62,7 +62,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         var pushed = false;
 
         if(_fieldStack.Count == 0) {
-            var queryType = GetOperations().FirstOrDefault(x => x.Name == field.Name);
+            var queryType = GetOperations().FirstOrDefault(x => x.Name.Equals(field.Name.StringValue, StringComparison.InvariantCultureIgnoreCase));
             if(queryType == null) {
                 _errors.Add($"Cannot query field \"{field.Name}\" on type \"{_operationType}\"");
                 return;

@@ -78,7 +78,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
     }
 
     private OperationDescriptor GetHandler(GraphQLField graphQLField) {
-        return GetOperationsCollection().First(x => x.Name == graphQLField.Name);
+        return GetOperationsCollection().First(x => x.Name.Equals(graphQLField.Name.StringValue, StringComparison.InvariantCultureIgnoreCase));
     }
 
     private IEnumerable<OperationDescriptor> GetOperationsCollection() {
