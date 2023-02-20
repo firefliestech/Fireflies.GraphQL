@@ -23,12 +23,10 @@ public class BookOperations {
     }
 
     [GraphQLSubscription]
-    public async IAsyncEnumerable<InventoryBook> BookUpdated(int bookId, CancellationToken cancellation) {
+    public async IAsyncEnumerable<InventoryBook> BookUpdated(int bookId, [EnumeratorCancellation] CancellationToken cancellation) {
         while(!cancellation.IsCancellationRequested) {
-            cancellation.ThrowIfCancellationRequested();
             await Task.Delay(2000, cancellation);
-            yield return new InventoryBook() { BookId = 1, Title = "My first book was updated", ISBN = "1234", ExactInventory = 20 };
+            yield return new InventoryBook { BookId = 1, Title = "My first book was updated", ISBN = "1234", ExactInventory = 20 };
         }
-        
     }
 }

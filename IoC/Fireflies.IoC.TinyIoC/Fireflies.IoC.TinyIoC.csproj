@@ -13,12 +13,20 @@
 		<RepositoryUrl>https://github.com/firefliestech/fireflies.graphql</RepositoryUrl>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+	  <WarningLevel>0</WarningLevel>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+	  <WarningLevel>0</WarningLevel>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<ProjectReference Include="..\Fireflies.IoC.Abstractions\Fireflies.IoC.Abstractions.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Include="README.md" Pack="true" PackagePath="\"/>
+		<None Include="README.md" Pack="true" PackagePath="\" />
 		<None Include="..\..\Images\Icon-128x128.png" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
