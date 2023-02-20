@@ -41,16 +41,38 @@ public class GraphQLOptionsBuilder {
     }
 
     public async Task<GraphQLOptions> Build() {
+        var logger = _loggerFactory.GetLogger<GraphQLOptionsBuilder>();
+
+        logger.Trace("Building GraphQLOptions. ");
+
         var options = new GraphQLOptions {
             Url = _url,
             SchemaDescription = _schemaDescription
         };
 
         foreach(var federation in _federations) {
-            var federationSchema = await new FederationClient(federation.Url).FetchSchema();
-            var generator = new FederationGenerator(federation, federationSchema);
-            var generatedType = generator.Generate();
-            _operationTypes.Add(generatedType);
+            var attempt = 0;
+            while(true) {
+                attempt++;
+                try {
+                    logger.Info($"Fetching federated schema for {federation.Name} from {federation.Url}");
+                    var federationSchema = await new FederationClient(federation.Url).FetchSchema();
+                    var generator = new FederationGenerator(federation, federationSchema);
+                    var generatedType = generator.Generate();
+                    _operationTypes.Add(generatedType);
+                    break;
+                } catch(Exception ex) {
+                    
+                    if(attempt < 4) {
+                        const int delay = 3000;
+                        logger.Error(ex, $"Failed to add federation. Attempt: {attempt}. Retrying in {delay}ms");
+                        await Task.Delay(delay);
+                    } else {
+                        logger.Error(ex, $"Failed to add federation. Attempt: {attempt}. Giving up");
+                        throw;
+                    }
+                }
+            }
         }
 
         options.DependencyResolver = _dependencyResolver.BeginLifetimeScope(builder => {
@@ -62,16 +84,19 @@ public class GraphQLOptionsBuilder {
                 foreach(var operation in FindOperations(type, wt => wt.GetAllGraphQLQueryMethods(true))) {
                     builder.RegisterType(operation.Type);
                     options.QueryOperations.Add(operation);
+                    logger.Debug($"Added query operation {operation.Name} from {operation.Type.FullName}");
                 }
 
                 foreach(var operation in FindOperations(type, wt => wt.GetAllGraphQLMutationMethods(true))) {
                     builder.RegisterType(operation.Type);
                     options.MutationsOperations.Add(operation);
+                    logger.Debug($"Added mutation operation {operation.Name} from {operation.Type.FullName}");
                 }
 
                 foreach(var operation in FindOperations(type, wt => wt.GetAllGraphQLSubscriptionMethods(true))) {
                     builder.RegisterType(operation.Type);
                     options.SubscriptionOperations.Add(operation);
+                    logger.Debug($"Added subscription operation {operation.Name} from {operation.Type.FullName}");
                 }
             }
 
@@ -84,6 +109,8 @@ public class GraphQLOptionsBuilder {
         validator.Validate();
 
         options.LoggerFactory = _loggerFactory;
+
+        logger.Trace("Options built successfully");
 
         return options;
     }
