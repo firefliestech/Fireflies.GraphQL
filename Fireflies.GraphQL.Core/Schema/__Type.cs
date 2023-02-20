@@ -16,7 +16,7 @@ public class __Type {
     }
 
     public __TypeKind Kind { get; set; }
-    public string Name { get; set; }
+    public string? Name { get; set; }
     public string? Description { get; set; }
 
     public __Field[] Fields(bool includeDeprecated = false) {
@@ -24,7 +24,7 @@ public class __Type {
     }
 
     public __Type[] Interfaces { get; set; } = Array.Empty<__Type>();
-    public __Type[] PossibleTypes { get; set; }
+    public __Type[] PossibleTypes { get; set; } = Array.Empty<__Type>();
 
     // ReSharper disable once UnusedMember.Global
     public __EnumValue[] EnumValues(bool includeDeprecated = false) {

@@ -69,7 +69,7 @@ internal class SchemaBuilder {
         if(_ignore.Contains(startingObject))
             return;
 
-        if (startingObject.IsEnumerable(out var elementType)) {
+        if(startingObject.IsEnumerable(out var elementType)) {
             FindAllTypes(types, elementType);
             return;
         }
@@ -85,7 +85,7 @@ internal class SchemaBuilder {
             return;
 
         if(startingObject.IsInterface) {
-            foreach (var impl in startingObject.GetAllClassesThatImplements())
+            foreach(var impl in startingObject.GetAllClassesThatImplements())
                 FindAllTypes(types, impl);
         } else {
             foreach(var interf in startingObject.GetInterfaces()) {
@@ -189,11 +189,8 @@ internal class SchemaBuilder {
             var inputValues = new List<__InputValue>();
 
             foreach(var property in baseType.GetAllGraphQLProperties()) {
-                inputValues.Add(new __InputValue {
-                    Name = property.GraphQLName(),
-                    Type = WrapNullable(NullabilityChecker.IsNullable(property), CreateType(property.PropertyType, true)),
-                    Description = property.GetDescription()
-                });
+                var propertyType = WrapNullable(NullabilityChecker.IsNullable(property), CreateType(property.PropertyType, true));
+                inputValues.Add(new __InputValue(property.GraphQLName(), property.GetDescription(), propertyType, null));
             }
 
             return new __Type(baseType, inputValues: inputValues) {
@@ -262,12 +259,7 @@ internal class SchemaBuilder {
     private List<__InputValue> GetArguments(MethodInfo method) {
         var args = new List<__InputValue>();
         foreach(var parameter in method.GetAllGraphQLParameters()) {
-            args.Add(new __InputValue {
-                Name = parameter.GraphQLName(),
-                Type = CreateType(parameter.ParameterType, true),
-                DefaultValue = GetDefaultValue(parameter),
-                Description = parameter.GetDescription()
-            });
+            args.Add(new __InputValue(parameter.GraphQLName(), parameter.GetDescription(), CreateType(parameter.ParameterType, true), GetDefaultValue(parameter)));
         }
 
         return args;
@@ -339,7 +331,7 @@ internal class SchemaBuilder {
             var fieldInfo = type.GetField(x)!;
             var deprecationReason = fieldInfo.GetDeprecatedReason();
             var description = fieldInfo.GetDescription();
-            return new __EnumValue { Name = x, Description = description, DeprecationReason = deprecationReason };
+            return new __EnumValue(x, description, deprecationReason);
         }).ToArray();
     }
 }

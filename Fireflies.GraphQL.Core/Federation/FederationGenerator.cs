@@ -50,7 +50,7 @@ public class FederationGenerator {
     }
 
     private void GenerateOperation(OperationType operation, TypeBuilder operationsType) {
-        __Type? operationType = operation switch {
+        var operationType = operation switch {
             OperationType.Query => _federationSchema.Types.FirstOrDefault(t => t.Name == _federationSchema.QueryType?.Name),
             OperationType.Mutation => _federationSchema.Types.FirstOrDefault(t => t.Name == _federationSchema.MutationType?.Name),
             OperationType.Subscription => _federationSchema.Types.FirstOrDefault(t => t.Name == _federationSchema.SubscriptionType?.Name),
@@ -270,11 +270,11 @@ public class FederationGenerator {
         if(type.Kind == __TypeKind.NON_NULL)
             return GenerateName(type.OfType!);
 
-        return type.Name;
+        return type.Name!;
     }
 
     public bool ShouldGenerate(__Type type) {
-        if(type.Name.StartsWith("__"))
+        if(type.Name!.StartsWith("__"))
             return false;
 
         if(type.Name == _federationSchema.QueryType?.Name || type.Name == _federationSchema.MutationType?.Name || type.Name == _federationSchema.SubscriptionType?.Name)
