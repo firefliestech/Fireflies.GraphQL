@@ -82,7 +82,6 @@ public class GraphQLMiddleware {
                 innerBuilder!.Build(builder, httpContext);
             }
         });
-        graphQLContext.DependencyResolver = lifetimeScopeResolver;
         return lifetimeScopeResolver;
     }
 
