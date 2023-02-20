@@ -275,7 +275,7 @@ internal class SchemaBuilder {
 
     private static string? GetDefaultValue(ParameterInfo parameter) {
         var defaultValue = parameter.RawDefaultValue;
-        if(defaultValue == null)
+        if(defaultValue == null || defaultValue == DBNull.Value)
             return null;
 
         if(parameter.ParameterType == typeof(bool)) {
