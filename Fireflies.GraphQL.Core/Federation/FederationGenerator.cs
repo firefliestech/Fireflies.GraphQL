@@ -30,7 +30,7 @@ public class FederationGenerator {
             GenerateType(type, _ => { });
         }
 
-        var operationsTypeBuilder = _dynamicModule.DefineType("Operations", TypeAttributes.Class | TypeAttributes.Public, typeof(FederationBase));
+        var operationsTypeBuilder = _dynamicModule.DefineType($"{_federation.Name}Operations", TypeAttributes.Class | TypeAttributes.Public, typeof(FederationBase));
         var baseConstructor = typeof(FederationBase).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(IGraphQLContext) })!;
         var baseParameters = baseConstructor.GetParameters();
         var constructorBuilder = operationsTypeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { typeof(IGraphQLContext) });
