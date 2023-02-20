@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Runtime.CompilerServices;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.IoC.Abstractions;
 using GraphQLParser.AST;
@@ -30,18 +31,14 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
     public async Task<object?[]> Build() {
         await VisitAsync(_arguments, _context).ConfigureAwait(false);
         return _methodInfo.GetParameters().Select(x => {
-            if(x.HasCustomAttribute<ResolvedAttribute>(out _)) {
-                return x.ParameterType == typeof(CancellationToken) ?
-                    _context.CancellationToken :
-                    _dependencyResolver.Resolve(x.ParameterType);
-            }
+            if(x.HasCustomAttribute<EnumeratorCancellationAttribute>() && x.HasDefaultValue)
+                return null;
 
-            if(x.ParameterType == typeof(CancellationToken))
-                return _context.CancellationToken;
+            if(x.HasCustomAttribute<ResolvedAttribute>(out _))
+                return _dependencyResolver.Resolve(x.ParameterType);
 
-            if(Values.TryGetValue(x.Name!, out var result)) {
+            if(Values.TryGetValue(x.Name!, out var result))
                 return Convert.ChangeType(result, x.ParameterType);
-            }
 
             return NullabilityChecker.IsNullable(x) ? null : x.DefaultValue;
         }).ToArray();

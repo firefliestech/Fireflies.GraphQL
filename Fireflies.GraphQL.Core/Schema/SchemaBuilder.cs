@@ -14,6 +14,7 @@ internal class SchemaBuilder {
     public SchemaBuilder(GraphQLOptions options) {
         _options = options;
         _ignore.Add(typeof(IASTNodeHandler));
+        _ignore.Add(typeof(CancellationToken));
     }
 
     public __Schema GenerateSchema() {

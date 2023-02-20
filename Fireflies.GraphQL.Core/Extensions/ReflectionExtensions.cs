@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Fireflies.GraphQL.Abstractions;
 
 namespace Fireflies.GraphQL.Core.Extensions;
@@ -119,7 +120,7 @@ internal static class ReflectionExtensions {
     }
 
     public static IEnumerable<ParameterInfo> GetAllGraphQLParameters(this MethodInfo methodInfo) {
-        return methodInfo.GetParameters().Where(x => !x.HasCustomAttribute<ResolvedAttribute>());
+        return methodInfo.GetParameters().Where(x => !x.HasCustomAttribute<ResolvedAttribute>() && !x.HasCustomAttribute<EnumeratorCancellationAttribute>());
     }
 
     public static async Task<object?> ExecuteMethod(this MethodInfo methodInfo, object instance, object?[] arguments) {

@@ -1,6 +1,7 @@
 ﻿using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.IoC.Abstractions;
 
@@ -167,14 +168,8 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             _errors.Add($"Field of type \"{field.Name}\" of type \"{currentTypeName}\" must have a selection of sub fields");
         }
 
-        var any = false;
         foreach(var selection in selections) {
-            any = true;
             await VisitAsync(selection, context);
-        }
-
-        if(!any) {
-
         }
     }
 
@@ -191,7 +186,13 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             }
         }
 
-        foreach(var unspecifiedParameter in remainingParameters.Where(unspecifiedParameter => !unspecifiedParameter.HasDefaultValue && !NullabilityChecker.IsNullable(unspecifiedParameter) && !unspecifiedParameter.HasCustomAttribute<ResolvedAttribute>())) {
+        var unspecifiedParameters = remainingParameters.Where(rp =>
+            !rp.HasDefaultValue
+            && !NullabilityChecker.IsNullable(rp)
+            && !rp.HasCustomAttribute<ResolvedAttribute>()
+            && !rp.HasCustomAttribute<EnumeratorCancellationAttribute>());
+
+        foreach(var unspecifiedParameter in unspecifiedParameters) {
             _errors.Add($"Missing required argument \"{unspecifiedParameter.Name}\" on field \"{field.Name.StringValue}\".");
         }
     }
