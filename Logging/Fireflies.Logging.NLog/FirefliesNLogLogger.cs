@@ -10,11 +10,19 @@ public class FirefliesNLogLogger : IFirefliesLogger {
         _logger = logger;
     }
 
-    public void Error(Exception exception, string message) {
-        _logger.Error(exception, message);
+    public void Trace(string message) {
+        _logger.Trace(message);
     }
 
     public void Debug(string message) {
         _logger.Debug(message);
+    }
+
+    public void Info(string message) {
+        _logger.Info(message);
+    }
+
+    public void Error(Exception exception, string message) {
+        _logger.Error(exception, message);
     }
 }
