@@ -191,7 +191,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             }
         }
 
-        foreach(var unspecifiedParameter in remainingParameters.Where(unspecifiedParameter => !unspecifiedParameter.HasDefaultValue && !NullabilityChecker.IsNullable(unspecifiedParameter))) {
+        foreach(var unspecifiedParameter in remainingParameters.Where(unspecifiedParameter => !unspecifiedParameter.HasDefaultValue && !NullabilityChecker.IsNullable(unspecifiedParameter) && !unspecifiedParameter.HasCustomAttribute<ResolvedAttribute>())) {
             _errors.Add($"Missing required argument \"{unspecifiedParameter.Name}\" on field \"{field.Name.StringValue}\".");
         }
     }
