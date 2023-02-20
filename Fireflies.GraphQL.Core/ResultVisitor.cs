@@ -63,7 +63,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
             default:
                 if(field.Name.StringValue == "__typename") {
                     fieldType = typeof(string);
-                    fieldValue = type.GraphQLName();
+                    fieldValue = type.Name;
                 } else {
                     throw new NotImplementedException();
                 }
