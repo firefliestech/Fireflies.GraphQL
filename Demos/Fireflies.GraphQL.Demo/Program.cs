@@ -3,6 +3,7 @@ using Fireflies.GraphQL.AspNet;
 using Fireflies.GraphQL.Core;
 using Fireflies.GraphQL.Demo;
 using Fireflies.IoC.Autofac;
+using Fireflies.IoC.TinyIoC;
 using Fireflies.Logging.NLog;
 using NLog;
 using NLog.Common;
@@ -34,17 +35,15 @@ config.AddTarget("console", consoleTarget);
 config.LoggingRules.Add(new LoggingRule("*", LogLevel.Debug, consoleTarget));
 LogManager.Configuration = config;
 
-var containerBuilder = new ContainerBuilder();
-containerBuilder.RegisterType<MustBeSalesmanAttribute>();
-containerBuilder.RegisterType<RequestDependencyResolverBuilder>().As<IRequestDependencyResolverBuilder>();
-var container = containerBuilder.Build();
+var container = new TinyIoCContainer();
+container.Register<MustBeSalesmanAttribute>();
+container.Register<IRequestDependencyResolverBuilder, RequestDependencyResolverBuilder>();
 
-await Task.Delay(1000);
 var graphQLOptions = new GraphQLOptionsBuilder();
+graphQLOptions.SetDependencyResolver(new TinyIoCDependencyResolver(container));
 graphQLOptions.SetLoggerFactory(new FirefliesNLogFactory());
 graphQLOptions.Add<BookOperations>();
 graphQLOptions.AddFederation("Author", "https://localhost:7274/graphql");
-graphQLOptions.SetDependencyResolver(new AutofacDependencyResolver(container));
 app.UseWebSockets();
 app.UseGraphQL(await graphQLOptions.Build());
 

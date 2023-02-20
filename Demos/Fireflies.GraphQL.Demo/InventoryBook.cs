@@ -6,11 +6,11 @@ public class InventoryBook : IBook {
     [GraphQlId]
     public int BookId { get; set; }
 
-    public string Title { get; set; }
-    public string ISBN { get; set; }
+    public string Title { get; set; } = null!;
+    public string ISBN { get; set; } = null!;
 
-    public async Task<decimal> CalculatePrice() {
-        return (decimal)23.3;
+    public Task<decimal> CalculatePrice() {
+        return Task.FromResult((decimal)23.3);
     }
 
     [MustBeSalesman]

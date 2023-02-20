@@ -1,4 +1,5 @@
-﻿using Fireflies.GraphQL.Abstractions;
+﻿using System.Runtime.CompilerServices;
+using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core;
 
 namespace Fireflies.GraphQL.FederationDemo;
@@ -11,7 +12,7 @@ public class AuthorOperations {
     }
 
     [GraphQLQuery]
-    public Task<IAuthor> Author(int authorId = 10, string filter = null) {
+    public Task<IAuthor> Author(int authorId = 10, string? filter = null) {
         var author = new RealAuthor { Id = authorId, Name = "Lars" };
         return Task.FromResult<IAuthor>(author);
     }
@@ -24,9 +25,9 @@ public class AuthorOperations {
     }
 
     [GraphQLSubscription]
-    public async IAsyncEnumerable<RealAuthor> AuthorAdded() {
+    public async IAsyncEnumerable<RealAuthor> AuthorAdded([Resolved][EnumeratorCancellation]CancellationToken cancellation) {
         while(!_context.CancellationToken.IsCancellationRequested) {
-            await Task.Delay(2000);
+            await Task.Delay(2000, cancellation);
             yield return new RealAuthor { Id = DateTime.UtcNow.Second, Name = "Lars" };
         }
     }
