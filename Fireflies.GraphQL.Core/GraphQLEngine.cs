@@ -12,7 +12,7 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
     private readonly GraphQLOptions _options;
     private readonly IDependencyResolver _dependencyResolver;
     private FragmentAccessor _fragmentAccessor = null!;
-    private VariableAccessor _valueAccessor = null!;
+    private ValueAccessor _valueAccessor = null!;
 
     public IGraphQLContext Context { get; }
 
@@ -33,7 +33,7 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
         }
 
         _fragmentAccessor = new FragmentAccessor(graphQLDocument!, Context);
-        _valueAccessor = new VariableAccessor(request!.Variables, Context);
+        _valueAccessor = new ValueAccessor(request!.Variables, Context);
 
         var errors = await new RequestValidator(request, _fragmentAccessor, _options, _dependencyResolver, Context).Validate(graphQLDocument!);
         if(errors.Any()) {

@@ -283,9 +283,3 @@ public class FederationGenerator {
         return type.Name is not ("Int" or "Float" or "String" or "Boolean" or "ID");
     }
 }
-
-//public class Test {
-//    public void X() {
-//        FederationHelper.ExecuteRequest<string>(OperationType.Mutation, null, null, null);
-//    }
-//}

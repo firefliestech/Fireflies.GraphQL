@@ -1,4 +1,5 @@
 ﻿using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Abstractions.Sorting;
 
 namespace Fireflies.GraphQL.Demo;
 
@@ -12,6 +13,9 @@ public class InventoryBook : IBook {
     public Task<decimal> CalculatePrice() {
         return Task.FromResult((decimal)23.3);
     }
+    
+    [GraphQLSort]
+    public IEnumerable<Edition> Editions { get; set; }
 
     [MustBeSalesman]
     [GraphQLDescription("Returns the exact inventory")]

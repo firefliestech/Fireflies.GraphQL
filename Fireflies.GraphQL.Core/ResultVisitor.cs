@@ -10,15 +10,15 @@ namespace Fireflies.GraphQL.Core;
 
 internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     private readonly FragmentAccessor _fragments;
-    private readonly VariableAccessor _variableAccessor;
+    private readonly ValueAccessor _valueAccessor;
     private readonly IGraphQLContext _context;
 
     private readonly Stack<Level> _stack = new();
     private readonly IDependencyResolver _dependencyResolver;
 
-    public ResultVisitor(object data, JObject subResult, FragmentAccessor fragments, VariableAccessor variableAccessor, IGraphQLContext context, IDependencyResolver dependencyResolver) {
+    public ResultVisitor(object data, JObject subResult, FragmentAccessor fragments, ValueAccessor valueAccessor, IGraphQLContext context, IDependencyResolver dependencyResolver) {
         _fragments = fragments;
-        _variableAccessor = variableAccessor;
+        _valueAccessor = valueAccessor;
         _context = context;
         _dependencyResolver = dependencyResolver;
         _stack.Push(new Level(data, subResult, 0));
@@ -113,11 +113,11 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     private async Task<bool> RunBuiltInDirectives(GraphQLField field) {
         foreach(var directive in field.Directives ?? Enumerable.Empty<GraphQLDirective>()) {
             if(directive.Name == "skip" && directive.Arguments?[0].Name == "if") {
-                var result = await _variableAccessor.GetValue<bool>(directive.Arguments[0].Value);
+                var result = await _valueAccessor.GetValue<bool>(directive.Arguments[0].Value);
                 if(result)
                     return true;
             } else if(directive.Name == "include" && directive.Arguments?[0].Name == "if") {
-                var result = await _variableAccessor.GetValue<bool>(directive.Arguments[0].Value);
+                var result = await _valueAccessor.GetValue<bool>(directive.Arguments[0].Value);
                 if(!result)
                     return true;
             } else {
@@ -129,8 +129,8 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     }
 
     private async Task<object?> InvokeMethod(GraphQLField graphQLField, MethodInfo methodInfo, Level parentLevel) {
-        var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, _variableAccessor, _context, _dependencyResolver);
-        var arguments = await argumentBuilder.Build();
+        var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, _valueAccessor, _context, _dependencyResolver);
+        var arguments = await argumentBuilder.Build(graphQLField);
         return await methodInfo.ExecuteMethod(parentLevel.Data!, arguments);
     }
 

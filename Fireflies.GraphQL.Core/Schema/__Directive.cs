@@ -1,7 +1,10 @@
-﻿namespace Fireflies.GraphQL.Core.Schema;
+﻿using Fireflies.GraphQL.Abstractions;
+
+namespace Fireflies.GraphQL.Core.Schema;
 
 // ReSharper disable once InconsistentNaming
 // ReSharper disable UnusedMember.Global
+[GraphQLNoWrapper]
 public class __Directive {
     public string? Name { get; set; }
     public string? Description { get; set; }

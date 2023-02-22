@@ -3,11 +3,11 @@ using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core;
 
-internal class VariableAccessor {
+internal class ValueAccessor {
     private readonly IGraphQLContext _context;
     private readonly ValueVisitor _visitor;
 
-    public VariableAccessor(Dictionary<string, object>? variables, IGraphQLContext context) {
+    public ValueAccessor(Dictionary<string, object>? variables, IGraphQLContext context) {
         _context = context;
         _visitor = new ValueVisitor(variables);
     }
@@ -20,8 +20,14 @@ internal class VariableAccessor {
         return (T)Convert.ChangeType(unconvertedValue, typeof(T));
     }
 
+    public async Task<object?> GetValue(Type returnType, ASTNode node) {
+        var visitorContext = new ValueVisitorContext(_context, returnType);
+        await _visitor.VisitAsync(node, visitorContext);
+        return visitorContext.Result;
+    }
+
     public async Task<object?> GetValue(ASTNode node) {
-        var visitorContext = new ValueVisitorContext(_context);
+        var visitorContext = new ValueVisitorContext(_context, typeof(object));
         await _visitor.VisitAsync(node, visitorContext);
         return visitorContext.Result;
     }
@@ -48,6 +54,16 @@ internal class VariableAccessor {
             return ValueTask.CompletedTask;
         }
 
+        protected override ValueTask VisitIntValueAsync(GraphQLIntValue intValue, ValueVisitorContext context) {
+            context.Result = int.Parse(intValue.Value);
+            return ValueTask.CompletedTask;
+        }
+
+        protected override ValueTask VisitEnumValueAsync(GraphQLEnumValue enumValue, ValueVisitorContext context) {
+            context.Result = Enum.Parse(context.ReturnType, enumValue.Name.StringValue);
+            return ValueTask.CompletedTask;
+        }
+
         protected override ValueTask VisitVariableAsync(GraphQLVariable variable, ValueVisitorContext context) {
             if(_variables?.TryGetValue(variable.Name.StringValue, out var value) ?? false) {
                 context.Result = value;
@@ -62,11 +78,13 @@ internal class VariableAccessor {
     private class ValueVisitorContext : IASTVisitorContext {
         private readonly IGraphQLContext _context;
 
-        public ValueVisitorContext(IGraphQLContext context) {
-            _context = context;
-        }
-
         public object? Result { get; set; }
         public CancellationToken CancellationToken => _context.CancellationToken;
+        public Type ReturnType { get; }
+
+        public ValueVisitorContext(IGraphQLContext context, Type returnType) {
+            ReturnType = returnType;
+            _context = context;
+        }
     }
 }

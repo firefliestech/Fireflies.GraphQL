@@ -1,6 +1,9 @@
-﻿namespace Fireflies.GraphQL.Core.Schema;
+﻿using Fireflies.GraphQL.Abstractions;
+
+namespace Fireflies.GraphQL.Core.Schema;
 
 // ReSharper disable once InconsistentNaming
+[GraphQLNoWrapper]
 public class __EnumValue {
     public string Name { get; set; }
     public string? Description { get; set; }

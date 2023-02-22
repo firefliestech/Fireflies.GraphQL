@@ -2,6 +2,7 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Fireflies.GraphQL.Abstractions;
+using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Extensions;
 
@@ -15,21 +16,24 @@ internal static class ReflectionExtensions {
 
     public static string GraphQLName(this MemberInfo member) {
         if(member is TypeInfo { IsInterface: true } && member.Name.Length > 1 && member.Name[0] == 'I' && char.IsUpper(member.Name[1])) {
-            return LowerCaseFirstLetter(member.Name.Substring(1));
+            return LowerCaseGraqhQLName(member.Name.Substring(1));
         }
 
-        return LowerCaseFirstLetter(member.Name);
+        return LowerCaseGraqhQLName(member.Name);
     }
 
     public static string GraphQLName(this ParameterInfo parameter) {
-        return LowerCaseFirstLetter(parameter.Name!);
+        return LowerCaseGraqhQLName(parameter.Name!);
     }
 
-    private static string LowerCaseFirstLetter(string name) {
-        if(name.StartsWith("__")) {
+    private static string LowerCaseGraqhQLName(string name) {
+        if(name.StartsWith("__"))
             return $"__{char.ToLower(name[2])}{name[3..]}";
-        }
 
+        return name.LowerCaseFirstLetter();
+    }
+
+    public static string LowerCaseFirstLetter(this string name) {
         if(char.IsUpper(name[0]))
             return name.Length == 1 ? $"{char.ToLower(name[0])}" : $"{char.ToLower(name[0])}{name[1..]}";
 
@@ -57,6 +61,9 @@ internal static class ReflectionExtensions {
     }
 
     public static Type GetGraphQLType(this Type type) {
+        if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ValueTask<>))
+            type = type.GetGenericArguments()[0];
+
         if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>))
             type = type.GetGenericArguments()[0];
 
@@ -76,6 +83,12 @@ internal static class ReflectionExtensions {
             return returnType.GetGenericArguments()[0];
 
         return returnType;
+    }
+
+    public static bool IsValidGraphQLObject(this Type type) {
+        return Type.GetTypeCode(type) == TypeCode.Object
+               && type != typeof(DateTimeOffset)
+               && type != typeof(DateTimeOffset?);
     }
 
     public static IEnumerable<PropertyInfo> GetAllGraphQLProperties(this Type type) {
@@ -120,26 +133,27 @@ internal static class ReflectionExtensions {
     }
 
     public static IEnumerable<ParameterInfo> GetAllGraphQLParameters(this MethodInfo methodInfo) {
-        return methodInfo.GetParameters().Where(x => !x.HasCustomAttribute<ResolvedAttribute>() && !x.HasCustomAttribute<EnumeratorCancellationAttribute>());
+        return methodInfo.GetParameters().Where(x =>
+            !x.HasCustomAttribute<ResolvedAttribute>() &&
+            !x.HasCustomAttribute<EnumeratorCancellationAttribute>() &&
+            !x.ParameterType.IsAssignableTo(typeof(ASTNode)));
     }
 
     public static async Task<object?> ExecuteMethod(this MethodInfo methodInfo, object instance, object?[] arguments) {
-        var returnType = methodInfo.ReturnType;
-        if(returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-            returnType = returnType.GetGenericArguments()[0];
-        var result = await (Task<object?>)InternalExecuteMethodInfo.MakeGenericMethod(returnType).Invoke(null, new[] { methodInfo, instance, arguments })!;
+        var isEnumerable = methodInfo.ReturnType.IsEnumerable(out var elementType);
+        var result = await (Task<object?>)InternalExecuteMethodInfo.MakeGenericMethod(methodInfo.DiscardTaskFromReturnType()).Invoke(null, new[] { methodInfo, instance, isEnumerable, arguments })!;
         return result;
     }
 
-    private static async Task<object?> InternalExecuteMethod<T>(MethodInfo methodInfo, object instance, object[] arguments) {
-        var returnType = methodInfo.ReturnType;
-        var invokeResult = methodInfo.Invoke(instance, arguments);
-        if(returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>)) {
-            var result = await (Task<T>)invokeResult!;
-            return result;
+    private static async Task<object?> InternalExecuteMethod<T>(MethodInfo methodInfo, object instance, bool isEnumerable, object[] arguments) {
+        if(methodInfo.ReturnType.IsGenericType) {
+            var genericTypeDefinition = methodInfo.ReturnType.GetGenericTypeDefinition();
+            if(genericTypeDefinition == typeof(Task<>) || genericTypeDefinition == typeof(ValueTask<>)) {
+                return await (Task<T>)methodInfo.Invoke(instance, arguments)!;
+            }
         }
 
-        return invokeResult;
+        return methodInfo.Invoke(instance, arguments);
     }
 
     public static IEnumerable<Type> GetAllClassesThatImplements(this Type baseType) {

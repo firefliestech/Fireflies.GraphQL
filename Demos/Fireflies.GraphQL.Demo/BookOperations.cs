@@ -1,16 +1,17 @@
 ﻿using Fireflies.GraphQL.Abstractions;
-using Fireflies.GraphQL.Core;
 using System.Runtime.CompilerServices;
+using Fireflies.GraphQL.Abstractions.Sorting;
 
 namespace Fireflies.GraphQL.Demo;
 
 public class BookOperations {
     [GraphQlPagination]
     [GraphQLQuery]
+    [GraphQLSort]
     public Task<IEnumerable<InventoryBook>> Books(BookFilterInput? filter) {
         return Task.FromResult(new InventoryBook[] {
-            new() { BookId = 1, Title = "My first book", ISBN = "1234", ExactInventory = 20 },
-            new() { BookId = 2, Title = "My second book", ISBN = "5678", ExactInventory = 29 }
+            new() { BookId = 1, Title = "My first book", ISBN = "1234", ExactInventory = 20, Editions = new[] { new Edition { Name = "Deluxeutgåva", Released = DateTimeOffset.UtcNow.AddYears(-1) }, new Edition { Name = "First", Released = DateTimeOffset.UtcNow.AddYears(-2) } } },
+            new() { BookId = 2, Title = "My second book", ISBN = "5678", ExactInventory = 29 },
         }.Where(x => filter == null || string.IsNullOrWhiteSpace(filter.Title) || x.Title == filter.Title));
     }
 

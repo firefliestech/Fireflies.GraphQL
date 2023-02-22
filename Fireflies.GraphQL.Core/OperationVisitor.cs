@@ -12,7 +12,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
     private readonly GraphQLOptions _options;
     private readonly IDependencyResolver _dependencyResolver;
     private readonly FragmentAccessor _fragments;
-    private readonly VariableAccessor _variableAccessor;
+    private readonly ValueAccessor _valueAccessor;
     private readonly OperationType _operationType;
     private readonly IGraphQLContext _context;
 
@@ -22,11 +22,11 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
         GetResultMethod = typeof(OperationVisitor).GetMethod(nameof(GetResult), BindingFlags.NonPublic | BindingFlags.Instance)!;
     }
 
-    public OperationVisitor(GraphQLOptions options, IDependencyResolver dependencyResolver, FragmentAccessor fragments, VariableAccessor variableAccessor, OperationType operationType, IGraphQLContext context) {
+    public OperationVisitor(GraphQLOptions options, IDependencyResolver dependencyResolver, FragmentAccessor fragments, ValueAccessor valueAccessor, OperationType operationType, IGraphQLContext context) {
         _options = options;
         _dependencyResolver = dependencyResolver;
         _fragments = fragments;
-        _variableAccessor = variableAccessor;
+        _valueAccessor = valueAccessor;
         _operationType = operationType;
         _context = context;
     }
@@ -42,10 +42,10 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                     if(operations is IASTNodeHandler astNodeHandler) {
                         astNodeHandler.GraphQLNode = graphQLField;
                     }
-                    var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _variableAccessor, _context, _dependencyResolver);
+                    var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _valueAccessor, _context, _dependencyResolver);
 
                     var returnType = operationDescriptor.Method.DiscardTaskFromReturnType();
-                    var asyncEnumerable = (IAsyncEnumerable<object>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder })!;
+                    var asyncEnumerable = (IAsyncEnumerable<object>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder, graphQLField })!;
                     await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken)) {
                         var jObject = new JObject();
 
@@ -56,7 +56,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                                 var subResult = new JObject();
                                 container.Add(subResult);
                                 foreach(var subSelection in graphQLField.SelectionSet!.Selections) {
-                                    var resultVisitor = new ResultVisitor(obj, subResult, _fragments, _variableAccessor, _context, _dependencyResolver);
+                                    var resultVisitor = new ResultVisitor(obj, subResult, _fragments, _valueAccessor, _context, _dependencyResolver);
                                     await resultVisitor.VisitAsync(subSelection, context);
                                 }
                             }
@@ -64,7 +64,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                             var subResult = new JObject();
                             jObject.Add(graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue, subResult);
                             foreach(var subSelection in graphQLField.SelectionSet!.Selections) {
-                                var resultVisitor = new ResultVisitor(result, subResult, _fragments, _variableAccessor, _context, _dependencyResolver);
+                                var resultVisitor = new ResultVisitor(result, subResult, _fragments, _valueAccessor, _context, _dependencyResolver);
                                 await resultVisitor.VisitAsync(subSelection, context);
                             }
                         }
@@ -90,8 +90,8 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
         };
     }
 
-    private async IAsyncEnumerable<object?> GetResult<T>(OperationDescriptor operationDescriptor, object query, ArgumentBuilder argumentBuilder) {
-        var arguments = await argumentBuilder.Build();
+    private async IAsyncEnumerable<object?> GetResult<T>(OperationDescriptor operationDescriptor, object query, ArgumentBuilder argumentBuilder, GraphQLField node) {
+        var arguments = await argumentBuilder.Build(node);
         if(_operationType is OperationType.Query or OperationType.Mutation) {
             var resultTask = await operationDescriptor.Method.ExecuteMethod(query, arguments);
             yield return resultTask;

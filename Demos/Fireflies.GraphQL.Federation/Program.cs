@@ -12,8 +12,6 @@ using LogLevel = NLog.LogLevel;
 
 var builder = WebApplication.CreateBuilder(args);
 
-//TODO: Make sure pagination nodes has id attribute
-
 builder.Services.AddCors(options => {
     options.AddDefaultPolicy(builder =>
         builder.SetIsOriginAllowed(_ => true)
@@ -42,7 +40,6 @@ var container = containerBuilder.Build();
 var graphQLOptions = new GraphQLOptionsBuilder();
 graphQLOptions.SetLoggerFactory(new FirefliesNLogFactory());
 graphQLOptions.Add<AuthorOperations>();
-//graphQLOptions.AddMutationType<BooksMutation>();
 graphQLOptions.SetDependencyResolver(new AutofacDependencyResolver(container));
 app.UseWebSockets();
 app.UseGraphQL(await graphQLOptions.Build());

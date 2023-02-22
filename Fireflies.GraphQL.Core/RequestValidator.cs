@@ -2,6 +2,7 @@
 using GraphQLParser.Visitors;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.IoC.Abstractions;
 
@@ -190,7 +191,8 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             !rp.HasDefaultValue
             && !NullabilityChecker.IsNullable(rp)
             && !rp.HasCustomAttribute<ResolvedAttribute>()
-            && !rp.HasCustomAttribute<EnumeratorCancellationAttribute>());
+            && !rp.HasCustomAttribute<EnumeratorCancellationAttribute>()
+            && rp.ParameterType != typeof(ASTNode));
 
         foreach(var unspecifiedParameter in unspecifiedParameters) {
             _errors.Add($"Missing required argument \"{unspecifiedParameter.Name}\" on field \"{field.Name.StringValue}\".");

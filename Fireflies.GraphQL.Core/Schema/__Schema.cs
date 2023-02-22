@@ -1,6 +1,9 @@
-﻿namespace Fireflies.GraphQL.Core.Schema;
+﻿using Fireflies.GraphQL.Abstractions;
+
+namespace Fireflies.GraphQL.Core.Schema;
 
 // ReSharper disable once InconsistentNaming
+[GraphQLNoWrapper]
 public class __Schema {
     public string? Description { get; set; }
     public __Type[] Types { get; set; } = Array.Empty<__Type>();

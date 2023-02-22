@@ -1,4 +1,4 @@
-﻿namespace Fireflies.GraphQL.Core;
+﻿namespace Fireflies.GraphQL.Core.Exceptions;
 
 internal class GraphQLUnauthorizedException : Exception {
 }

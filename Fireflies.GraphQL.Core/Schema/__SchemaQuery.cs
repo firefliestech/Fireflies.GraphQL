@@ -3,6 +3,7 @@
 namespace Fireflies.GraphQL.Core.Schema;
 
 // ReSharper disable once InconsistentNaming
+[GraphQLNoWrapper]
 public class __SchemaQuery {
     private readonly __Schema _schema;
 

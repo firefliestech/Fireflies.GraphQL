@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Extensions;
+using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Schema;
 
@@ -15,6 +16,7 @@ internal class SchemaBuilder {
         _options = options;
         _ignore.Add(typeof(IASTNodeHandler));
         _ignore.Add(typeof(CancellationToken));
+        _ignore.Add(typeof(ASTNode));
     }
 
     public __Schema GenerateSchema() {
@@ -82,7 +84,7 @@ internal class SchemaBuilder {
         if(!isOperation && !types.Add(startingObject))
             return;
 
-        if(Type.GetTypeCode(startingObject) != TypeCode.Object)
+        if(!startingObject.IsValidGraphQLObject())
             return;
 
         if(startingObject.IsInterface) {
@@ -96,19 +98,23 @@ internal class SchemaBuilder {
 
         foreach(var method in startingObject.GetAllGraphQLMethods()) {
             foreach(var parameter in method.GetAllGraphQLParameters()) {
+                if(_ignore.Contains(parameter.ParameterType))
+                    continue;
+
                 _inputLevel++;
-                _inputTypes.Add(parameter.ParameterType);
+                _inputTypes.Add(Nullable.GetUnderlyingType(parameter.ParameterType) ?? parameter.ParameterType);
                 FindAllTypes(types, parameter.ParameterType);
                 _inputLevel--;
             }
 
-            FindAllTypes(types, method.ReturnType.GetGraphQLType());
+            var graphQLType = method.ReturnType.GetGraphQLType();
+            FindAllTypes(types, graphQLType);
         }
 
         if(!isOperation) {
             foreach(var property in startingObject.GetAllGraphQLProperties()) {
                 if(_inputLevel > 0)
-                    _inputTypes.Add(property.PropertyType);
+                    _inputTypes.Add(Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType);
                 FindAllTypes(types, property.PropertyType);
             }
         }
@@ -184,13 +190,27 @@ internal class SchemaBuilder {
             };
         }
 
+        if(baseType == typeof(DateTime) || baseType == typeof(DateTimeOffset)) {
+            return new __Type(baseType) {
+                Name = baseType.Name,
+                Kind = __TypeKind.SCALAR
+            };
+        }
+
         // Todo: ID is missing
 
         if(_inputTypes.Contains(baseType)) {
             var inputValues = new List<__InputValue>();
 
             foreach(var property in baseType.GetAllGraphQLProperties()) {
-                var propertyType = WrapNullable(NullabilityChecker.IsNullable(property), CreateType(property.PropertyType, true));
+                __Type propertyType;
+                if(NullabilityChecker.IsNullable(property)) {
+                    var underlyingType = Nullable.GetUnderlyingType(property.PropertyType);
+                    propertyType = CreateType(underlyingType ?? property.PropertyType, true);
+                } else {
+                    propertyType = WrapNullable(false, CreateType(property.PropertyType, true));
+                }
+
                 inputValues.Add(new __InputValue(property.GraphQLName(), property.GetDescription(), propertyType, null));
             }
 
@@ -236,7 +256,7 @@ internal class SchemaBuilder {
 
         foreach(var method in baseType.GetAllGraphQLMethods()) {
             fields.Add(new __Field(method) {
-                Type = CreateType(method.ReturnType, true),
+                Type = CreateType(method.DiscardTaskFromReturnType(), true),
                 Args = GetArguments(method).ToArray(),
             });
         }
@@ -260,7 +280,8 @@ internal class SchemaBuilder {
     private List<__InputValue> GetArguments(MethodInfo method) {
         var args = new List<__InputValue>();
         foreach(var parameter in method.GetAllGraphQLParameters()) {
-            args.Add(new __InputValue(parameter.GraphQLName(), parameter.GetDescription(), CreateType(parameter.ParameterType, true), GetDefaultValue(parameter)));
+            var propertyType = WrapNullable(NullabilityChecker.IsNullable(parameter), CreateType(parameter.ParameterType, true));
+            args.Add(new __InputValue(parameter.GraphQLName(), parameter.GetDescription(), propertyType, GetDefaultValue(parameter)));
         }
 
         return args;

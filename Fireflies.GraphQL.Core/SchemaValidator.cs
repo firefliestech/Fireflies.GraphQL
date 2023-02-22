@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
 
 namespace Fireflies.GraphQL.Core;

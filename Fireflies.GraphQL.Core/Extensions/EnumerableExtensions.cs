@@ -6,7 +6,7 @@ internal static class EnumerableExtensions {
     }
 
     public static bool IsEnumerable(this Type type, out Type elementType) {
-        if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>)) {
+        if(type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(Task<>) || type.GetGenericTypeDefinition() == typeof(ValueTask<>) || type.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>))) {
             elementType = type.GetGenericArguments()[0];
         } else {
             elementType = type;

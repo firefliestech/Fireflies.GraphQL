@@ -1,9 +1,11 @@
 ﻿using System.Reflection;
+using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Extensions;
 
 namespace Fireflies.GraphQL.Core.Schema;
 
 // ReSharper disable InconsistentNaming
+[GraphQLNoWrapper]
 public class __Type {
     private readonly IEnumerable<__Field> _fields;
     private readonly IEnumerable<__EnumValue> _enumValues;

@@ -1,10 +1,12 @@
 ﻿using Fireflies.GraphQL.Core.Extensions;
 using System.Reflection;
 using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Abstractions.Sorting;
 
 namespace Fireflies.GraphQL.Core.Schema;
 
 // ReSharper disable once InconsistentNaming
+[GraphQLNoWrapper]
 public class __Field {
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
@@ -21,6 +23,9 @@ public class __Field {
     public __Field(MemberInfo memberInfo) {
         Name = memberInfo.GraphQLName();
         Description = GetFieldDescription(memberInfo);
+        if(memberInfo.HasCustomAttribute<GraphQLSortAttribute>()) {
+
+        }
 
         var deprecatedReason = memberInfo.GetDeprecatedReason();
         IsDeprecated = deprecatedReason != null;
