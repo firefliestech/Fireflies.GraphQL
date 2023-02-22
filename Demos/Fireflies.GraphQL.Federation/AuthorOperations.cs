@@ -6,8 +6,10 @@ namespace Fireflies.GraphQL.FederationDemo;
 public class AuthorOperations {
     [GraphQLQuery]
     public Task<IAuthor> Author(int authorId = 10) {
-        var author = new RealAuthor { Id = authorId, Name = "Lars" };
-        return Task.FromResult<IAuthor>(author);
+        if(authorId > 100)
+            return Task.FromResult<IAuthor>(new PseudnonymAuthor { Id = authorId, Name = "Lars" });
+
+        return Task.FromResult<IAuthor>(new RealAuthor { Id = authorId, Name = "Lars", Emails = new[] { "kalle@abc.com" } });
     }
 
     [GraphQLQuery]
@@ -18,7 +20,7 @@ public class AuthorOperations {
     }
 
     [GraphQLSubscription]
-    public async IAsyncEnumerable<RealAuthor> AuthorAdded([EnumeratorCancellation]CancellationToken cancellationToken = default) {
+    public async IAsyncEnumerable<RealAuthor> AuthorAdded([EnumeratorCancellation] CancellationToken cancellationToken = default) {
         while(!cancellationToken.IsCancellationRequested) {
             await Task.Delay(2000, cancellationToken);
             yield return new RealAuthor { Id = DateTime.UtcNow.Second, Name = "Lars" };

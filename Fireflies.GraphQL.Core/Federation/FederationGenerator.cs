@@ -69,41 +69,38 @@ public class FederationGenerator {
     }
 
     private void GenerateOperation(OperationType operation, TypeBuilder typeBuilder, __Field field) {
-        var argTypes = new List<Type>();
-        foreach(var argType in field.Args) {
-            var argumentType = GetTypeFromSchemaType(argType.Type);
-            argTypes.Add(argumentType);
-        }
+        var argTypes = field.Args.Select(argType => GetTypeFromSchemaType(argType.Type)).ToList();
 
         var returnType = GetTypeFromSchemaType(field.Type);
         var taskReturnType = operation == OperationType.Subscription ? typeof(IAsyncEnumerable<>).MakeGenericType(returnType) : typeof(Task<>).MakeGenericType(returnType);
 
-        var methodBuilder = typeBuilder.DefineMethod(field.Name, MethodAttributes.Public, taskReturnType, argTypes.ToArray());
+        var methodBuilder = typeBuilder.DefineMethod(field.Name, MethodAttributes.Public, taskReturnType, argTypes.Union(new[] { typeof(ASTNode) }).ToArray());
         DefineParameters(argTypes, methodBuilder, field);
+        methodBuilder.DefineParameter(argTypes.Count + 1, ParameterAttributes.HasDefault | ParameterAttributes.Optional, Guid.NewGuid().ToString("N"))
+            .SetCustomAttribute(new CustomAttributeBuilder(typeof(ResolvedAttribute).GetConstructors().First(), Array.Empty<object>()));
+
         AddAttributes(field, methodBuilder);
         AddOperationAttribute(operation, methodBuilder);
 
-        var fieldMethodILGenerator = methodBuilder.GetILGenerator();
+        var methodILGenerator = methodBuilder.GetILGenerator();
 
-        var astNodeProperty = typeof(FederationBase).GetProperty(nameof(FederationBase.GraphQLNode), BindingFlags.Public | BindingFlags.Instance)!;
         var contextField = typeof(FederationBase).GetField("GraphQLContext", BindingFlags.NonPublic | BindingFlags.Instance)!;
 
-        fieldMethodILGenerator.Emit(OpCodes.Ldarg_0);
-        fieldMethodILGenerator.EmitCall(OpCodes.Call, astNodeProperty.GetMethod!, Type.EmptyTypes);
-        fieldMethodILGenerator.Emit(OpCodes.Ldarg_0);
-        fieldMethodILGenerator.Emit(OpCodes.Ldfld, contextField);
-        fieldMethodILGenerator.Emit(OpCodes.Ldstr, _federation.Url);
-        fieldMethodILGenerator.Emit(OpCodes.Ldc_I4, (int)operation);
-        if (operation != OperationType.Subscription) {
+        methodILGenerator.Emit(OpCodes.Ldarg_S, argTypes.Count + 1);
+        methodILGenerator.Emit(OpCodes.Ldarg_0);
+        methodILGenerator.Emit(OpCodes.Ldfld, contextField);
+        methodILGenerator.Emit(OpCodes.Ldstr, _federation.Url);
+        methodILGenerator.Emit(OpCodes.Ldc_I4, (int)operation);
+        if(operation != OperationType.Subscription) {
             var requestMethod = typeof(FederationHelper).GetMethod(nameof(FederationHelper.ExecuteRequest), BindingFlags.Static | BindingFlags.Public)!.MakeGenericMethod(returnType);
-            fieldMethodILGenerator.EmitCall(OpCodes.Call, requestMethod, Type.EmptyTypes);
+            methodILGenerator.EmitCall(OpCodes.Call, requestMethod, Type.EmptyTypes);
         } else {
             var subscribeMethod = typeof(FederationHelper).GetMethod(nameof(FederationHelper.ExecuteSubscription), BindingFlags.Static | BindingFlags.Public)!.MakeGenericMethod(returnType);
-            fieldMethodILGenerator.Emit(OpCodes.Ldstr, field.Name);
-            fieldMethodILGenerator.EmitCall(OpCodes.Call, subscribeMethod, Type.EmptyTypes);
+            methodILGenerator.Emit(OpCodes.Ldstr, field.Name);
+            methodILGenerator.EmitCall(OpCodes.Call, subscribeMethod, Type.EmptyTypes);
         }
 
-        fieldMethodILGenerator.Emit(OpCodes.Ret);
+        methodILGenerator.Emit(OpCodes.Ret);
     }
 
     private static void AddOperationAttribute(OperationType operation, MethodBuilder methodBuilder) {
@@ -132,6 +129,7 @@ public class FederationGenerator {
 
         var baseType = isInterface ? null : typeof(FederationEntity);
         var generatedType = _dynamicModule.DefineType(typeName, isInterface ? TypeAttributes.Interface | TypeAttributes.Abstract : TypeAttributes.Class, baseType);
+        generatedType.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLNoWrapperAttribute).GetConstructors().First(), Array.Empty<object>()));
 
         if(interfaceType != null) {
             generatedType.AddInterfaceImplementation(interfaceType);

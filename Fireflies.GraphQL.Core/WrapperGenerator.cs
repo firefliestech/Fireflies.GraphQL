@@ -212,7 +212,7 @@ internal static class WrapperGenerator {
 
     private static (Type, bool, Type, Type) GetWrappedReturnType(MethodInfo methodInfo) {
         var isEnumerable = methodInfo.ReturnType.IsEnumerable(out var elementType);
-        if(elementType.HasCustomAttribute<GraphQLNoWrapperAttribute>() || elementType.IsValueType || elementType == typeof(string)) {
+        if(elementType.HasCustomAttribute<GraphQLNoWrapperAttribute>() || elementType.IsValueType || elementType == typeof(string) || elementType.IsInterface) {
             return (methodInfo.ReturnType, isEnumerable, elementType, elementType);
         }
 

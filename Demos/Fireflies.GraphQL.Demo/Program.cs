@@ -1,8 +1,6 @@
-using Autofac;
 using Fireflies.GraphQL.AspNet;
 using Fireflies.GraphQL.Core;
 using Fireflies.GraphQL.Demo;
-using Fireflies.IoC.Autofac;
 using Fireflies.IoC.TinyIoC;
 using Fireflies.Logging.NLog;
 using NLog;

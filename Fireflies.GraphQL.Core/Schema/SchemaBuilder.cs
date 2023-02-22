@@ -14,7 +14,6 @@ internal class SchemaBuilder {
     // ReSharper disable once UnusedMember.Global
     public SchemaBuilder(GraphQLOptions options) {
         _options = options;
-        _ignore.Add(typeof(IASTNodeHandler));
         _ignore.Add(typeof(CancellationToken));
         _ignore.Add(typeof(ASTNode));
     }

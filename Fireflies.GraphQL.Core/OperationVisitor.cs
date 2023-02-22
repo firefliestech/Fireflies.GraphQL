@@ -39,11 +39,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
 
                     var operations = _dependencyResolver.Resolve(operationDescriptor.Type);
 
-                    if(operations is IASTNodeHandler astNodeHandler) {
-                        astNodeHandler.GraphQLNode = graphQLField;
-                    }
                     var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _valueAccessor, _context, _dependencyResolver);
-
                     var returnType = operationDescriptor.Method.DiscardTaskFromReturnType();
                     var asyncEnumerable = (IAsyncEnumerable<object>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder, graphQLField })!;
                     await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken)) {
