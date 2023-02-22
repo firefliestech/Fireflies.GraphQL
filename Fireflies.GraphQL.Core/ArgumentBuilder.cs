@@ -28,13 +28,13 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
         _parameters = methodInfo.GetParameters().ToDictionary(x => x.Name!);
     }
 
-    public async Task<object?[]> Build(GraphQLField node) {
+    public async Task<object?[]> Build<TASTNode>(TASTNode node) where TASTNode : ASTNode {
         await VisitAsync(_arguments, _context).ConfigureAwait(false);
         return _methodInfo.GetParameters().Select(x => {
             if(x.HasCustomAttribute<EnumeratorCancellationAttribute>() && x.HasDefaultValue)
                 return null;
 
-            if(x.ParameterType.IsAssignableTo(typeof(GraphQLField)))
+            if(typeof(TASTNode).IsAssignableTo(x.ParameterType))
                 return node;
 
             if(x.ParameterType == typeof(CancellationToken))
