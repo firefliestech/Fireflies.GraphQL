@@ -5,12 +5,12 @@ using Fireflies.GraphQL.Abstractions.Sorting;
 using Fireflies.GraphQL.Core.Extensions;
 using GraphQLParser.AST;
 
-namespace Fireflies.GraphQL.Core.Middleware.Sorting;
+namespace Fireflies.GraphQL.Core.Generators.Sorting;
 
-internal class SortingMiddleware : IDecoratorMiddleware {
-    public DecoratorDescriptor GetDecoratorDescription(MemberInfo memberInfo, ref int parameterCount) {
+internal class SortingExtenderGenerator : IMethodExtenderGenerator {
+    public MethodExtenderDescriptor GetMethodExtenderDescriptor(MemberInfo memberInfo, ref int parameterCount) {
         if(!memberInfo.HasCustomAttribute<GraphQLSortAttribute>())
-            return new DecoratorDescriptor {
+            return new MethodExtenderDescriptor {
                 ShouldDecorate = false
             };
 
@@ -29,7 +29,7 @@ internal class SortingMiddleware : IDecoratorMiddleware {
 
         var generatedSortType = GenerateSortType(returnType);
         return
-            new DecoratorDescriptor {
+            new MethodExtenderDescriptor {
                 ShouldDecorate = true,
                 ParameterTypes = new[] { generatedSortType, typeof(GraphQLField), typeof(IGraphQLContext) },
                 DefineParametersCallback = methodBuilder => {

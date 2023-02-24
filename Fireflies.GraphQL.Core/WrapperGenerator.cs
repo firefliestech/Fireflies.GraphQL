@@ -1,10 +1,8 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
 using Fireflies.GraphQL.Abstractions;
-using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
-using Fireflies.GraphQL.Core.Middleware;
-using Fireflies.GraphQL.Core.Pagination;
+using Fireflies.GraphQL.Core.Generators;
 
 namespace Fireflies.GraphQL.Core;
 
@@ -24,7 +22,7 @@ internal static class WrapperGenerator {
             return existingType;
         }
 
-        var wrappedType = DynamicModule.DefineType($"{baseType.Name}",
+        var typeBuilder = DynamicModule.DefineType($"{baseType.Name}",
             TypeAttributes.Public |
             TypeAttributes.Class |
             TypeAttributes.AutoClass |
@@ -33,10 +31,10 @@ internal static class WrapperGenerator {
             TypeAttributes.AutoLayout,
             typeof(object));
 
-        var instanceField = wrappedType.DefineField("_instance", baseType, FieldAttributes.Private);
+        var instanceField = typeBuilder.DefineField("_instance", baseType, FieldAttributes.Private);
 
         foreach(var attribute in baseType.GetCustomAttributesData()) {
-            wrappedType.SetCustomAttribute(attribute.ToAttributeBuilder());
+            typeBuilder.SetCustomAttribute(attribute.ToAttributeBuilder());
         }
 
         var createdConstructor = false;
@@ -44,7 +42,7 @@ internal static class WrapperGenerator {
             foreach(var constructor in baseType.GetConstructors(BindingFlags.Public | BindingFlags.Instance)) {
                 createdConstructor = true;
                 var baseParameters = constructor.GetParameters();
-                var constructorBuilder = wrappedType.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, baseParameters.Select(p => p.ParameterType).ToArray());
+                var constructorBuilder = typeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, baseParameters.Select(p => p.ParameterType).ToArray());
                 constructorBuilder.DefineParameters(baseParameters);
 
                 var constructorIlGenerator = constructorBuilder.GetILGenerator();
@@ -61,7 +59,7 @@ internal static class WrapperGenerator {
         }
 
         if(!createdConstructor) {
-            var constructorBuilder = wrappedType.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { baseType });
+            var constructorBuilder = typeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { baseType });
             var constructorIlGenerator = constructorBuilder.GetILGenerator();
             constructorIlGenerator.Emit(OpCodes.Ldarg_0);
             constructorIlGenerator.Emit(OpCodes.Ldarg_1);
@@ -77,114 +75,42 @@ internal static class WrapperGenerator {
             var parameterTypes = baseMethod.Parameters.Select(x => x.ParameterType);
             var parameterCount = baseMethod.Parameters.Length;
 
-            var decoratorDescriptors = MiddlewareRegistry.GetMiddlewares()
-                .OfType<IDecoratorMiddleware>()
-                .Select(m => m.GetDecoratorDescription(baseMethod.MemberInfo, ref parameterCount))
+            var decoratorDescriptors = GeneratorRegistry.GetGenerators<IMethodExtenderGenerator>()
+                .Select(m => m.GetMethodExtenderDescriptor(baseMethod.MemberInfo, ref parameterCount))
                 .Where(x => x.ShouldDecorate).ToArray();
             parameterTypes = parameterTypes.Union(decoratorDescriptors.SelectMany(x => x.ParameterTypes));
 
-            var methodBuilder = wrappedType.DefineMethod(baseMethod.Name, MethodAttributes.Public, CallingConventions.Standard, wrappedReturnType, parameterTypes.ToArray());
-            CopyAttributes(baseMethod.MemberInfo, ab => methodBuilder.SetCustomAttribute(ab));
-            foreach(var middlewareParameter in decoratorDescriptors) {
+            var methodBuilder = typeBuilder.DefineMethod(baseMethod.Name, MethodAttributes.Public, CallingConventions.Standard, wrappedReturnType, parameterTypes.ToArray());
+            baseMethod.MemberInfo.CopyAttributes(ab => methodBuilder.SetCustomAttribute(ab));
+            methodBuilder.DefineParameters(baseMethod.Parameters);
+
+            foreach(var middlewareParameter in decoratorDescriptors)
                 middlewareParameter.DefineParametersCallback(methodBuilder);
-            }
 
-            var needsConversion = originalType != wrapperType;
-            WrapMethod(methodBuilder, baseMethod.Parameters, baseMethod.MethodInfo, instanceField, isEnumerable, wrapperType, originalType, needsConversion, decoratorDescriptors);
+            var methodIlGenerator = methodBuilder.GetILGenerator();
+            methodIlGenerator.Emit(OpCodes.Ldarg_0);
+            methodIlGenerator.Emit(OpCodes.Ldfld, instanceField); // Load wrapped object from this
+            for(var i = 1; i <= baseMethod.Parameters.Length; i++)
+                methodIlGenerator.Emit(OpCodes.Ldarg_S, i++); // Load base arguments
+            methodIlGenerator.EmitCall(OpCodes.Call, baseMethod.MethodInfo, null); // Call method on wrapped object with the base arguments
 
-            if(baseMethod.MemberInfo.HasCustomAttribute<GraphQlPaginationAttribute>()) {
-                AddConnectionMethod(wrappedType, baseMethod.Name, baseMethod.MethodInfo, instanceField);
-            }
+            // Call method middlewares passing result from previous operation
+            foreach(var decorator in decoratorDescriptors)
+                decorator.DecorateCallback(methodIlGenerator);
+
+            // If the returned value a wrapper it needs to be converted from original return type
+            if(originalType != wrapperType)
+                ConvertToWrapper(baseMethod.MethodInfo, isEnumerable, wrapperType, originalType, methodIlGenerator); // Call the converter method
+
+            methodIlGenerator.Emit(OpCodes.Ret); // Return
+
+            foreach(var typeExtender in GeneratorRegistry.GetGenerators<ITypeExtenderGenerator>())
+                typeExtender.Extend(typeBuilder, methodBuilder, baseMethod.MemberInfo, instanceField, decoratorDescriptors);
         }
 
-        var finalType = wrappedType.CreateType()!;
-        WrappedTypes.Add(baseType, finalType);
-        return finalType;
-    }
-
-    private static void AddConnectionMethod(TypeBuilder targetType, string name, MethodInfo baseMethod, FieldInfo instanceField) {
-        var (_, isEnumerable, originalType, wrapperType) = GetWrappedReturnType(baseMethod);
-
-        if(!isEnumerable)
-            throw new GraphQLTypeException($"Cant add pagination for {name} because return type is not IEnumerable");
-
-        if(!originalType.GetProperties(BindingFlags.Public | BindingFlags.Instance).Any(x => x.HasCustomAttribute<GraphQlIdAttribute>())) {
-            throw new GraphQLTypeException($"Cant add pagination for {originalType} because return type does not have any {nameof(GraphQlIdAttribute)} attributes");
-        }
-
-        var connectorTypeName = $"{name}Connection";
-        var (connectionType, edgeType) = GenerateConnectionType(connectorTypeName, wrapperType);
-        var methodParameters = new List<Type>();
-        var baseParameters = baseMethod.GetParameters();
-        methodParameters.AddRange(baseParameters.Select(x => x.ParameterType));
-        methodParameters.Add(typeof(int));
-        methodParameters.Add(typeof(string));
-
-        var returnType = typeof(Task<>).MakeGenericType(connectionType);
-        var methodBuilder = targetType.DefineMethod(connectorTypeName,
-            MethodAttributes.Public,
-            CallingConventions.Standard,
-            returnType,
-            methodParameters.ToArray());
-        CopyAttributes(baseMethod, ab => methodBuilder.SetCustomAttribute(ab));
-
-        methodBuilder.DefineParameters(baseParameters);
-        methodBuilder.DefineParameter(baseParameters.Length + 1, ParameterAttributes.HasDefault, "first").SetConstant(10);
-        methodBuilder.DefineParameter(baseParameters.Length + 2, ParameterAttributes.HasDefault, "after").SetConstant(null);
-
-        var methodIlGenerator = methodBuilder.GetILGenerator();
-
-        methodIlGenerator.Emit(OpCodes.Ldarg_0);
-        methodIlGenerator.Emit(OpCodes.Ldfld, instanceField);
-
-        for(var i = 1; i <= baseParameters.Length; i++) {
-            methodIlGenerator.Emit(OpCodes.Ldarg_S, i);
-        }
-
-        methodIlGenerator.EmitCall(OpCodes.Call, baseMethod, null);
-
-        var needsConversion = originalType != wrapperType;
-        var isTask = baseMethod.ReturnType.IsGenericType && baseMethod.ReturnType.GetGenericTypeDefinition() == typeof(Task<>);
-
-        if(needsConversion) {
-            ConvertToWrapper(baseMethod, isEnumerable, wrapperType, originalType, methodIlGenerator);
-        }
-
-        if(!isTask) {
-            var taskFromResultMethod = typeof(Task).GetMethod(nameof(Task.FromResult), BindingFlags.Public | BindingFlags.Static)!.MakeGenericMethod(connectionType);
-            methodIlGenerator.EmitCall(OpCodes.Call, taskFromResultMethod, null);
-        }
-
-        methodIlGenerator.Emit(OpCodes.Ldarg_S, baseParameters.Length + 1); // first
-        methodIlGenerator.Emit(OpCodes.Ldarg_S, baseParameters.Length + 2); // after
-
-        var createConnectionMethod = typeof(WrapperHelper).GetMethod(nameof(WrapperHelper.CreateEnumerableTaskConnection), BindingFlags.Public | BindingFlags.Static)!.MakeGenericMethod(connectionType, edgeType, wrapperType);
-        methodIlGenerator.EmitCall(OpCodes.Call, createConnectionMethod, null);
-
-        methodIlGenerator.Emit(OpCodes.Ret);
-    }
-
-    private static void WrapMethod(MethodBuilder methodBuilder, ParameterInfo[] baseMethodParameters, MethodInfo baseMethod, FieldInfo instanceField, bool isEnumerable, Type wrapperType, Type originalType, bool needsConversion, IEnumerable<DecoratorDescriptor> decoratorDescriptors) {
-        methodBuilder.DefineParameters(baseMethodParameters);
-        var methodIlGenerator = methodBuilder.GetILGenerator();
-
-        methodIlGenerator.Emit(OpCodes.Ldarg_0);
-        methodIlGenerator.Emit(OpCodes.Ldfld, instanceField);
-        var i = 1;
-        foreach(var _ in baseMethodParameters) {
-            methodIlGenerator.Emit(OpCodes.Ldarg_S, i++);
-        }
-
-        methodIlGenerator.EmitCall(OpCodes.Call, baseMethod, null);
-        foreach(var decorator in decoratorDescriptors) {
-            decorator.DecorateCallback(methodIlGenerator);
-        }
-
-        if(needsConversion) {
-            ConvertToWrapper(baseMethod, isEnumerable, wrapperType, originalType, methodIlGenerator);
-        }
-
-        methodIlGenerator.Emit(OpCodes.Ret);
+        var createdType = typeBuilder.CreateType()!;
+        WrappedTypes.Add(baseType, createdType);
+        return createdType;
     }
 
     private static void ConvertToWrapper(MethodInfo baseMethod, bool isEnumerable, Type wrapperType, Type originalType, ILGenerator methodIlGenerator) {
@@ -233,67 +159,5 @@ internal static class WrapperGenerator {
         }
 
         return isTask ? (typeof(Task<>).MakeGenericType(wrapperType), false, elementType, wrapperType) : (wrapperType, false, elementType, wrapperType);
-    }
-
-    private static (Type, Type) GenerateConnectionType(string typeName, Type nodeType) {
-        var edgeType = GenerateEdgeType(nodeType);
-        var baseType = typeof(ConnectionBase<,>).MakeGenericType(edgeType, nodeType);
-        var connectionType = DynamicModule.DefineType(typeName,
-            TypeAttributes.Public |
-            TypeAttributes.Class |
-            TypeAttributes.AutoClass |
-            TypeAttributes.AnsiClass |
-            TypeAttributes.BeforeFieldInit |
-            TypeAttributes.AutoLayout,
-            baseType);
-
-        var parameterTypes = new[] { typeof(IEnumerable<>).MakeGenericType(edgeType), typeof(int), typeof(string) };
-        var baseConstructor = baseType.GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance).First();
-
-        // Build constructor
-        var constructorBuilder = connectionType.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, parameterTypes);
-        var constructorIlGenerator = constructorBuilder.GetILGenerator();
-
-        // Call base constructor
-        constructorIlGenerator.Emit(OpCodes.Ldarg_0);
-        constructorIlGenerator.Emit(OpCodes.Ldarg_1);
-        constructorIlGenerator.Emit(OpCodes.Ldarg_2);
-        constructorIlGenerator.Emit(OpCodes.Ldarg_3);
-        constructorIlGenerator.Emit(OpCodes.Call, baseConstructor);
-        constructorIlGenerator.Emit(OpCodes.Ret);
-
-        return (connectionType.CreateType()!, edgeType);
-    }
-
-    private static Type GenerateEdgeType(Type nodeType) {
-        var baseType = typeof(EdgeBase<>).MakeGenericType(nodeType);
-        var edgeType = DynamicModule.DefineType($"{nodeType.Name}Edge",
-            TypeAttributes.Public |
-            TypeAttributes.Class |
-            TypeAttributes.AutoClass |
-            TypeAttributes.AnsiClass |
-            TypeAttributes.BeforeFieldInit |
-            TypeAttributes.AutoLayout,
-            baseType);
-
-        var baseConstructor = baseType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, new[] { nodeType })!;
-
-        // Build constructor
-        var constructorBuilder = edgeType.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { nodeType });
-        var constructorIlGenerator = constructorBuilder.GetILGenerator();
-
-        // Call base constructor
-        constructorIlGenerator.Emit(OpCodes.Ldarg_0);
-        constructorIlGenerator.Emit(OpCodes.Ldarg_1);
-        constructorIlGenerator.Emit(OpCodes.Call, baseConstructor);
-        constructorIlGenerator.Emit(OpCodes.Ret);
-
-        return edgeType.CreateType()!;
-    }
-
-    private static void CopyAttributes(MemberInfo copyFrom, Action<CustomAttributeBuilder> callback) {
-        foreach(var customAttribute in copyFrom.GetCustomAttributesData()) {
-            callback(customAttribute.ToAttributeBuilder());
-        }
     }
 }

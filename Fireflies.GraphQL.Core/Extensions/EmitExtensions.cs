@@ -58,4 +58,10 @@ internal static class EmitExtensions {
                 parameterBuilder.SetConstant(null);
         }
     }
+
+    public static void CopyAttributes(this MemberInfo copyFrom, Action<CustomAttributeBuilder> callback) {
+        foreach(var customAttribute in copyFrom.GetCustomAttributesData()) {
+            callback(customAttribute.ToAttributeBuilder());
+        }
+    }
 }

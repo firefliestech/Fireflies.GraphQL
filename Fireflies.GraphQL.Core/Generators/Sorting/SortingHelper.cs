@@ -3,7 +3,7 @@ using Fireflies.GraphQL.Abstractions.Sorting;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 
-namespace Fireflies.GraphQL.Core.Middleware.Sorting;
+namespace Fireflies.GraphQL.Core.Generators.Sorting;
 
 public static class SortingHelper {
     public static async Task<IEnumerable<TElement>> WrapEnumerableTaskResult<TElement, TSort>(Task<IEnumerable<TElement>?> resultTask, TSort sortType, GraphQLField rootField, IGraphQLContext graphQLContext) {
