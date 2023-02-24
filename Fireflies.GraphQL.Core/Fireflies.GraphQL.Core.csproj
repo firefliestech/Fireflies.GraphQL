@@ -30,8 +30,4 @@
 		<ProjectReference Include="..\Logging\Fireflies.Logging.Abstractions\Fireflies.Logging.Abstractions.csproj" />
 	</ItemGroup>
 
-	<ItemGroup>
-	  <Folder Include="Sorting\" />
-	</ItemGroup>
-
 </Project>

@@ -3,7 +3,6 @@ using System.Reflection.Emit;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
-using Fireflies.GraphQL.Core.Pagination;
 
 namespace Fireflies.GraphQL.Core.Generators.Connection;
 

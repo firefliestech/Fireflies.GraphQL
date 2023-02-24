@@ -1,4 +1,4 @@
-﻿namespace Fireflies.GraphQL.Core.Pagination;
+﻿namespace Fireflies.GraphQL.Core.Generators.Connection;
 
 public class PageInfo {
     public string? EndCursor { get; set; }

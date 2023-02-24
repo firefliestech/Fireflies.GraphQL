@@ -3,7 +3,7 @@ using Fireflies.GraphQL.Abstractions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace Fireflies.GraphQL.Core.Pagination;
+namespace Fireflies.GraphQL.Core.Generators.Connection;
 
 public abstract class EdgeBase<TBase> {
     // ReSharper disable once StaticMemberInGenericType

@@ -1,4 +1,4 @@
-﻿namespace Fireflies.GraphQL.Core.Pagination;
+﻿namespace Fireflies.GraphQL.Core.Generators.Connection;
 
 public class ConnectionBase<TEdge, TNode> where TEdge : EdgeBase<TNode> {
     private readonly IEnumerable<TEdge> _filteredEdges;
