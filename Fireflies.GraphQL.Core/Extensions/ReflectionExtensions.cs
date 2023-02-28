@@ -148,15 +148,16 @@ internal static class ReflectionExtensions {
 
     public static async Task<object?> ExecuteMethod(this MethodInfo methodInfo, object instance, object?[] arguments) {
         var isEnumerable = methodInfo.ReturnType.IsCollection(out var elementType);
-        var result = await (Task<object?>)InternalExecuteMethodInfo.MakeGenericMethod(methodInfo.DiscardTaskFromReturnType()).Invoke(null, new[] { methodInfo, instance, isEnumerable, arguments })!;
-        return result;
+        var result = (Task<object?>)InternalExecuteMethodInfo.MakeGenericMethod(methodInfo.DiscardTaskFromReturnType()).Invoke(null, new[] { methodInfo, instance, isEnumerable, arguments })!;
+        return await result.ConfigureAwait(false);
     }
 
     private static async Task<object?> InternalExecuteMethod<T>(MethodInfo methodInfo, object instance, bool isEnumerable, object[] arguments) {
         if(methodInfo.ReturnType.IsGenericType) {
             var genericTypeDefinition = methodInfo.ReturnType.GetGenericTypeDefinition();
             if(genericTypeDefinition == typeof(Task<>) || genericTypeDefinition == typeof(ValueTask<>)) {
-                return await (Task<T>)methodInfo.Invoke(instance, arguments)!;
+                var invokeResult = (Task<T>)methodInfo.Invoke(instance, arguments)!;
+                return await invokeResult.ConfigureAwait(false);
             }
         }
 

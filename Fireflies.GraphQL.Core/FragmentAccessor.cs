@@ -22,7 +22,7 @@ internal class FragmentAccessor {
     public async Task<GraphQLFragmentDefinition> GetFragment(GraphQLFragmentName fragmentName) {
         if(_fragments == null) {
             var context = new FragmentVisitorContext(_context);
-            await FragmentVisitorInstance.VisitAsync(_document, context);
+            await FragmentVisitorInstance.VisitAsync(_document, context).ConfigureAwait(false);
             _fragments = context.FragmentDefinitions.ToDictionary(x => x.FragmentName.Name.StringValue);
         }
 

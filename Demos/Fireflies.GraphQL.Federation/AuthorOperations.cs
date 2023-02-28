@@ -22,7 +22,7 @@ public class AuthorOperations {
     [GraphQLSubscription]
     public async IAsyncEnumerable<RealAuthor> AuthorAdded([EnumeratorCancellation] CancellationToken cancellationToken = default) {
         while(!cancellationToken.IsCancellationRequested) {
-            await Task.Delay(2000, cancellationToken);
+            await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
             yield return new RealAuthor { Id = DateTime.UtcNow.Second, Name = "Lars" };
         }
     }

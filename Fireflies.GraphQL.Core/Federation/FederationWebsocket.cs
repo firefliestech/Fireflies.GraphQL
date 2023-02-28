@@ -36,13 +36,13 @@ public class FederationWebsocket<T> {
 
     public async IAsyncEnumerable<T> Results() {
         try {
-            await _client.ConnectAsync(new Uri(_url.Replace("http://", "ws://").Replace("https://", "wss://")), _context.CancellationToken);
+            await _client.ConnectAsync(new Uri(_url.Replace("http://", "ws://").Replace("https://", "wss://")), _context.CancellationToken).ConfigureAwait(false);
         } catch(Exception) {
             //TODO: Add logging
             yield break;
         }
 
-        await _client.SendAsync(new ArraySegment<byte>(System.Text.Encoding.UTF8.GetBytes(_query)), WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage, _context.CancellationToken);
+        await _client.SendAsync(new ArraySegment<byte>(System.Text.Encoding.UTF8.GetBytes(_query)), WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage, _context.CancellationToken).ConfigureAwait(false);
 
         while(_client is { State: WebSocketState.Open }) {
             var (webSocketReceiveResult, bytes) = await ReceiveFullMessage().ConfigureAwait(false);

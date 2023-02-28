@@ -28,7 +28,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
     }
 
     public async Task<List<string>> Validate(ASTNode startNode) {
-        await VisitAsync(startNode, _context);
+        await VisitAsync(startNode, _context).ConfigureAwait(false);
 
         ValidateVariables();
 
@@ -71,8 +71,8 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             }
 
             try {
-                await AuthorizationHelper.Authorize(_dependencyResolver, queryType.Type);
-                await AuthorizationHelper.Authorize(_dependencyResolver, queryType.Method);
+                await AuthorizationHelper.Authorize(_dependencyResolver, queryType.Type).ConfigureAwait(false);
+                await AuthorizationHelper.Authorize(_dependencyResolver, queryType.Method).ConfigureAwait(false);
             } catch(GraphQLUnauthorizedException) {
                 _errors.Add($"Unauthorized access to query field \"{field.Name}\" on type \"Query\"");
             }
@@ -81,7 +81,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             returnType = returnType.GetGraphQLType();
             _fieldStack.Push(returnType);
 
-            await ValidateFieldAgainstActualParameters(field, context, queryType.Method.GetParameters());
+            await ValidateFieldAgainstActualParameters(field, context, queryType.Method.GetParameters()).ConfigureAwait(false);
 
             pushed = true;
         } else {
@@ -97,7 +97,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             }
 
             try {
-                await AuthorizationHelper.Authorize(_dependencyResolver, member);
+                await AuthorizationHelper.Authorize(_dependencyResolver, member).ConfigureAwait(false);
             } catch(GraphQLUnauthorizedException) {
                 _errors.Add($"Unauthorized access to query field \"{field.Name}\" on type \"{currentTypeName}\"");
             }
@@ -106,11 +106,11 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
                 case MethodInfo methodInfo:
                     _fieldStack.Push(methodInfo.ReturnType.GetGraphQLType());
                     pushed = true;
-                    await ValidateFieldAgainstActualParameters(field, context, methodInfo.GetParameters());
+                    await ValidateFieldAgainstActualParameters(field, context, methodInfo.GetParameters()).ConfigureAwait(false);
                     break;
                 case PropertyInfo propertyInfo:
                     _fieldStack.Push(propertyInfo.PropertyType.GetGraphQLType());
-                    await ValidateFieldAgainstActualParameters(field, context, Array.Empty<ParameterInfo>());
+                    await ValidateFieldAgainstActualParameters(field, context, Array.Empty<ParameterInfo>()).ConfigureAwait(false);
                     pushed = true;
                     break;
                 default:
@@ -122,10 +122,10 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         if(!pushed)
             return;
 
-        await ValidateSelectionSets(field, context);
+        await ValidateSelectionSets(field, context).ConfigureAwait(false);
 
         foreach(var directive in field.Directives ?? Enumerable.Empty<GraphQLDirective>())
-            await VisitAsync(directive, context);
+            await VisitAsync(directive, context).ConfigureAwait(false);
 
         if(pushed)
             _fieldStack.Pop();
@@ -155,7 +155,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             }
         }
 
-        await base.VisitInlineFragmentAsync(inlineFragment, context);
+        await base.VisitInlineFragmentAsync(inlineFragment, context).ConfigureAwait(false);
 
         if(pushed)
             _fieldStack.Pop();
@@ -170,7 +170,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         }
 
         foreach(var selection in selections) {
-            await VisitAsync(selection, context);
+            await VisitAsync(selection, context).ConfigureAwait(false);
         }
     }
 
@@ -183,7 +183,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
                 _errors.Add($"Unknown argument \"{arg.Name}\" on field \"{field.Name.StringValue}\".");
             } else {
                 remainingParameters.Remove(matchingParameter);
-                await VisitAsync(arg, context);
+                await VisitAsync(arg, context).ConfigureAwait(false);
             }
         }
 
@@ -200,7 +200,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
     }
 
     protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, IGraphQLContext context) {
-        await VisitAsync(await _fragments.GetFragment(fragmentSpread.FragmentName), context);
+        await VisitAsync(await _fragments.GetFragment(fragmentSpread.FragmentName), context).ConfigureAwait(false);
     }
 
     protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, IGraphQLContext context) {
@@ -208,7 +208,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             return;
 
         foreach(var selection in fragmentDefinition.SelectionSet.Selections) {
-            await VisitAsync(selection, context);
+            await VisitAsync(selection, context).ConfigureAwait(false);
         }
     }
 }

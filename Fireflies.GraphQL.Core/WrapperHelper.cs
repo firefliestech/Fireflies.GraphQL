@@ -6,7 +6,7 @@ namespace Fireflies.GraphQL.Core;
 
 public static class WrapperHelper {
     public static async IAsyncEnumerable<TWrapped?> WrapAsyncEnumerableResult<TWrapped, TOriginal>(IAsyncEnumerable<TOriginal> result, [EnumeratorCancellation] CancellationToken cancellationToken) {
-        await foreach(var entry in result.WithCancellation(cancellationToken)) {
+        await foreach(var entry in result.WithCancellation(cancellationToken).ConfigureAwait(false)) {
             yield return WrapResult<TWrapped, TOriginal>(entry);
         }
     }

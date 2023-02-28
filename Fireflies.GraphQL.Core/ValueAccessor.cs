@@ -13,7 +13,7 @@ internal class ValueAccessor {
     }
 
     public async Task<T?> GetValue<T>(ASTNode node) {
-        var unconvertedValue = await GetValue(node);
+        var unconvertedValue = await GetValue(node).ConfigureAwait(false);
         if(unconvertedValue == null)
             return default;
 
@@ -22,13 +22,13 @@ internal class ValueAccessor {
 
     public async Task<object?> GetValue(Type returnType, ASTNode node) {
         var visitorContext = new ValueVisitorContext(_context, returnType);
-        await _visitor.VisitAsync(node, visitorContext);
+        await _visitor.VisitAsync(node, visitorContext).ConfigureAwait(false);
         return visitorContext.Result;
     }
 
     public async Task<object?> GetValue(ASTNode node) {
         var visitorContext = new ValueVisitorContext(_context, typeof(object));
-        await _visitor.VisitAsync(node, visitorContext);
+        await _visitor.VisitAsync(node, visitorContext).ConfigureAwait(false);
         return visitorContext.Result;
     }
 

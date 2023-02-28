@@ -35,18 +35,18 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
         _fragmentAccessor = new FragmentAccessor(graphQLDocument!, Context);
         _valueAccessor = new ValueAccessor(request!.Variables, Context);
 
-        var errors = await new RequestValidator(request, _fragmentAccessor, _options, _dependencyResolver, Context).Validate(graphQLDocument!);
+        var errors = await new RequestValidator(request, _fragmentAccessor, _options, _dependencyResolver, Context).Validate(graphQLDocument!).ConfigureAwait(false);
         if(errors.Any()) {
             Context.IncreaseExpectedOperations();
             Context.PublishResult(GenerateValidationErrorResult(errors));
         } else {
-            await VisitAsync(graphQLDocument, Context);
+            await VisitAsync(graphQLDocument, Context).ConfigureAwait(false);
         }
     }
 
     public async IAsyncEnumerable<string> Results() {
         if(Context.IsWebSocket) {
-            await foreach(var subResult in Context.WithCancellation(Context.CancellationToken)) {
+            await foreach(var subResult in Context.WithCancellation(Context.CancellationToken).ConfigureAwait(false)) {
                 var result = new JObject(new JProperty("data", subResult));
                 yield return JsonConvert.SerializeObject(result, JsonSerializerSettings);
             }
@@ -54,7 +54,7 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
             var result = new JObject();
             var data = new JObject();
             result.Add("data", data);
-            await foreach(var subResult in Context.WithCancellation(Context.CancellationToken)) {
+            await foreach(var subResult in Context.WithCancellation(Context.CancellationToken).ConfigureAwait(false)) {
                 data.Merge(subResult);
             }
 
@@ -98,6 +98,6 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
             context.IncreaseExpectedOperations(operationDefinition.SelectionSet.Selections.Count);
 
         var visitor = new OperationVisitor(_options, _dependencyResolver, _fragmentAccessor, _valueAccessor, operationDefinition.Operation, context);
-        await visitor.VisitAsync(operationDefinition, context);
+        await visitor.VisitAsync(operationDefinition, context).ConfigureAwait(false);
     }
 }

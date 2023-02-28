@@ -16,10 +16,10 @@ internal class FederationClient {
 
     public async Task<__Schema> FetchSchema() {
         var stringContent = new StringContent(FederationQueryBuilder.BuildQuery(FederationQueryBuilder.SchemaQuery, OperationType.Query, "IntrospectionQuery"));
-        var result = await _httpClient.PostAsync(_url, stringContent);
+        var result = await _httpClient.PostAsync(_url, stringContent).ConfigureAwait(false);
         result.EnsureSuccessStatusCode();
 
-        var readAsStringAsync = await result.Content.ReadAsStringAsync();
+        var readAsStringAsync = await result.Content.ReadAsStringAsync().ConfigureAwait(false);
         var deserializeObject = JsonConvert.DeserializeObject<JObject>(readAsStringAsync);
         if(deserializeObject?["data"]?["__schema"] == null)
             throw new FederationException("Invalid schema received");

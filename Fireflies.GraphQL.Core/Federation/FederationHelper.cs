@@ -1,5 +1,4 @@
 ﻿using System.Reflection;
-using System.Xml.Serialization;
 using Fireflies.GraphQL.Core.Extensions;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
@@ -16,15 +15,15 @@ public static class FederationHelper {
     }
 
     public static async Task<T?> ExecuteRequest<T>(ASTNode astNode, IGraphQLContext context, string url, OperationType operation) {
-        var query = await CreateFederationQuery(astNode, context);
+        var query = await CreateFederationQuery(astNode, context).ConfigureAwait(false);
 
         var request = new HttpRequestMessage(HttpMethod.Post, url);
         foreach(var item in context.RequestHeaders)
             request.Headers.TryAddWithoutValidation(item.Key, item.Value);
         request.Content = new StringContent(FederationQueryBuilder.BuildQuery(query, operation, ""));
 
-        var result = await HttpClient.SendAsync(request, context.CancellationToken);
-        var jObject = JObject.Parse(await result.Content.ReadAsStringAsync());
+        var result = await HttpClient.SendAsync(request, context.CancellationToken).ConfigureAwait(false);
+        var jObject = JObject.Parse(await result.Content.ReadAsStringAsync().ConfigureAwait(false));
 
         var field = (GraphQLField)astNode;
 
@@ -32,15 +31,15 @@ public static class FederationHelper {
     }
 
     public static async IAsyncEnumerable<T> ExecuteSubscription<T>(ASTNode astNode, IGraphQLContext context, string url, OperationType operation, string operationName) {
-        var query = await CreateFederationQuery(astNode, context);
+        var query = await CreateFederationQuery(astNode, context).ConfigureAwait(false);
         var client = new FederationWebsocket<T>(FederationQueryBuilder.BuildQuery(query, operation, ""), url, context, operationName);
-        await foreach(var value in client.Results())
+        await foreach(var value in client.Results().ConfigureAwait(false))
             yield return value;
     }
 
     private static async Task<string> CreateFederationQuery(ASTNode astNode, IGraphQLContext context) {
         var writer = new StringWriter();
-        await new FederationSDLPrinter().PrintAsync(astNode, writer, context.CancellationToken);
+        await new FederationSDLPrinter().PrintAsync(astNode, writer, context.CancellationToken).ConfigureAwait(false);
         return writer.ToString();
     }
 
@@ -105,7 +104,7 @@ public static class FederationHelper {
     public class FederationSDLPrinter : SDLPrinter {
         protected override async ValueTask VisitSelectionSetAsync(GraphQLSelectionSet selectionSet, DefaultPrintContext context) {
             if(selectionSet.Selections.Any(x => x.Kind == ASTNodeKind.Field && ((GraphQLField)x).Name.StringValue == "__typename")) {
-                await base.VisitSelectionSetAsync(selectionSet, context);
+                await base.VisitSelectionSetAsync(selectionSet, context).ConfigureAwait(false);
                 return;
             }
 
@@ -113,7 +112,7 @@ public static class FederationHelper {
                 Name = new GraphQLName("__typename")
             };
             selectionSet.Selections.Add(graphQLField);
-            await base.VisitSelectionSetAsync(selectionSet, context);
+            await base.VisitSelectionSetAsync(selectionSet, context).ConfigureAwait(false);
             selectionSet.Selections.Remove(graphQLField);
         }
     }

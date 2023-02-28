@@ -29,7 +29,7 @@ public class BookOperations {
     [GraphQLSubscription]
     public async IAsyncEnumerable<InventoryBook> BookUpdated(int bookId, ASTNode astNode, [EnumeratorCancellation] CancellationToken cancellation) {
         while(!cancellation.IsCancellationRequested) {
-            await Task.Delay(2000, cancellation);
+            await Task.Delay(2000, cancellation).ConfigureAwait(false);
             yield return new InventoryBook { BookId = 1, Title = "My first book was updated", ISBN = "1234", ExactInventory = 20 };
         }
     }

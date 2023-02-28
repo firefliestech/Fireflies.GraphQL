@@ -59,7 +59,7 @@ public class GraphQLOptionsBuilder {
                 attempt++;
                 try {
                     logger.Info($"Fetching federated schema for {federation.Name} from {federation.Url}");
-                    var federationSchema = await new FederationClient(federation.Url).FetchSchema();
+                    var federationSchema = await new FederationClient(federation.Url).FetchSchema().ConfigureAwait(false);
                     var generator = new FederationGenerator(federation, federationSchema);
                     var generatedType = generator.Generate();
                     _operationTypes.Add(generatedType);
@@ -68,7 +68,7 @@ public class GraphQLOptionsBuilder {
                     if(attempt < 4) {
                         const int delay = 3000;
                         logger.Error(ex, $"Failed to add federation. Attempt: {attempt}. Retrying in {delay}ms");
-                        await Task.Delay(delay);
+                        await Task.Delay(delay).ConfigureAwait(false);
                     } else {
                         logger.Error(ex, $"Failed to add federation. Attempt: {attempt}. Giving up");
                         throw;

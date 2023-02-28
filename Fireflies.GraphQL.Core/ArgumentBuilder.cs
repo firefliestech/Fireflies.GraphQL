@@ -57,10 +57,10 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
             if(argument.Value.Kind == ASTNodeKind.ObjectValue) {
                 var value = Activator.CreateInstance(parameterInfo.ParameterType)!;
                 _stack.Push(value);
-                await VisitAsync(argument.Value, context);
+                await VisitAsync(argument.Value, context).ConfigureAwait(false);
                 Values[parameterInfo.Name!] = _stack.Pop();
             } else {
-                Values[parameterInfo.Name!] = await _valueAccessor.GetValue(argument.Value);
+                Values[parameterInfo.Name!] = await _valueAccessor.GetValue(argument.Value).ConfigureAwait(false);
             }
         } else {
             throw new InvalidOperationException("Unmatched value");
@@ -75,10 +75,10 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
         if(Type.GetTypeCode(underlyingType) == TypeCode.Object) {
             var value = Activator.CreateInstance(underlyingType)!;
             _stack.Push(value);
-            await VisitAsync(objectField.Value, context);
+            await VisitAsync(objectField.Value, context).ConfigureAwait(false);
             propertyField.SetValue(parent, _stack.Pop());
         } else {
-            var value = await _valueAccessor.GetValue(underlyingType, objectField.Value);
+            var value = await _valueAccessor.GetValue(underlyingType, objectField.Value).ConfigureAwait(false);
             propertyField.SetValue(parent, value);
         }
     }

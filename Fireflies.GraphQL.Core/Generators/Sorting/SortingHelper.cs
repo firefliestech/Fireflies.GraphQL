@@ -45,7 +45,7 @@ public static class SortingHelper {
                 var desc = enumValue.Name.StringValue == nameof(SortOrder.DESC);
                 Result = desc ? Result.OrderByDescending(x => GetValue(x, objectField.Name.StringValue)) : Result.OrderBy(x => GetValue(x, objectField.Name.StringValue));
             } else {
-                await VisitAsync(objectField.Value, context);
+                await VisitAsync(objectField.Value, context).ConfigureAwait(false);
             }
         }
 

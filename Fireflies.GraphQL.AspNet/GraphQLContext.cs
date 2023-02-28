@@ -25,7 +25,7 @@ public class GraphQLContext : IGraphQLContext {
 
     public async IAsyncEnumerator<JObject> GetAsyncEnumerator(CancellationToken cancellationToken = new()) {
         while(!CancellationToken.IsCancellationRequested) {
-            var obj = await _results.DequeueAsync(CancellationToken);
+            var obj = await _results.DequeueAsync(CancellationToken).ConfigureAwait(false);
             yield return obj;
 
             if(IsWebSocket)

@@ -37,20 +37,20 @@ public class GraphQLMiddleware {
 
         try {
             if(httpContext.WebSockets.IsWebSocketRequest) {
-                options.WebSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
+                options.WebSocket = await httpContext.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
                 ProcessWebSocket(httpContext, engine, logger);
             } else {
-                var input = await new StreamReader(httpContext.Request.Body).ReadToEndAsync();
+                var input = await new StreamReader(httpContext.Request.Body).ReadToEndAsync().ConfigureAwait(false);
                 var request = JsonConvert.DeserializeObject<GraphQLRequest>(input);
-                await engine.Execute(request);
+                await engine.Execute(request).ConfigureAwait(false);
             }
 
-            await foreach(var subResult in engine.Results().WithCancellation(engine.Context.CancellationToken)) {
+            await foreach(var subResult in engine.Results().WithCancellation(engine.Context.CancellationToken).ConfigureAwait(false)) {
                 if(engine.Context.IsWebSocket) {
                     var buffer = System.Text.Encoding.UTF8.GetBytes(subResult);
                     await engine.Context.WebSocket!.SendAsync(new ArraySegment<byte>(buffer, 0, buffer.Length), WebSocketMessageType.Text, true, CancellationToken.None).ConfigureAwait(false);
                 } else {
-                    await httpContext.Response.WriteAsync(subResult);
+                    await httpContext.Response.WriteAsync(subResult).ConfigureAwait(false);
                 }
             }
         } catch(OperationCanceledException) {
@@ -60,7 +60,7 @@ public class GraphQLMiddleware {
         } finally {
             if(engine.Context.IsWebSocket) {
                 try {
-                    await engine.Context.WebSocket!.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+                    await engine.Context.WebSocket!.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None).ConfigureAwait(false);
                 } catch {
                     // Noop
                 }
@@ -93,7 +93,7 @@ public class GraphQLMiddleware {
                 var (webSocketReceiveResult, bytes) = await ReceiveFullMessage(engine.Context.WebSocket!, engine.Context.CancellationToken).ConfigureAwait(false);
                 if(webSocketReceiveResult.MessageType == WebSocketMessageType.Close) {
                     firefliesLogger.Debug($"Connection from {httpContext.Connection.RemoteIpAddress}:{httpContext.Connection.RemotePort} to {httpContext.Request.Path} closed");
-                    await engine.Context.WebSocket!.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+                    await engine.Context.WebSocket!.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None).ConfigureAwait(false);
                     break;
                 }
 

@@ -29,10 +29,10 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
             var currentType = _stack.Peek();
             var matching = currentType.Data!.GetType().GetAllClassesThatImplements().FirstOrDefault(x => x.GraphQLName() == inlineFragment.TypeCondition.Type.Name);
             if(matching != null) {
-                await base.VisitInlineFragmentAsync(inlineFragment, context);
+                await base.VisitInlineFragmentAsync(inlineFragment, context).ConfigureAwait(false);
             }
         } else {
-            await base.VisitInlineFragmentAsync(inlineFragment, context);
+            await base.VisitInlineFragmentAsync(inlineFragment, context).ConfigureAwait(false);
         }
     }
 
@@ -41,7 +41,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
         if(parentLevel.Data == null)
             return;
 
-        if(await RunBuiltInDirectives(field))
+        if(await RunBuiltInDirectives(field).ConfigureAwait(false))
             return;
 
         var type = parentLevel.Data.GetType();
@@ -58,7 +58,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
             }
             case MethodInfo methodInfo:
                 fieldType = methodInfo.DiscardTaskFromReturnType();
-                fieldValue = await InvokeMethod(field, methodInfo, parentLevel);
+                fieldValue = await InvokeMethod(field, methodInfo, parentLevel).ConfigureAwait(false);
                 break;
             default:
                 if(field.Name.StringValue == "__typename") {
@@ -94,14 +94,14 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
                         localLevel.Result.Add(arrayLevel.Result);
 
                         foreach(var subSelection in field.SelectionSet.Selections) {
-                            await VisitAsync(subSelection, context);
+                            await VisitAsync(subSelection, context).ConfigureAwait(false);
                         }
 
                         _stack.Pop();
                     }
                 } else {
                     foreach(var subSelection in field.SelectionSet.Selections) {
-                        await VisitAsync(subSelection, context);
+                        await VisitAsync(subSelection, context).ConfigureAwait(false);
                     }
                 }
 
@@ -113,11 +113,11 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     private async Task<bool> RunBuiltInDirectives(GraphQLField field) {
         foreach(var directive in field.Directives ?? Enumerable.Empty<GraphQLDirective>()) {
             if(directive.Name == "skip" && directive.Arguments?[0].Name == "if") {
-                var result = await _valueAccessor.GetValue<bool>(directive.Arguments[0].Value);
+                var result = await _valueAccessor.GetValue<bool>(directive.Arguments[0].Value).ConfigureAwait(false);
                 if(result)
                     return true;
             } else if(directive.Name == "include" && directive.Arguments?[0].Name == "if") {
-                var result = await _valueAccessor.GetValue<bool>(directive.Arguments[0].Value);
+                var result = await _valueAccessor.GetValue<bool>(directive.Arguments[0].Value).ConfigureAwait(false);
                 if(!result)
                     return true;
             } else {
@@ -130,17 +130,17 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
 
     private async Task<object?> InvokeMethod(GraphQLField graphQLField, MethodInfo methodInfo, Level parentLevel) {
         var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, _valueAccessor, _context, _dependencyResolver);
-        var arguments = await argumentBuilder.Build(graphQLField);
-        return await methodInfo.ExecuteMethod(parentLevel.Data!, arguments);
+        var arguments = await argumentBuilder.Build(graphQLField).ConfigureAwait(false);
+        return await methodInfo.ExecuteMethod(parentLevel.Data!, arguments).ConfigureAwait(false);
     }
 
     protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, IGraphQLContext context) {
-        await VisitAsync(await _fragments.GetFragment(fragmentSpread.FragmentName), context);
+        await VisitAsync(await _fragments.GetFragment(fragmentSpread.FragmentName), context).ConfigureAwait(false);
     }
 
     protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, IGraphQLContext context) {
         foreach(var selection in fragmentDefinition.SelectionSet.Selections) {
-            await VisitAsync(selection, context);
+            await VisitAsync(selection, context).ConfigureAwait(false);
         }
     }
 

@@ -42,7 +42,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                     var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _valueAccessor, _context, _dependencyResolver);
                     var returnType = operationDescriptor.Method.DiscardTaskFromReturnType();
                     var asyncEnumerable = (IAsyncEnumerable<object>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder, graphQLField })!;
-                    await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken)) {
+                    await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken).ConfigureAwait(false)) {
                         var jObject = new JObject();
 
                         if(result is IEnumerable enumerable) {
@@ -53,7 +53,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                                 container.Add(subResult);
                                 foreach(var subSelection in graphQLField.SelectionSet!.Selections) {
                                     var resultVisitor = new ResultVisitor(obj, subResult, _fragments, _valueAccessor, _context, _dependencyResolver);
-                                    await resultVisitor.VisitAsync(subSelection, context);
+                                    await resultVisitor.VisitAsync(subSelection, context).ConfigureAwait(false);
                                 }
                             }
                         } else {
@@ -61,7 +61,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                             jObject.Add(graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue, subResult);
                             foreach(var subSelection in graphQLField.SelectionSet!.Selections) {
                                 var resultVisitor = new ResultVisitor(result, subResult, _fragments, _valueAccessor, _context, _dependencyResolver);
-                                await resultVisitor.VisitAsync(subSelection, context);
+                                await resultVisitor.VisitAsync(subSelection, context).ConfigureAwait(false);
                             }
                         }
 
@@ -87,13 +87,13 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
     }
 
     private async IAsyncEnumerable<object?> GetResult<T>(OperationDescriptor operationDescriptor, object query, ArgumentBuilder argumentBuilder, GraphQLField node) {
-        var arguments = await argumentBuilder.Build(node);
+        var arguments = await argumentBuilder.Build(node).ConfigureAwait(false);
         if(_operationType is OperationType.Query or OperationType.Mutation) {
-            var resultTask = await operationDescriptor.Method.ExecuteMethod(query, arguments);
+            var resultTask = await operationDescriptor.Method.ExecuteMethod(query, arguments).ConfigureAwait(false);
             yield return resultTask;
         } else {
             var asyncEnumerable = (IAsyncEnumerable<T>)operationDescriptor.Method.Invoke(query, arguments)!;
-            await foreach(var obj in asyncEnumerable.WithCancellation(_context.CancellationToken)) {
+            await foreach(var obj in asyncEnumerable.WithCancellation(_context.CancellationToken).ConfigureAwait(false)) {
                 yield return obj;
             }
         }
