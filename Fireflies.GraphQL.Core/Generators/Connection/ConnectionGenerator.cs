@@ -67,9 +67,8 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
         var methodIlGenerator = methodBuilder.GetILGenerator();
 
         methodIlGenerator.Emit(OpCodes.Ldarg_0);
-        for(var i = 1; i <= baseParametersLength; i++) {
+        for(var i = 1; i <= baseParametersLength; i++)
             methodIlGenerator.Emit(OpCodes.Ldarg_S, i);
-        }
 
         methodIlGenerator.EmitCall(OpCodes.Call, wrappedMethod, null);
 

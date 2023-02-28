@@ -37,8 +37,10 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
             if(typeof(TASTNode).IsAssignableTo(x.ParameterType))
                 return node;
 
-            if(x.ParameterType == typeof(CancellationToken))
-                return _context.CancellationToken;
+            if(x.ParameterType == typeof(CancellationToken)) {
+                return !x.HasCustomAttribute<EnumeratorCancellationAttribute>() ? _context.CancellationToken : default;
+            }
+                
 
             if (x.HasCustomAttribute<ResolvedAttribute>(out _))
                 return _dependencyResolver.Resolve(x.ParameterType);
