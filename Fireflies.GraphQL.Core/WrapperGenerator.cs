@@ -151,22 +151,28 @@ internal class WrapperGenerator {
     private (Type, bool, Type, Type) GetWrappedReturnType(MethodInfo methodInfo) {
         var isEnumerable = methodInfo.ReturnType.IsCollection(out var elementType);
         if(elementType.HasCustomAttribute<GraphQLNoWrapperAttribute>() || elementType.IsValueType || elementType == typeof(string) || elementType.IsInterface) {
-            return (methodInfo.ReturnType, isEnumerable, elementType, elementType);
+            return isEnumerable ?
+                CreateReturnType(methodInfo, elementType, elementType, isEnumerable) :
+                (methodInfo.ReturnType, isEnumerable, elementType, elementType);
         }
 
         var wrapperType = GenerateWrapper(elementType, false);
+        return CreateReturnType(methodInfo, wrapperType, elementType, isEnumerable);
+    }
 
+    private static (Type, bool, Type, Type) CreateReturnType(MethodInfo methodInfo, Type wrapperType, Type elementType, bool isEnumerable) {
         if(methodInfo.ReturnType.IsAsyncEnumerable()) {
             return (typeof(IAsyncEnumerable<>).MakeGenericType(wrapperType), true, elementType, wrapperType);
         }
 
         if(isEnumerable) {
-            if(methodInfo.ReturnType.IsTask())
-                return (typeof(Task<>).MakeGenericType(typeof(IQueryable<>).MakeGenericType(wrapperType)), true, elementType, wrapperType);
-
-            return (typeof(IQueryable<>).MakeGenericType(wrapperType), true, elementType, wrapperType);
+            return methodInfo.ReturnType.IsTask() ?
+                (typeof(Task<>).MakeGenericType(typeof(IQueryable<>).MakeGenericType(wrapperType)), true, elementType, wrapperType) :
+                (typeof(IQueryable<>).MakeGenericType(wrapperType), true, elementType, wrapperType);
         }
 
-        return methodInfo.ReturnType.IsTask() ? (typeof(Task<>).MakeGenericType(wrapperType), false, elementType, wrapperType) : (wrapperType, false, elementType, wrapperType);
+        return methodInfo.ReturnType.IsTask() ?
+            (typeof(Task<>).MakeGenericType(wrapperType), false, elementType, wrapperType) :
+            (wrapperType, false, elementType, wrapperType);
     }
 }

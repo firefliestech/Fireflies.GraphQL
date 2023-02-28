@@ -21,4 +21,8 @@ public class InventoryBook : IBook {
     [GraphQLDescription("Returns the exact inventory")]
     [GraphQLDeprecated("Will be 0 from 2024-01-01")]
     public int ExactInventory { get; set; }
+
+    public Task<IEnumerable<int>> Numbers() {
+        return Task.FromResult(new[] { 1, 2, 3 }.AsEnumerable());
+    }
 }
