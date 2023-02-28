@@ -6,22 +6,17 @@ using Fireflies.IoC.Abstractions;
 namespace Fireflies.GraphQL.Core;
 
 internal static class AuthorizationHelper {
-    public static async Task Authorize(IDependencyResolver dependencyResolver, Type type) {
-        var authorizationAttributes = type.GetCustomAttributes<GraphQLAuthorizationAttribute>(true);
-        await Authorize(dependencyResolver, authorizationAttributes).ConfigureAwait(false);
-    }
-
     public static async Task Authorize(IDependencyResolver dependencyResolver, MemberInfo memberInfo) {
-        var authorizationAttributes = memberInfo.GetCustomAttributes<GraphQLAuthorizationAttribute>(true);
+        var authorizationAttributes = memberInfo.CustomAttributes.Select(x => x.AttributeType).Where(c => c.IsAssignableTo(typeof(GraphQLAuthorizationAttribute)));
         await Authorize(dependencyResolver, authorizationAttributes).ConfigureAwait(false);
     }
 
-    private static async Task Authorize(IDependencyResolver dependencyResolver, IEnumerable<GraphQLAuthorizationAttribute> authorizationAttributes) {
+    private static async Task Authorize(IDependencyResolver dependencyResolver, IEnumerable<Type> authorizationAttributes) {
         var any = false;
 
         foreach(var authorizationAttribute in authorizationAttributes) {
             any = true;
-            var authorization = (GraphQLAuthorizationAttribute)dependencyResolver.Resolve(authorizationAttribute.GetType());
+            var authorization = (GraphQLAuthorizationAttribute)dependencyResolver.Resolve(authorizationAttribute);
             if(await authorization.Authorize().ConfigureAwait(false)) {
                 return;
             }
