@@ -141,7 +141,7 @@ internal class SchemaBuilder {
     private __Type CreateType(Type type, bool isTypeReference) {
         var baseType = GetBaseType(type);
         if(baseType.IsEnum) {
-            if(type.IsCollection(out _)) {
+            if(baseType.IsCollection(out _)) {
                 return new __Type(baseType) {
                     Kind = __TypeKind.LIST,
                     OfType = WrapNullable(Nullable.GetUnderlyingType(baseType) != null, CreateType(baseType, true))
@@ -149,41 +149,41 @@ internal class SchemaBuilder {
             }
 
             return new __Type(baseType, null, isTypeReference ? Array.Empty<__EnumValue>() : CreateEnumValues(baseType)) {
-                Name = type.Name,
+                Name = baseType.Name,
                 Kind = __TypeKind.ENUM,
             };
         }
 
-        if(type.IsCollection()) {
-            return new __Type(type) {
+        if(baseType.IsCollection()) {
+            return new __Type(baseType) {
                 Kind = __TypeKind.LIST,
                 OfType = WrapNullable(Nullable.GetUnderlyingType(baseType) != null, CreateType(baseType, true))
             };
         }
 
         if(baseType == typeof(int)) {
-            return new __Type(type) {
+            return new __Type(baseType) {
                 Name = "Int",
                 Kind = __TypeKind.SCALAR,
             };
         }
 
         if(baseType == typeof(string)) {
-            return new __Type(type) {
+            return new __Type(baseType) {
                 Name = "String",
                 Kind = __TypeKind.SCALAR
             };
         }
 
         if(baseType == typeof(bool)) {
-            return new __Type(type) {
+            return new __Type(baseType) {
                 Name = "Boolean",
                 Kind = __TypeKind.SCALAR
             };
         }
 
         if(baseType == typeof(decimal)) {
-            return new __Type(type) {
+            return new __Type(baseType) {
                 Name = "Float",
                 Kind = __TypeKind.SCALAR,
             };
@@ -225,10 +225,10 @@ internal class SchemaBuilder {
             fields.AddRange(GetFields(baseType));
         }
 
-        if(type.IsInterface) {
-            var interfaceType = new __Type(type, fields) {
+        if(baseType.IsInterface) {
+            var interfaceType = new __Type(baseType, fields) {
                 Name = baseType.Name,
-                Kind = type.HasCustomAttribute<GraphQLUnionAttribute>() ? __TypeKind.UNION : __TypeKind.INTERFACE,
+                Kind = baseType.HasCustomAttribute<GraphQLUnionAttribute>() ? __TypeKind.UNION : __TypeKind.INTERFACE,
                 Description = baseType.GetDescription()
             };
 
@@ -238,7 +238,7 @@ internal class SchemaBuilder {
             return interfaceType;
         }
 
-        var objectType = new __Type(type, fields) {
+        var objectType = new __Type(baseType, fields) {
             Name = baseType.Name,
             Kind = __TypeKind.OBJECT,
             Description = baseType.GetDescription()

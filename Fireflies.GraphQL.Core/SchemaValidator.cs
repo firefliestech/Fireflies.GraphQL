@@ -42,10 +42,18 @@ internal class SchemaValidator {
         _verifiedTyped.Add(graphQLName, type);
 
         foreach(var subType in type.GetAllGraphQLMemberInfo()) {
+            Type typeToInspect;
             if(subType is PropertyInfo propertyInfo)
-                InspectType(propertyInfo.PropertyType);
+                typeToInspect = propertyInfo.PropertyType;
             else if(subType is MethodInfo methodInfo)
-                InspectType(methodInfo.DiscardTaskFromReturnType());
+                typeToInspect = methodInfo.ReturnType;
+            else
+                throw new ArgumentOutOfRangeException(nameof(subType));
+
+            typeToInspect = typeToInspect.DiscardTask();
+            typeToInspect = Nullable.GetUnderlyingType(typeToInspect) ?? typeToInspect;
+
+            InspectType(typeToInspect);
         }
     }
 }
