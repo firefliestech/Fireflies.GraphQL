@@ -7,6 +7,12 @@ using Fireflies.GraphQL.Core.Extensions;
 namespace Fireflies.GraphQL.Core.Generators.Connection;
 
 public class ConnectionGenerator : ITypeExtenderGenerator {
+    private readonly ModuleBuilder _moduleBuilder;
+
+    public ConnectionGenerator(ModuleBuilder moduleBuilder) {
+        _moduleBuilder = moduleBuilder;
+    }
+
     public void Extend(TypeBuilder typeBuilder, MethodBuilder wrappedMethod, MemberInfo baseMember, FieldBuilder instanceField, MethodExtenderDescriptor[] decoratorDescriptors) {
         if(!baseMember.HasCustomAttribute<GraphQlPaginationAttribute>())
             return;
@@ -23,14 +29,14 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
             _ => throw new ArgumentOutOfRangeException(nameof(baseMember), baseMember, null)
         };
 
-        if(!baseReturnType.IsEnumerable(out var baseElementType))
+        if(!baseReturnType.IsCollection(out var baseElementType))
             throw new GraphQLTypeException($"Cant add pagination for {baseElementType} because return type is not IEnumerable");
 
         if(!baseElementType.GetProperties(BindingFlags.Public | BindingFlags.Instance).Any(x => x.HasCustomAttribute<GraphQlIdAttribute>()))
             throw new GraphQLTypeException($"Cant add pagination for {baseElementType} because return type does not have any {nameof(GraphQlIdAttribute)} attributes");
 
         var returnType = wrappedMethod.ReturnType;
-        returnType.IsEnumerable(out var elementType);
+        returnType.IsCollection(out var elementType);
 
         var connectorTypeName = $"{wrappedMethod.Name}Connection";
         var (connectionType, edgeType) = GenerateConnectionType(connectorTypeName, elementType);
@@ -67,9 +73,7 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
 
         methodIlGenerator.EmitCall(OpCodes.Call, wrappedMethod, null);
 
-        var isTask = baseReturnType.IsGenericType && baseReturnType.GetGenericTypeDefinition() == typeof(Task<>);
-
-        if(!isTask) {
+        if(!baseReturnType.IsTask()) {
             var taskFromResultMethod = typeof(Task).GetMethod(nameof(Task.FromResult), BindingFlags.Public | BindingFlags.Static)!.MakeGenericMethod(connectionType);
             methodIlGenerator.EmitCall(OpCodes.Call, taskFromResultMethod, null);
         }
@@ -83,10 +87,10 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
         methodIlGenerator.Emit(OpCodes.Ret);
     }
 
-    private static (Type, Type) GenerateConnectionType(string typeName, Type nodeType) {
+    private (Type, Type) GenerateConnectionType(string typeName, Type nodeType) {
         var edgeType = GenerateEdgeType(nodeType);
         var baseType = typeof(ConnectionBase<,>).MakeGenericType(edgeType, nodeType);
-        var connectionType = WrapperGenerator.DynamicModule.DefineType(typeName,
+        var connectionType = _moduleBuilder.DefineType(typeName,
             TypeAttributes.Public |
             TypeAttributes.Class |
             TypeAttributes.AutoClass |
@@ -113,9 +117,9 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
         return (connectionType.CreateType()!, edgeType);
     }
 
-    private static Type GenerateEdgeType(Type nodeType) {
+    private Type GenerateEdgeType(Type nodeType) {
         var baseType = typeof(EdgeBase<>).MakeGenericType(nodeType);
-        var edgeType = WrapperGenerator.DynamicModule.DefineType($"{nodeType.Name}Edge",
+        var edgeType = _moduleBuilder.DefineType($"{nodeType.Name}Edge",
             TypeAttributes.Public |
             TypeAttributes.Class |
             TypeAttributes.AutoClass |

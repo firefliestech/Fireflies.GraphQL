@@ -11,7 +11,7 @@ public class InventoryBook : IBook {
     public string ISBN { get; set; } = null!;
 
     public Task<decimal> CalculatePrice() {
-        return Task.FromResult((decimal)23.3);
+        return Task.FromResult(23.3M);
     }
     
     [GraphQLSort]

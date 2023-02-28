@@ -20,7 +20,7 @@ internal class SchemaValidator {
     }
 
     private void InspectType(Type type) {
-        if(type.IsEnumerable(out var elementType)) {
+        if(type.IsCollection(out var elementType)) {
             type = elementType;
         }
 

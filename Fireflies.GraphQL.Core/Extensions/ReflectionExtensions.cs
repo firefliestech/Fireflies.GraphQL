@@ -70,19 +70,26 @@ internal static class ReflectionExtensions {
         if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>))
             type = type.GetGenericArguments()[0];
 
-        if(type.IsEnumerable(out var elementType))
+        if(type.IsCollection(out var elementType))
             type = elementType;
 
         return type;
     }
 
+    public static Type ElementType(this Type type) {
+        type.IsCollection(out var elementType);
+        return elementType;
+    }
+
     public static Type DiscardTaskFromReturnType(this MethodInfo methodInfo) {
-        var returnType = methodInfo.ReturnType;
+        return methodInfo.ReturnType.DiscardTask();
+    }
 
-        if(returnType.IsGenericType && (returnType.GetGenericTypeDefinition() == typeof(Task<>) || returnType.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>)))
-            return returnType.GetGenericArguments()[0];
+    public static Type DiscardTask(this Type type) {
+        if(type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(Task<>) || type.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>)))
+            return type.GetGenericArguments()[0];
 
-        return returnType;
+        return type;
     }
 
     public static bool IsValidGraphQLObject(this Type type) {
@@ -140,7 +147,7 @@ internal static class ReflectionExtensions {
     }
 
     public static async Task<object?> ExecuteMethod(this MethodInfo methodInfo, object instance, object?[] arguments) {
-        var isEnumerable = methodInfo.ReturnType.IsEnumerable(out var elementType);
+        var isEnumerable = methodInfo.ReturnType.IsCollection(out var elementType);
         var result = await (Task<object?>)InternalExecuteMethodInfo.MakeGenericMethod(methodInfo.DiscardTaskFromReturnType()).Invoke(null, new[] { methodInfo, instance, isEnumerable, arguments })!;
         return result;
     }
@@ -184,5 +191,35 @@ internal static class ReflectionExtensions {
             return attribute!.Reason;
 
         return null;
+    }
+
+    public static bool IsTask(this Type type, out Type? returnType) {
+        returnType = type;
+
+        if(type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(Task<>) || type.GetGenericTypeDefinition() == typeof(ValueTask<>))) {
+            returnType = type.GetGenericArguments()[0];
+            return true;
+        }
+
+        return false;
+    }
+
+    public static bool IsTask(this Type type) {
+        return IsTask(type, out _);
+    }
+
+    public static bool IsAsyncEnumerable(this Type type, out Type? returnType) {
+        returnType = type;
+
+        if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>)) {
+            returnType = type.GetGenericArguments()[0];
+            return true;
+        }
+
+        return false;
+    }
+
+    public static bool IsAsyncEnumerable(this Type type) {
+        return IsAsyncEnumerable(type, out _);
     }
 }

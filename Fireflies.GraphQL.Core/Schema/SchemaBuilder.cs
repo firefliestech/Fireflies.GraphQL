@@ -71,7 +71,7 @@ internal class SchemaBuilder {
         if(_ignore.Contains(startingObject))
             return;
 
-        if(startingObject.IsEnumerable(out var elementType)) {
+        if(startingObject.IsCollection(out var elementType)) {
             FindAllTypes(types, elementType);
             return;
         }
@@ -141,7 +141,7 @@ internal class SchemaBuilder {
     private __Type CreateType(Type type, bool isTypeReference) {
         var baseType = GetBaseType(type);
         if(baseType.IsEnum) {
-            if(type.IsEnumerable(out _)) {
+            if(type.IsCollection(out _)) {
                 return new __Type(baseType) {
                     Kind = __TypeKind.LIST,
                     OfType = WrapNullable(Nullable.GetUnderlyingType(baseType) != null, CreateType(baseType, true))
@@ -154,7 +154,7 @@ internal class SchemaBuilder {
             };
         }
 
-        if(type.IsEnumerable()) {
+        if(type.IsCollection()) {
             return new __Type(type) {
                 Kind = __TypeKind.LIST,
                 OfType = WrapNullable(Nullable.GetUnderlyingType(baseType) != null, CreateType(baseType, true))

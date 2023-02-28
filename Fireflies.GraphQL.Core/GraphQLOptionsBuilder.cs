@@ -1,6 +1,9 @@
 ﻿using System.Reflection;
+using System.Reflection.Emit;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Federation;
+using Fireflies.GraphQL.Core.Generators.Connection;
+using Fireflies.GraphQL.Core.Generators.Sorting;
 using Fireflies.GraphQL.Core.Schema;
 using Fireflies.IoC.Abstractions;
 using Fireflies.IoC.TinyIoC;
@@ -62,7 +65,6 @@ public class GraphQLOptionsBuilder {
                     _operationTypes.Add(generatedType);
                     break;
                 } catch(Exception ex) {
-                    
                     if(attempt < 4) {
                         const int delay = 3000;
                         logger.Error(ex, $"Failed to add federation. Attempt: {attempt}. Retrying in {delay}ms");
@@ -75,25 +77,36 @@ public class GraphQLOptionsBuilder {
             }
         }
 
+        var assemblyName = new AssemblyName("Fireflies.GraphQL.ProxyAssembly");
+        var dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+        var moduleBuilder = dynamicAssembly.DefineDynamicModule("Main");
+
+        var generatorRegistry = new GeneratorRegistry();
+        generatorRegistry.Add(new SortingGenerator(moduleBuilder));
+        generatorRegistry.Add(new ConnectionGenerator(moduleBuilder));
+
+        var wrapperGenerator = new WrapperGenerator(moduleBuilder, generatorRegistry);
+
         options.DependencyResolver = _dependencyResolver.BeginLifetimeScope(builder => {
+            builder.RegisterInstance(moduleBuilder);
             builder.RegisterInstance(options);
             builder.RegisterType<GraphQLEngine>();
             builder.RegisterType<__SchemaQuery>();
 
             foreach(var type in _operationTypes) {
-                foreach(var operation in FindOperations(type, wt => wt.GetAllGraphQLQueryMethods(true))) {
+                foreach(var operation in FindOperations(wrapperGenerator, type, wt => wt.GetAllGraphQLQueryMethods(true))) {
                     builder.RegisterType(operation.Type);
                     options.QueryOperations.Add(operation);
                     logger.Debug($"Added query operation {operation.Name} from {operation.Type.FullName}");
                 }
 
-                foreach(var operation in FindOperations(type, wt => wt.GetAllGraphQLMutationMethods(true))) {
+                foreach(var operation in FindOperations(wrapperGenerator, type, wt => wt.GetAllGraphQLMutationMethods(true))) {
                     builder.RegisterType(operation.Type);
                     options.MutationsOperations.Add(operation);
                     logger.Debug($"Added mutation operation {operation.Name} from {operation.Type.FullName}");
                 }
 
-                foreach(var operation in FindOperations(type, wt => wt.GetAllGraphQLSubscriptionMethods(true))) {
+                foreach(var operation in FindOperations(wrapperGenerator, type, wt => wt.GetAllGraphQLSubscriptionMethods(true))) {
                     builder.RegisterType(operation.Type);
                     options.SubscriptionOperations.Add(operation);
                     logger.Debug($"Added subscription operation {operation.Name} from {operation.Type.FullName}");
@@ -115,8 +128,8 @@ public class GraphQLOptionsBuilder {
         return options;
     }
 
-    private IEnumerable<OperationDescriptor> FindOperations(Type type, Func<Type, IEnumerable<MethodInfo>> getMethodsCallback) {
-        var wrappedType = WrapperGenerator.GenerateWrapper(type);
+    private IEnumerable<OperationDescriptor> FindOperations(WrapperGenerator wrapperGenerator, Type type, Func<Type, IEnumerable<MethodInfo>> getMethodsCallback) {
+        var wrappedType = wrapperGenerator.GenerateWrapper(type);
 
         foreach(var method in getMethodsCallback(wrappedType)) {
             var operation = new OperationDescriptor(method.GraphQLName(),

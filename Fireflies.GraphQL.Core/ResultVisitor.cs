@@ -74,7 +74,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
         var isEnumerable = fieldType.IsAssignableTo(typeof(IEnumerable));
         var fieldName = field.Alias?.Name.StringValue ?? field.Name.StringValue;
         if(field.SelectionSet == null) {
-            if(fieldType.IsEnumerable(out _)) {
+            if(fieldType.IsCollection(out _)) {
                 parentLevel.Add(fieldName, fieldValue != null ? new JArray(fieldValue) : null);
             } else {
                 parentLevel.Add(fieldName, fieldValue != null ? new JValue(fieldValue) : null);

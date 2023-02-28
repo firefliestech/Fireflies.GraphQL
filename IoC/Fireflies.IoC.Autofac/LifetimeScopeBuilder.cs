@@ -21,4 +21,8 @@ public class LifetimeScopeBuilder : ILifetimeScopeBuilder {
     public void RegisterInstance<T>(T instance) where T : class {
         _containerBuilder.RegisterInstance(instance);
     }
+
+    public void RegisterTypeAsSingleInstance<T>() where T : class {
+        _containerBuilder.RegisterType<T>().SingleInstance();
+    }
 }

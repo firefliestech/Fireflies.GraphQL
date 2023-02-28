@@ -7,32 +7,29 @@ using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Generators.Sorting;
 
-internal class SortingExtenderGenerator : IMethodExtenderGenerator {
-    public MethodExtenderDescriptor GetMethodExtenderDescriptor(MemberInfo memberInfo, ref int parameterCount) {
-        if(!memberInfo.HasCustomAttribute<GraphQLSortAttribute>())
-            return new MethodExtenderDescriptor {
-                ShouldDecorate = false
-            };
+internal class SortingGenerator : IMethodExtenderGenerator {
+    private readonly ModuleBuilder _moduleBuilder;
 
-        var baseMethod = memberInfo switch {
-            PropertyInfo propertyInfo => propertyInfo.GetMethod!,
-            MethodInfo methodInfo => methodInfo,
-            _ => throw new ArgumentOutOfRangeException(nameof(memberInfo), memberInfo, null)
-        };
+    public SortingGenerator(ModuleBuilder moduleBuilder) {
+        _moduleBuilder = moduleBuilder;
+    }
+
+    public MethodExtenderDescriptor GetMethodExtenderDescriptor(MemberInfo memberInfo, Type wrappedReturnType, ref int parameterCount) {
+        if(!memberInfo.HasCustomAttribute<GraphQLSortAttribute>())
+            return new MethodExtenderDescriptor();
 
         var sortParameterIndex = parameterCount + 1;
         var astNodeParameterIndex = parameterCount + 2;
         var contextParameterIndex = parameterCount + 3;
         parameterCount += 3;
 
-        baseMethod.ReturnType.IsEnumerable(out var returnType);
+        wrappedReturnType.IsCollection(out var returnType);
 
         var generatedSortType = GenerateSortType(returnType);
         return
-            new MethodExtenderDescriptor {
-                ShouldDecorate = true,
-                ParameterTypes = new[] { generatedSortType, typeof(GraphQLField), typeof(IGraphQLContext) },
-                DefineParametersCallback = methodBuilder => {
+            new MethodExtenderDescriptor(
+                new[] { generatedSortType, typeof(GraphQLField), typeof(IGraphQLContext) },
+                methodBuilder => {
                     var parameterBuilder = methodBuilder.DefineParameter(sortParameterIndex, ParameterAttributes.HasDefault | ParameterAttributes.Optional, "sort");
                     parameterBuilder.SetConstant(null);
                     parameterBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLNullable).GetConstructors().First(), Array.Empty<object>()));
@@ -43,23 +40,24 @@ internal class SortingExtenderGenerator : IMethodExtenderGenerator {
                     methodBuilder.DefineParameter(contextParameterIndex, ParameterAttributes.HasDefault | ParameterAttributes.Optional, Guid.NewGuid().ToString("N"))
                         .SetCustomAttribute(new CustomAttributeBuilder(typeof(ResolvedAttribute).GetConstructors().First(), Array.Empty<object>()));
                 },
-                DecorateCallback = ILGenerator => {
-                    baseMethod.ReturnType.IsEnumerable(out var elementType);
-                    var isTask = baseMethod.ReturnType.IsGenericType && baseMethod.ReturnType.GetGenericTypeDefinition() == typeof(Task<>);
-                    var helperMethodInfo = isTask ? typeof(SortingHelper).GetMethod(nameof(SortingHelper.WrapEnumerableTaskResult), BindingFlags.Public | BindingFlags.Static)! : typeof(SortingHelper).GetMethod(nameof(SortingHelper.WrapEnumerableResult), BindingFlags.Public | BindingFlags.Static)!;
+                ilGenerator => {
+                    wrappedReturnType.IsCollection(out var elementType);
+                    var helperMethodInfo = wrappedReturnType.IsTask() ?
+                        typeof(SortingHelper).GetMethod(nameof(SortingHelper.WrapEnumerableTaskResult), BindingFlags.Public | BindingFlags.Static)! :
+                        typeof(SortingHelper).GetMethod(nameof(SortingHelper.WrapEnumerableResult), BindingFlags.Public | BindingFlags.Static)!;
 
                     helperMethodInfo = helperMethodInfo.MakeGenericMethod(elementType, generatedSortType);
 
-                    ILGenerator.Emit(OpCodes.Ldarg_S, sortParameterIndex);
-                    ILGenerator.Emit(OpCodes.Ldarg_S, astNodeParameterIndex);
-                    ILGenerator.Emit(OpCodes.Ldarg_S, contextParameterIndex);
-                    ILGenerator.EmitCall(OpCodes.Call, helperMethodInfo, null);
+                    ilGenerator.Emit(OpCodes.Ldarg_S, sortParameterIndex);
+                    ilGenerator.Emit(OpCodes.Ldarg_S, astNodeParameterIndex);
+                    ilGenerator.Emit(OpCodes.Ldarg_S, contextParameterIndex);
+                    ilGenerator.EmitCall(OpCodes.Call, helperMethodInfo, null);
                 }
-            };
+            );
     }
 
     private Type GenerateSortType(Type forType) {
-        var sortType = WrapperGenerator.DynamicModule.DefineType(forType.Name + "Sort");
+        var sortType = _moduleBuilder.DefineType(forType.Name + "Sort");
 
         foreach(var member in forType.GetAllGraphQLMemberInfo()) {
             var subType = member switch {
@@ -68,7 +66,7 @@ internal class SortingExtenderGenerator : IMethodExtenderGenerator {
                 _ => throw new ArgumentOutOfRangeException()
             };
 
-            subType.IsEnumerable(out subType);
+            subType.IsCollection(out subType);
             if(!subType.IsValidGraphQLObject()) {
                 DefineSortProperty(typeof(SortOrder?), sortType, member);
             }

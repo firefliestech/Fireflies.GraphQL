@@ -20,4 +20,8 @@ public class LifetimeScopeBuilder : ILifetimeScopeBuilder {
     public void RegisterInstance<T>(T instance) where T : class {
         _containerBuilder.Register(instance);
     }
+
+    public void RegisterTypeAsSingleInstance<T>() where T : class {
+        _containerBuilder.Register<T>().AsSingleton();
+    }
 }

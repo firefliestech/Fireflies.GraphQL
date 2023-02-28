@@ -57,7 +57,7 @@ public static class FederationHelper {
         if(token == null)
             return default;
 
-        if(typeof(T).IsEnumerable(out var elementType)) {
+        if(typeof(T).IsCollection(out var elementType)) {
             return (T)EnumerableMethod.MakeGenericMethod(elementType).Invoke(null, new object[] { token })!;
         }
 

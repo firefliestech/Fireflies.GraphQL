@@ -6,23 +6,22 @@ using Fireflies.GraphQL.Core.Generators;
 
 namespace Fireflies.GraphQL.Core;
 
-internal static class WrapperGenerator {
-    internal static ModuleBuilder DynamicModule { get; }
+internal class WrapperGenerator {
+    private readonly ModuleBuilder _moduleBuilder;
+    private readonly GeneratorRegistry _generatorRegistry;
+    private readonly Dictionary<Type, Type> _wrappedTypes = new();
 
-    private static readonly Dictionary<Type, Type> WrappedTypes = new();
-
-    static WrapperGenerator() {
-        var assemblyName = new AssemblyName("Fireflies.GraphQL.ProxyAssembly");
-        var dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-        DynamicModule = dynamicAssembly.DefineDynamicModule("Main");
+    public WrapperGenerator(ModuleBuilder moduleBuilder, GeneratorRegistry generatorRegistry) {
+        _moduleBuilder = moduleBuilder;
+        _generatorRegistry = generatorRegistry;
     }
 
-    public static Type GenerateWrapper(Type baseType, bool copyConstructors = true) {
-        if(WrappedTypes.TryGetValue(baseType, out var existingType)) {
+    public Type GenerateWrapper(Type baseType, bool copyConstructors = true) {
+        if(_wrappedTypes.TryGetValue(baseType, out var existingType)) {
             return existingType;
         }
 
-        var typeBuilder = DynamicModule.DefineType($"{baseType.Name}",
+        var typeBuilder = _moduleBuilder.DefineType($"{baseType.Name}",
             TypeAttributes.Public |
             TypeAttributes.Class |
             TypeAttributes.AutoClass |
@@ -68,15 +67,15 @@ internal static class WrapperGenerator {
         }
 
         var methods = baseType.GetAllGraphQLMethods().Select(x => new { Name = x.Name, MethodInfo = x, Parameters = x.GetParameters(), MemberInfo = x as MemberInfo });
-        var properties = baseType.GetAllGraphQLProperties().Select(x => new { Name = x.Name, MethodInfo = x.GetMethod, Parameters = Array.Empty<ParameterInfo>(), MemberInfo = x as MemberInfo });
+        var properties = baseType.GetAllGraphQLProperties().Select(x => new { Name = x.Name, MethodInfo = x.GetMethod!, Parameters = Array.Empty<ParameterInfo>(), MemberInfo = x as MemberInfo });
         foreach(var baseMethod in methods.Union(properties)) {
             var (wrappedReturnType, isEnumerable, originalType, wrapperType) = GetWrappedReturnType(baseMethod.MethodInfo);
 
             var parameterTypes = baseMethod.Parameters.Select(x => x.ParameterType);
             var parameterCount = baseMethod.Parameters.Length;
 
-            var decoratorDescriptors = GeneratorRegistry.GetGenerators<IMethodExtenderGenerator>()
-                .Select(m => m.GetMethodExtenderDescriptor(baseMethod.MemberInfo, ref parameterCount))
+            var decoratorDescriptors = _generatorRegistry.GetGenerators<IMethodExtenderGenerator>()
+                .Select(m => m.GetMethodExtenderDescriptor(baseMethod.MemberInfo, wrappedReturnType, ref parameterCount))
                 .Where(x => x.ShouldDecorate).ToArray();
             parameterTypes = parameterTypes.Union(decoratorDescriptors.SelectMany(x => x.ParameterTypes));
 
@@ -94,34 +93,38 @@ internal static class WrapperGenerator {
                 methodIlGenerator.Emit(OpCodes.Ldarg_S, i++); // Load base arguments
             methodIlGenerator.EmitCall(OpCodes.Call, baseMethod.MethodInfo, null); // Call method on wrapped object with the base arguments
 
+            // If the returned value a wrapper it needs to be converted from original return type
+            GenerateResultConverter(baseMethod.MethodInfo.ReturnType, wrapperType, originalType, methodIlGenerator);
+
             // Call method middlewares passing result from previous operation
             foreach(var decorator in decoratorDescriptors)
                 decorator.DecorateCallback(methodIlGenerator);
 
-            // If the returned value a wrapper it needs to be converted from original return type
-            if(originalType != wrapperType)
-                ConvertToWrapper(baseMethod.MethodInfo, isEnumerable, wrapperType, originalType, methodIlGenerator); // Call the converter method
-
             methodIlGenerator.Emit(OpCodes.Ret); // Return
 
-            foreach(var typeExtender in GeneratorRegistry.GetGenerators<ITypeExtenderGenerator>())
+            foreach(var typeExtender in _generatorRegistry.GetGenerators<ITypeExtenderGenerator>())
                 typeExtender.Extend(typeBuilder, methodBuilder, baseMethod.MemberInfo, instanceField, decoratorDescriptors);
         }
 
         var createdType = typeBuilder.CreateType()!;
-        WrappedTypes.Add(baseType, createdType);
+        _wrappedTypes.Add(baseType, createdType);
         return createdType;
     }
 
-    private static void ConvertToWrapper(MethodInfo baseMethod, bool isEnumerable, Type wrapperType, Type originalType, ILGenerator methodIlGenerator) {
+    private void GenerateResultConverter(Type returnType, Type wrapperType, Type originalType, ILGenerator methodIlGenerator) {
         var wrapperHelperType = typeof(WrapperHelper);
 
         MethodInfo? methodInfo = null;
-        if(baseMethod.ReturnType.IsGenericType) {
-            var genericTypeDefinition = baseMethod.ReturnType.GetGenericTypeDefinition();
-            if(genericTypeDefinition == typeof(Task<>) || genericTypeDefinition == typeof(ValueTask<>)) {
-                methodInfo = isEnumerable ? wrapperHelperType.GetMethod(nameof(WrapperHelper.WrapEnumerableTaskResult), BindingFlags.Public | BindingFlags.Static)! : wrapperHelperType.GetMethod(nameof(WrapperHelper.WrapTaskResult), BindingFlags.Public | BindingFlags.Static)!;
-            } else if(genericTypeDefinition == typeof(IAsyncEnumerable<>)) {
+        if(returnType.IsGenericType) {
+            if(returnType.IsTask()) {
+                if(returnType.IsEnumerable()) {
+                    methodInfo = wrapperHelperType.GetMethod(nameof(WrapperHelper.WrapEnumerableTaskResult), BindingFlags.Public | BindingFlags.Static)!;
+                } else if(returnType.IsQueryable()) {
+                    methodInfo = wrapperHelperType.GetMethod(nameof(WrapperHelper.WrapQueryableTaskResult), BindingFlags.Public | BindingFlags.Static)!;
+                } else {
+                    methodInfo = wrapperHelperType.GetMethod(nameof(WrapperHelper.WrapTaskResult), BindingFlags.Public | BindingFlags.Static)!;
+                }
+            } else if(returnType.IsAsyncEnumerable()) {
                 methodInfo = wrapperHelperType.GetMethod(nameof(WrapperHelper.WrapAsyncEnumerableResult), BindingFlags.Public | BindingFlags.Static)!;
                 methodIlGenerator.DeclareLocal(typeof(CancellationToken));
                 methodIlGenerator.Emit(OpCodes.Ldloc_0);
@@ -129,35 +132,38 @@ internal static class WrapperGenerator {
         }
 
         if(methodInfo == null) {
-            methodInfo = wrapperHelperType.GetMethod(isEnumerable ? nameof(WrapperHelper.WrapEnumerableResult) : nameof(WrapperHelper.WrapResult), BindingFlags.Public | BindingFlags.Static)!;
+            if(returnType.IsEnumerable()) {
+                methodInfo = wrapperHelperType.GetMethod(nameof(WrapperHelper.WrapEnumerableResult), BindingFlags.Public | BindingFlags.Static)!;
+            } else if(returnType.IsQueryable()) {
+                methodInfo = wrapperHelperType.GetMethod(nameof(WrapperHelper.WrapQueryableResult), BindingFlags.Public | BindingFlags.Static)!;
+            } else {
+                methodInfo = wrapperHelperType.GetMethod(nameof(WrapperHelper.WrapResult), BindingFlags.Public | BindingFlags.Static)!;
+            }
         }
 
         methodInfo = methodInfo.MakeGenericMethod(wrapperType, originalType);
         methodIlGenerator.EmitCall(OpCodes.Call, methodInfo, null);
     }
 
-    private static (Type, bool, Type, Type) GetWrappedReturnType(MethodInfo methodInfo) {
-        var isEnumerable = methodInfo.ReturnType.IsEnumerable(out var elementType);
+    private (Type, bool, Type, Type) GetWrappedReturnType(MethodInfo methodInfo) {
+        var isEnumerable = methodInfo.ReturnType.IsCollection(out var elementType);
         if(elementType.HasCustomAttribute<GraphQLNoWrapperAttribute>() || elementType.IsValueType || elementType == typeof(string) || elementType.IsInterface) {
             return (methodInfo.ReturnType, isEnumerable, elementType, elementType);
         }
 
         var wrapperType = GenerateWrapper(elementType, false);
 
-        if(methodInfo.ReturnType.IsGenericType) {
-            if(methodInfo.ReturnType.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>)) {
-                return (typeof(IAsyncEnumerable<>).MakeGenericType(wrapperType), true, elementType, wrapperType);
-            }
+        if(methodInfo.ReturnType.IsAsyncEnumerable()) {
+            return (typeof(IAsyncEnumerable<>).MakeGenericType(wrapperType), true, elementType, wrapperType);
         }
-
-        var isTask = methodInfo.ReturnType.IsGenericType && methodInfo.ReturnType.GetGenericTypeDefinition() == typeof(Task<>);
 
         if(isEnumerable) {
-            return isTask
-                ? (typeof(Task<>).MakeGenericType(typeof(IEnumerable<>).MakeGenericType(wrapperType)), true, elementType, wrapperType)
-                : (typeof(IEnumerable<>).MakeGenericType(wrapperType), true, elementType, wrapperType);
+            if(methodInfo.ReturnType.IsTask())
+                return (typeof(Task<>).MakeGenericType(typeof(IQueryable<>).MakeGenericType(wrapperType)), true, elementType, wrapperType);
+
+            return (typeof(IQueryable<>).MakeGenericType(wrapperType), true, elementType, wrapperType);
         }
 
-        return isTask ? (typeof(Task<>).MakeGenericType(wrapperType), false, elementType, wrapperType) : (wrapperType, false, elementType, wrapperType);
+        return methodInfo.ReturnType.IsTask() ? (typeof(Task<>).MakeGenericType(wrapperType), false, elementType, wrapperType) : (wrapperType, false, elementType, wrapperType);
     }
 }
