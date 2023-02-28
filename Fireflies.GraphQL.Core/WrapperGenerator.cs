@@ -93,7 +93,7 @@ internal class WrapperGenerator {
             methodIlGenerator.Emit(OpCodes.Ldarg_0);
             methodIlGenerator.Emit(OpCodes.Ldfld, instanceField); // Load wrapped object from this
             for(var i = 1; i <= baseMethod.Parameters.Length; i++)
-                methodIlGenerator.Emit(OpCodes.Ldarg_S, i++); // Load base arguments
+                methodIlGenerator.Emit(OpCodes.Ldarg_S, i); // Load base arguments
             methodIlGenerator.EmitCall(OpCodes.Call, baseMethod.MethodInfo, null); // Call method on wrapped object with the base arguments
 
             // If the returned value a wrapper it needs to be converted from original return type
