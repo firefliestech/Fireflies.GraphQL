@@ -139,69 +139,71 @@ internal class SchemaBuilder {
     }
 
     private __Type CreateType(Type type, bool isTypeReference) {
-        var baseType = GetBaseType(type);
-        if(baseType.IsEnum) {
-            if(baseType.IsCollection(out _)) {
-                return new __Type(baseType) {
+        type = type.DiscardTask();
+
+        var elementType = GetBaseType(type);
+        if(elementType.IsEnum) {
+            if(type.IsCollection(out _)) {
+                return new __Type(elementType) {
                     Kind = __TypeKind.LIST,
-                    OfType = WrapNullable(Nullable.GetUnderlyingType(baseType) != null, CreateType(baseType, true))
+                    OfType = WrapNullable(Nullable.GetUnderlyingType(elementType) != null, CreateType(elementType, true))
                 };
             }
 
-            return new __Type(baseType, null, isTypeReference ? Array.Empty<__EnumValue>() : CreateEnumValues(baseType)) {
-                Name = baseType.Name,
+            return new __Type(elementType, null, isTypeReference ? Array.Empty<__EnumValue>() : CreateEnumValues(elementType)) {
+                Name = elementType.Name,
                 Kind = __TypeKind.ENUM,
             };
         }
 
-        if(baseType.IsCollection()) {
-            return new __Type(baseType) {
+        if(type.IsCollection()) {
+            return new __Type(elementType) {
                 Kind = __TypeKind.LIST,
-                OfType = WrapNullable(Nullable.GetUnderlyingType(baseType) != null, CreateType(baseType, true))
+                OfType = WrapNullable(Nullable.GetUnderlyingType(elementType) != null, CreateType(elementType, true))
             };
         }
 
-        if(baseType == typeof(int)) {
-            return new __Type(baseType) {
+        if(elementType == typeof(int)) {
+            return new __Type(elementType) {
                 Name = "Int",
                 Kind = __TypeKind.SCALAR,
             };
         }
 
-        if(baseType == typeof(string)) {
-            return new __Type(baseType) {
+        if(elementType == typeof(string)) {
+            return new __Type(elementType) {
                 Name = "String",
                 Kind = __TypeKind.SCALAR
             };
         }
 
-        if(baseType == typeof(bool)) {
-            return new __Type(baseType) {
+        if(elementType == typeof(bool)) {
+            return new __Type(elementType) {
                 Name = "Boolean",
                 Kind = __TypeKind.SCALAR
             };
         }
 
-        if(baseType == typeof(decimal)) {
-            return new __Type(baseType) {
+        if(elementType == typeof(decimal)) {
+            return new __Type(elementType) {
                 Name = "Float",
                 Kind = __TypeKind.SCALAR,
             };
         }
 
-        if(baseType == typeof(DateTime) || baseType == typeof(DateTimeOffset)) {
-            return new __Type(baseType) {
-                Name = baseType.Name,
+        if(elementType == typeof(DateTime) || elementType == typeof(DateTimeOffset)) {
+            return new __Type(elementType) {
+                Name = elementType.Name,
                 Kind = __TypeKind.SCALAR
             };
         }
 
         // Todo: ID is missing
 
-        if(_inputTypes.Contains(baseType)) {
+        if(_inputTypes.Contains(elementType)) {
             var inputValues = new List<__InputValue>();
 
-            foreach(var property in baseType.GetAllGraphQLProperties()) {
+            foreach(var property in elementType.GetAllGraphQLProperties()) {
                 __Type propertyType;
                 if(NullabilityChecker.IsNullable(property)) {
                     var underlyingType = Nullable.GetUnderlyingType(property.PropertyType);
@@ -213,39 +215,39 @@ internal class SchemaBuilder {
                 inputValues.Add(new __InputValue(property.GraphQLName(), property.GetDescription(), propertyType, null));
             }
 
-            return new __Type(baseType, inputValues: inputValues) {
-                Name = baseType.Name,
+            return new __Type(elementType, inputValues: inputValues) {
+                Name = elementType.Name,
                 Kind = __TypeKind.INPUT_OBJECT,
-                Description = baseType.GetDescription()
+                Description = elementType.GetDescription()
             };
         }
 
         var fields = new List<__Field>();
         if(!isTypeReference) {
-            fields.AddRange(GetFields(baseType));
+            fields.AddRange(GetFields(elementType));
         }
 
-        if(baseType.IsInterface) {
-            var interfaceType = new __Type(baseType, fields) {
-                Name = baseType.Name,
-                Kind = baseType.HasCustomAttribute<GraphQLUnionAttribute>() ? __TypeKind.UNION : __TypeKind.INTERFACE,
-                Description = baseType.GetDescription()
+        if(elementType.IsInterface) {
+            var interfaceType = new __Type(elementType, fields) {
+                Name = elementType.Name,
+                Kind = elementType.HasCustomAttribute<GraphQLUnionAttribute>() ? __TypeKind.UNION : __TypeKind.INTERFACE,
+                Description = elementType.GetDescription()
             };
 
             if(!isTypeReference)
-                interfaceType.PossibleTypes = baseType.GetAllClassesThatImplements().Select(x => CreateType(x, true)).ToArray();
+                interfaceType.PossibleTypes = elementType.GetAllClassesThatImplements().Select(x => CreateType(x, true)).ToArray();
 
             return interfaceType;
         }
 
-        var objectType = new __Type(baseType, fields) {
-            Name = baseType.Name,
+        var objectType = new __Type(elementType, fields) {
+            Name = elementType.Name,
             Kind = __TypeKind.OBJECT,
-            Description = baseType.GetDescription()
+            Description = elementType.GetDescription()
         };
 
         if(!isTypeReference)
-            objectType.Interfaces = baseType.GetInterfaces().Select(x => CreateType(x, true)).Where(x => x.Kind == __TypeKind.INTERFACE).ToArray();
+            objectType.Interfaces = elementType.GetInterfaces().Select(x => CreateType(x, true)).Where(x => x.Kind == __TypeKind.INTERFACE).ToArray();
 
         return objectType;
     }
