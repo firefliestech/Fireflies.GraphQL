@@ -11,8 +11,6 @@ using LogLevel = NLog.LogLevel;
 
 var builder = WebApplication.CreateBuilder(args);
 
-//TODO: Make sure pagination nodes has id attribute
-
 builder.Services.AddCors(options => {
     options.AddDefaultPolicy(builder =>
         builder.SetIsOriginAllowed(_ => true)

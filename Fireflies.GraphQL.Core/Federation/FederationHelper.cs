@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Xml.Serialization;
 using Fireflies.GraphQL.Core.Extensions;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
@@ -38,11 +39,8 @@ public static class FederationHelper {
     }
 
     private static async Task<string> CreateFederationQuery(ASTNode astNode, IGraphQLContext context) {
-        var typeNameAdder = new TypeNameAdder();
-        await typeNameAdder.VisitAsync(astNode, context);
-
         var writer = new StringWriter();
-        await new SDLPrinter().PrintAsync(astNode, writer, context.CancellationToken);
+        await new FederationSDLPrinter().PrintAsync(astNode, writer, context.CancellationToken);
         return writer.ToString();
     }
 
@@ -104,15 +102,19 @@ public static class FederationHelper {
         }
     }
 
-    private class TypeNameAdder : ASTVisitor<IGraphQLContext> {
-        protected override ValueTask VisitSelectionSetAsync(GraphQLSelectionSet selectionSet, IGraphQLContext context) {
-            if(!selectionSet.Selections.Any(x => x.Kind == ASTNodeKind.Field && ((GraphQLField)x).Name.StringValue == "__typename")) {
-                selectionSet.Selections.Add(new GraphQLField {
-                    Name = new GraphQLName("__typename")
-                });
+    public class FederationSDLPrinter : SDLPrinter {
+        protected override async ValueTask VisitSelectionSetAsync(GraphQLSelectionSet selectionSet, DefaultPrintContext context) {
+            if(selectionSet.Selections.Any(x => x.Kind == ASTNodeKind.Field && ((GraphQLField)x).Name.StringValue == "__typename")) {
+                await base.VisitSelectionSetAsync(selectionSet, context);
+                return;
             }
 
-            return base.VisitSelectionSetAsync(selectionSet, context);
+            var graphQLField = new GraphQLField {
+                Name = new GraphQLName("__typename")
+            };
+            selectionSet.Selections.Add(graphQLField);
+            await base.VisitSelectionSetAsync(selectionSet, context);
+            selectionSet.Selections.Remove(graphQLField);
         }
     }
 }
