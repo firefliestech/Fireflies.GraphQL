@@ -36,7 +36,10 @@ public static class WrapperHelper {
         return result.ContinueWith(task => WrapResult<TWrapped, TOriginal>(task.Result));
     }
 
-    public static TWrapped? WrapResult<TWrapped, TOriginal>(TOriginal r) {
+    public static TWrapped? WrapResult<TWrapped, TOriginal>(TOriginal? r) {
+        if(r == null)
+            return default;
+
         if(typeof(TWrapped) == typeof(TOriginal))
             return (TWrapped?)(object?)r;
 
