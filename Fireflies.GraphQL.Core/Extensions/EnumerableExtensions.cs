@@ -25,8 +25,8 @@ internal static class EnumerableExtensions {
             }
         }
 
-        if(type.IsArray) {
-            elementType = GetElementType(type);
+        if(elementType.IsArray) {
+            elementType = GetElementType(elementType);
             return true;
         }
 

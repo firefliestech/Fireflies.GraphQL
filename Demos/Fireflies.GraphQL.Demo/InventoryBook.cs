@@ -22,6 +22,10 @@ public class InventoryBook : IBook {
     [GraphQLDeprecated("Will be 0 from 2024-01-01")]
     public int ExactInventory { get; set; }
 
+    public Task<ushort[]> Shorts() {
+        return Task.FromResult(new ushort[] { 230, 231, 232 });
+    }
+
     public Task<IEnumerable<int>> Numbers() {
         return Task.FromResult(new[] { 1, 2, 3 }.AsEnumerable());
     }
