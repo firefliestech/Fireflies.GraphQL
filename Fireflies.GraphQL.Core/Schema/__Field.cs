@@ -23,10 +23,6 @@ public class __Field {
     public __Field(MemberInfo memberInfo) {
         Name = memberInfo.GraphQLName();
         Description = GetFieldDescription(memberInfo);
-        if(memberInfo.HasCustomAttribute<GraphQLSortAttribute>()) {
-
-        }
-
         var deprecatedReason = memberInfo.GetDeprecatedReason();
         IsDeprecated = deprecatedReason != null;
         DeprecationReason = deprecatedReason;
@@ -39,7 +35,7 @@ public class __Field {
         if(descriptionAttribute != null)
             description += descriptionAttribute;
 
-        var authorizationAttributes = memberInfo.GetCustomAttributes<GraphQLAuthorizationAttribute>();
+        var authorizationAttributes = memberInfo.DeclaringType!.GetCustomAttributes<GraphQLAuthorizationAttribute>().Union(memberInfo.GetCustomAttributes<GraphQLAuthorizationAttribute>());
         if(authorizationAttributes.Any()) {
             if(description != null) {
                 description += "\n\n";
