@@ -1,6 +1,7 @@
 ﻿using Fireflies.GraphQL.Abstractions;
 using System.Runtime.CompilerServices;
 using Fireflies.GraphQL.Abstractions.Sorting;
+using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Demo;
 
@@ -26,9 +27,9 @@ public class BookOperations {
     }
 
     [GraphQLSubscription]
-    public async IAsyncEnumerable<InventoryBook> BookUpdated(int bookId, [EnumeratorCancellation] CancellationToken cancellation) {
-        while(!cancellation.IsCancellationRequested) {
-            await Task.Delay(2000, cancellation);
+    public async IAsyncEnumerable<InventoryBook> BookUpdated(int bookId, ASTNode astNode, [EnumeratorCancellation] CancellationToken cancellation) {
+        while(true) {
+            await Task.Delay(2000, CancellationToken.None);
             yield return new InventoryBook { BookId = 1, Title = "My first book was updated", ISBN = "1234", ExactInventory = 20 };
         }
     }
