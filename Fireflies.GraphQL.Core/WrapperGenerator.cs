@@ -71,7 +71,7 @@ internal class WrapperGenerator {
 
         var methods = baseType.GetAllGraphQLMethods().Select(x => new { Name = x.Name, MethodInfo = x, Parameters = x.GetParameters(), MemberInfo = x as MemberInfo });
         var properties = baseType.GetAllGraphQLProperties().Select(x => new { Name = x.Name, MethodInfo = x.GetMethod!, Parameters = Array.Empty<ParameterInfo>(), MemberInfo = x as MemberInfo });
-        foreach(var baseMethod in methods.Union(properties)) {
+        foreach(var baseMethod in methods.Concat(properties)) {
             var (wrappedReturnType, isEnumerable, originalType, wrapperType) = GetWrappedReturnType(baseMethod.MethodInfo);
 
             var parameterTypes = baseMethod.Parameters.Select(x => x.ParameterType);
@@ -80,7 +80,7 @@ internal class WrapperGenerator {
             var decoratorDescriptors = _generatorRegistry.GetGenerators<IMethodExtenderGenerator>()
                 .Select(m => m.GetMethodExtenderDescriptor(baseMethod.MemberInfo, wrappedReturnType, ref parameterCount))
                 .Where(x => x.ShouldDecorate).ToArray();
-            parameterTypes = parameterTypes.Union(decoratorDescriptors.SelectMany(x => x.ParameterTypes));
+            parameterTypes = parameterTypes.Concat(decoratorDescriptors.SelectMany(x => x.ParameterTypes));
 
             var methodBuilder = typeBuilder.DefineMethod(baseMethod.Name, MethodAttributes.Public, CallingConventions.Standard, wrappedReturnType, parameterTypes.ToArray());
             baseMethod.MemberInfo.CopyAttributes(ab => methodBuilder.SetCustomAttribute(ab));
