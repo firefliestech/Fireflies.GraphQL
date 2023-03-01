@@ -29,6 +29,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.GraphQL.Demo", "D
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.GraphQL.FederationDemo", "Demos\Fireflies.GraphQL.Federation\Fireflies.GraphQL.FederationDemo.csproj", "{077D9D1D-3719-4205-88B4-5AA9119CBDFF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoadTest", "LoadTest\LoadTest.csproj", "{007819FB-8017-4C78-BA59-183292F3EC05}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -75,6 +77,10 @@ Global
 		{077D9D1D-3719-4205-88B4-5AA9119CBDFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{077D9D1D-3719-4205-88B4-5AA9119CBDFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{077D9D1D-3719-4205-88B4-5AA9119CBDFF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{007819FB-8017-4C78-BA59-183292F3EC05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{007819FB-8017-4C78-BA59-183292F3EC05}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{007819FB-8017-4C78-BA59-183292F3EC05}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{007819FB-8017-4C78-BA59-183292F3EC05}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -87,6 +93,7 @@ Global
 		{CED1A59B-A5E0-4EE4-B478-5ACAB0578477} = {CFEEDE25-87E4-4241-9F3B-8183067F07A9}
 		{1A23CDB9-8C0C-42A6-9ED5-2BAF574E0543} = {CE12D8F7-B1DA-47EC-81FA-A159AD1BFB4F}
 		{077D9D1D-3719-4205-88B4-5AA9119CBDFF} = {CE12D8F7-B1DA-47EC-81FA-A159AD1BFB4F}
+		{007819FB-8017-4C78-BA59-183292F3EC05} = {CE12D8F7-B1DA-47EC-81FA-A159AD1BFB4F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {695A8354-BD19-4074-B3CB-A3822CBD24BE}

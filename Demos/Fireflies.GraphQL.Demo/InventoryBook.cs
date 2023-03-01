@@ -15,7 +15,7 @@ public class InventoryBook : IBook {
     }
     
     [GraphQLSort]
-    public IEnumerable<Edition> Editions { get; set; }
+    public IQueryable<Edition> Editions { get; set; }
 
     [MustBeSalesman]
     [GraphQLDescription("Returns the exact inventory")]
@@ -26,7 +26,7 @@ public class InventoryBook : IBook {
         return Task.FromResult(new ushort[] { 230, 231, 232 });
     }
 
-    public Task<IEnumerable<int>> Numbers() {
-        return Task.FromResult(new[] { 1, 2, 3 }.AsEnumerable());
+    public Task<IQueryable<int>> Numbers() {
+        return Task.FromResult(new[] { 1, 2, 3 }.AsQueryable());
     }
 }
