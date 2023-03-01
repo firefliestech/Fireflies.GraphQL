@@ -1,7 +1,6 @@
 ﻿using Fireflies.GraphQL.Core.Extensions;
 using System.Reflection;
 using Fireflies.GraphQL.Abstractions;
-using Fireflies.GraphQL.Abstractions.Sorting;
 
 namespace Fireflies.GraphQL.Core.Schema;
 
@@ -16,7 +15,7 @@ public class __Field {
     public string? DeprecationReason { get; set; }
 
     // ReSharper disable once UnusedMember.Global
-    // Used when Json.NET deserialize schema for federated queries
+    // Used when json deserializes schema for federated queries
     public __Field() {
     }
 

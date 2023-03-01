@@ -16,6 +16,5 @@
 		<dependency id="Fireflies.IoC.TinyIoC" version="$version$" />
 		<dependency id="Fireflies.Logging.Abstractions" version="$version$" />
 		<dependency id="GraphQL-Parser" version="8.1.0" />
-		<dependency id="Newtonsoft.Json" version="13.0.2" />
 	</dependencies>
 </package>

@@ -1,10 +1,11 @@
 ﻿using System.Net;
 using System.Net.WebSockets;
+using System.Text.Json;
 using Fireflies.GraphQL.Core;
+using Fireflies.GraphQL.Core.Json;
 using Fireflies.IoC.Abstractions;
 using Fireflies.Logging.Abstractions;
 using Microsoft.AspNetCore.Http;
-using Newtonsoft.Json;
 
 namespace Fireflies.GraphQL.AspNet;
 
@@ -40,17 +41,16 @@ public class GraphQLMiddleware {
                 options.WebSocket = await httpContext.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
                 ProcessWebSocket(httpContext, engine, logger);
             } else {
-                var input = await new StreamReader(httpContext.Request.Body).ReadToEndAsync().ConfigureAwait(false);
-                var request = JsonConvert.DeserializeObject<GraphQLRequest>(input);
+                var request = await JsonSerializer.DeserializeAsync<GraphQLRequest>(httpContext.Request.Body, DefaultJsonSerializerSettings.DefaultSettings).ConfigureAwait(false);
                 await engine.Execute(request).ConfigureAwait(false);
             }
 
             await foreach(var subResult in engine.Results().WithCancellation(engine.Context.CancellationToken).ConfigureAwait(false)) {
                 if(engine.Context.IsWebSocket) {
-                    var buffer = System.Text.Encoding.UTF8.GetBytes(subResult);
-                    await engine.Context.WebSocket!.SendAsync(new ArraySegment<byte>(buffer, 0, buffer.Length), WebSocketMessageType.Text, true, CancellationToken.None).ConfigureAwait(false);
+                    await engine.Context.WebSocket!.SendAsync(new ArraySegment<byte>(subResult, 0, subResult.Length), WebSocketMessageType.Text, true, CancellationToken.None).ConfigureAwait(false);
                 } else {
-                    await httpContext.Response.WriteAsync(subResult).ConfigureAwait(false);
+                    httpContext.Response.ContentType = "application/json";
+                    await httpContext.Response.Body.WriteAsync(subResult, 0, subResult.Length);
                 }
             }
         } catch(OperationCanceledException) {
@@ -97,7 +97,7 @@ public class GraphQLMiddleware {
                     break;
                 }
 
-                var request = JsonConvert.DeserializeObject<GraphQLRequest>(System.Text.Encoding.UTF8.GetString(bytes));
+                var request = JsonSerializer.Deserialize<GraphQLRequest>(bytes, DefaultJsonSerializerSettings.DefaultSettings);
 #pragma warning disable CS4014
                 Task.Run(async () => {
                     try {

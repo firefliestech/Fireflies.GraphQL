@@ -14,17 +14,19 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
     private readonly GraphQLOptions _options;
     private readonly IDependencyResolver _dependencyResolver;
     private readonly IGraphQLContext _context;
+    private readonly WrapperRegistry _wrapperRegistry;
     private readonly List<string> _errors = new();
     private readonly HashSet<string> _usedVariables = new();
     private readonly Stack<Type> _fieldStack = new();
     private OperationType _operationType;
 
-    public RequestValidator(GraphQLRequest request, FragmentAccessor fragments, GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context) {
+    public RequestValidator(GraphQLRequest request, FragmentAccessor fragments, GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context, WrapperRegistry wrapperRegistry) {
         _request = request;
         _fragments = fragments;
         _options = options;
         _dependencyResolver = dependencyResolver;
         _context = context;
+        _wrapperRegistry = wrapperRegistry;
     }
 
     public async Task<List<string>> Validate(ASTNode startNode) {
@@ -148,7 +150,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         var pushed = false;
         if(inlineFragment.TypeCondition != null) {
             var currentType = _fieldStack.Peek();
-            var matching = currentType.GetAllClassesThatImplements().FirstOrDefault(x => x.GraphQLName() == inlineFragment.TypeCondition.Type.Name);
+            var matching = currentType.GetAllClassesThatImplements().Select(x => _wrapperRegistry.GetWrapperOfSelf(x)).FirstOrDefault(x => x.GraphQLName() == inlineFragment.TypeCondition.Type.Name);
             if(matching != null) {
                 _fieldStack.Push(matching);
                 pushed = true;

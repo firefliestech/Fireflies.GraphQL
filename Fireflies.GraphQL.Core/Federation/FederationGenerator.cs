@@ -1,20 +1,21 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
+using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Core.Federation.Schema;
 using Fireflies.GraphQL.Core.Schema;
 using GraphQLParser.AST;
-using Newtonsoft.Json.Linq;
 
 namespace Fireflies.GraphQL.Core.Federation;
 
 public class FederationGenerator {
     private readonly (string Name, string Url) _federation;
-    private readonly __Schema _federationSchema;
+    private readonly FederationSchema _federationSchema;
     private readonly ModuleBuilder _dynamicModule;
 
     private readonly Dictionary<string, Type> _nameLookup = new();
 
-    public FederationGenerator((string Name, string Url) federation, __Schema federationSchema) {
+    public FederationGenerator((string Name, string Url) federation, FederationSchema federationSchema) {
         _federation = federation;
         _federationSchema = federationSchema;
 
@@ -61,7 +62,7 @@ public class FederationGenerator {
         if(operationType == null)
             return;
 
-        foreach(var field in operationType.Fields(true)) {
+        foreach(var field in operationType.Fields) {
             if(field.Name.StartsWith("__"))
                 continue;
 
@@ -69,7 +70,7 @@ public class FederationGenerator {
         }
     }
 
-    private void GenerateOperation(OperationType operation, TypeBuilder typeBuilder, __Field field) {
+    private void GenerateOperation(OperationType operation, TypeBuilder typeBuilder, FederationField field) {
         var argTypes = field.Args.Select(argType => GetTypeFromSchemaType(argType.Type)).ToList();
 
         var returnType = GetTypeFromSchemaType(field.Type);
@@ -118,7 +119,7 @@ public class FederationGenerator {
         }
     }
 
-    private Type GenerateType(__Type schemaType, Action<TypeBuilder>? extras = null, Type? interfaceType = null) {
+    private Type GenerateType(FederationType schemaType, Action<TypeBuilder>? extras = null, Type? interfaceType = null) {
         var typeName = GenerateName(schemaType);
 
         if(_nameLookup.TryGetValue(typeName, out var existingType)) {
@@ -138,7 +139,7 @@ public class FederationGenerator {
 
         if(!isInterface) {
             var baseConstructor = baseType!.GetConstructors(BindingFlags.Public | BindingFlags.Instance).First();
-            var constructorBuilder = generatedType.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { typeof(JObject) });
+            var constructorBuilder = generatedType.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { typeof(JsonObject) });
             var constructorGenerator = constructorBuilder.GetILGenerator();
             constructorGenerator.Emit(OpCodes.Ldarg_0);
             constructorGenerator.Emit(OpCodes.Ldarg_1);
@@ -148,7 +149,7 @@ public class FederationGenerator {
             generatedType.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLUnionAttribute).GetConstructor(BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes)!, Array.Empty<object>()));
         }
 
-        foreach(var field in schemaType.Fields(true)) {
+        foreach(var field in schemaType.Fields) {
             var argTypes = new List<Type>();
             foreach(var argType in field.Args) {
                 var argumentType = GetTypeFromSchemaType(argType.Type);
@@ -196,7 +197,7 @@ public class FederationGenerator {
         return finalType;
     }
 
-    private static void AddAttributes(__Field field, MethodBuilder fieldMethod) {
+    private static void AddAttributes(FederationField field, MethodBuilder fieldMethod) {
         if(field.Description != null) {
             fieldMethod.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLDescriptionAttribute).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(string) })!, new object?[] { field.Description }));
         }
@@ -206,7 +207,7 @@ public class FederationGenerator {
         }
     }
 
-    private void DefineParameters(List<Type> argTypes, MethodBuilder fieldMethod, __Field field) {
+    private void DefineParameters(List<Type> argTypes, MethodBuilder fieldMethod, FederationField field) {
         for(var i = 0; i < argTypes.Count; i++) {
             var parameterBuilder = fieldMethod.DefineParameter(i + 1, ParameterAttributes.None, field.Args[i].Name);
             if(field.Args[i].DefaultValue != null)
@@ -216,14 +217,14 @@ public class FederationGenerator {
         }
     }
 
-    public bool IsNullable(__Type type) {
+    public bool IsNullable(FederationType type) {
         if(type.Kind == __TypeKind.NON_NULL)
             return false;
 
         return true;
     }
 
-    public IEnumerable<__Type> FindTypesToGenerate() {
+    public IEnumerable<FederationType> FindTypesToGenerate() {
         foreach(var type in _federationSchema.Types) {
             if(!ShouldGenerate(type))
                 continue;
@@ -232,7 +233,7 @@ public class FederationGenerator {
         }
     }
 
-    public Type GetTypeFromSchemaType(__Type type) {
+    public Type GetTypeFromSchemaType(FederationType type) {
         if(type.Name == "Int" || type.OfType?.Name == "Int")
             return typeof(int);
 
@@ -262,7 +263,7 @@ public class FederationGenerator {
         return GenerateType(type, _ => { });
     }
 
-    private string GenerateName(__Type type) {
+    private string GenerateName(FederationType type) {
         if(type.Kind == __TypeKind.LIST)
             return GenerateName(type.OfType!);
 
@@ -272,7 +273,7 @@ public class FederationGenerator {
         return type.Name!;
     }
 
-    public bool ShouldGenerate(__Type type) {
+    public bool ShouldGenerate(FederationType type) {
         if(type.Name!.StartsWith("__"))
             return false;
 

@@ -85,13 +85,15 @@ public class GraphQLOptionsBuilder {
         generatorRegistry.Add(new SortingGenerator(moduleBuilder));
         generatorRegistry.Add(new ConnectionGenerator(moduleBuilder));
 
-        var wrapperGenerator = new WrapperGenerator(moduleBuilder, generatorRegistry);
+        var wrapperRegistry = new WrapperRegistry();
+        var wrapperGenerator = new WrapperGenerator(moduleBuilder, generatorRegistry, wrapperRegistry);
 
         options.DependencyResolver = _dependencyResolver.BeginLifetimeScope(builder => {
             builder.RegisterInstance(moduleBuilder);
             builder.RegisterInstance(options);
             builder.RegisterType<GraphQLEngine>();
             builder.RegisterType<__SchemaQuery>();
+            builder.RegisterInstance(wrapperRegistry);
 
             foreach(var type in _operationTypes) {
                 foreach(var operation in FindOperations(wrapperGenerator, type, wt => wt.GetAllGraphQLQueryMethods(true))) {
@@ -113,7 +115,7 @@ public class GraphQLOptionsBuilder {
                 }
             }
 
-            var schemaBuilder = new SchemaBuilder(options);
+            var schemaBuilder = new SchemaBuilder(options, wrapperRegistry);
             var schema = schemaBuilder.GenerateSchema();
             builder.RegisterInstance(schema);
         });

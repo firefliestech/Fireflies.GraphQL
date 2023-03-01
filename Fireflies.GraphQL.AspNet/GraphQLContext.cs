@@ -1,7 +1,7 @@
 ﻿using System.Net.WebSockets;
 using Fireflies.GraphQL.Core;
+using Fireflies.GraphQL.Core.Json;
 using Microsoft.AspNetCore.Http;
-using Newtonsoft.Json.Linq;
 using Nito.AsyncEx;
 
 namespace Fireflies.GraphQL.AspNet;
@@ -10,7 +10,7 @@ public class GraphQLContext : IGraphQLContext {
     private readonly HttpContext _httpContext;
     private int _outstandingOperations;
 
-    private readonly AsyncProducerConsumerQueue<JObject> _results = new();
+    private readonly AsyncProducerConsumerQueue<JsonWriter> _results = new();
     private readonly CancellationTokenSource _cancellationTokenSource = new();
 
     public GraphQLContext(HttpContext httpContext) {
@@ -23,23 +23,25 @@ public class GraphQLContext : IGraphQLContext {
     public bool IsWebSocket => WebSocket != null;
     public WebSocket? WebSocket { get; internal set; }
 
-    public async IAsyncEnumerator<JObject> GetAsyncEnumerator(CancellationToken cancellationToken = new()) {
+    public async IAsyncEnumerator<byte[]> GetAsyncEnumerator(CancellationToken cancellationToken = new()) {
         while(!CancellationToken.IsCancellationRequested) {
             var obj = await _results.DequeueAsync(CancellationToken).ConfigureAwait(false);
-            yield return obj;
 
-            if(IsWebSocket)
+            if(IsWebSocket) {
+                yield return await obj.GetBuffer();
                 continue;
+            }
 
             var newOutstandingOperations = Interlocked.Decrement(ref _outstandingOperations);
             if(newOutstandingOperations == 0) {
+                yield return await obj.GetBuffer();
                 yield break;
             }
         }
     }
 
-    public void PublishResult(JObject result) {
-        _results.Enqueue(result, CancellationToken);
+    public void PublishResult(JsonWriter writer) {
+        _results.Enqueue(writer, CancellationToken);
     }
 
     public void Done() {
@@ -51,3 +53,4 @@ public class GraphQLContext : IGraphQLContext {
             Interlocked.Add(ref _outstandingOperations, i);
     }
 }
+

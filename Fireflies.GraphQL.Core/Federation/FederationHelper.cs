@@ -1,8 +1,9 @@
 ﻿using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Core.Extensions;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
-using Newtonsoft.Json.Linq;
 
 namespace Fireflies.GraphQL.Core.Federation;
 
@@ -23,11 +24,12 @@ public static class FederationHelper {
         request.Content = new StringContent(FederationQueryBuilder.BuildQuery(query, operation, ""));
 
         var result = await HttpClient.SendAsync(request, context.CancellationToken).ConfigureAwait(false);
-        var jObject = JObject.Parse(await result.Content.ReadAsStringAsync().ConfigureAwait(false));
-
+        var stream = await result.Content.ReadAsStreamAsync().ConfigureAwait(false);
+        var json = await JsonSerializer.DeserializeAsync<JsonObject>(stream).ConfigureAwait(false);
+        
         var field = (GraphQLField)astNode;
 
-        return GetResult<T>(jObject["data"]?[field.Name.StringValue]);
+        return GetResult<T>(json?["data"]?[field.Name.StringValue]);
     }
 
     public static async IAsyncEnumerable<T> ExecuteSubscription<T>(ASTNode astNode, IGraphQLContext context, string url, OperationType operation, string operationName) {
@@ -43,14 +45,14 @@ public static class FederationHelper {
         return writer.ToString();
     }
 
-    public static T? GetField<T>(JObject? data, string field) {
+    public static T? GetField<T>(JsonNode? data, string field) {
         if(data == null)
             return default;
 
         return GetResult<T>(data[field]);
     }
 
-    public static T? GetResult<T>(JToken? token) {
+    public static T? GetResult<T>(JsonNode? token) {
         if(token == null)
             return default;
 
@@ -61,11 +63,11 @@ public static class FederationHelper {
         return CreateInstance<T>(token);
     }
 
-    private static IEnumerable<T> GetEnumerableResult<T>(JToken token) {
-        return token.Select(CreateInstance<T>);
+    private static IEnumerable<T> GetEnumerableResult<T>(JsonNode token) {
+        return token.AsArray().Select(CreateInstance<T>);
     }
 
-    private static T CreateInstance<T>(JToken token) {
+    private static T CreateInstance<T>(JsonNode token) {
         switch(Type.GetTypeCode(typeof(T))) {
             case TypeCode.Int16:
             case TypeCode.Int32:
@@ -75,22 +77,22 @@ public static class FederationHelper {
             case TypeCode.UInt64:
             case TypeCode.Byte:
             case TypeCode.SByte:
-                return token.Value<T>()!;
+                return token.GetValue<T>()!;
 
             case TypeCode.Boolean:
-                return token.Value<T>()!;
+                return token.GetValue<T>()!;
 
             case TypeCode.Char:
             case TypeCode.String:
-                return token.Value<T>()!;
+                return token.GetValue<T>()!;
 
             case TypeCode.Single:
             case TypeCode.Double:
             case TypeCode.Decimal:
-                return token.Value<T>()!;
+                return token.GetValue<T>()!;
 
             default:
-                var typename = token.Value<string>("__typename");
+                var typename = token["__typename"]?.GetValue<string>();
                 if(typename != null) {
                     var assembly = typeof(T).Assembly;
                     var implementation = assembly.GetType(typename)!;

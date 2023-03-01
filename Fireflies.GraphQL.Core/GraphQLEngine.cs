@@ -1,26 +1,27 @@
-﻿using Fireflies.IoC.Abstractions;
+﻿using Fireflies.GraphQL.Core.Json;
+using Fireflies.IoC.Abstractions;
 using GraphQLParser;
 using GraphQLParser.AST;
 using GraphQLParser.Exceptions;
 using GraphQLParser.Visitors;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
 
 namespace Fireflies.GraphQL.Core;
 
 public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
     private readonly GraphQLOptions _options;
     private readonly IDependencyResolver _dependencyResolver;
+    private readonly WrapperRegistry _wrapperRegistry;
     private FragmentAccessor _fragmentAccessor = null!;
     private ValueAccessor _valueAccessor = null!;
 
     public IGraphQLContext Context { get; }
 
-    private static readonly JsonSerializerSettings JsonSerializerSettings = new() { Converters = new List<JsonConverter> { new Newtonsoft.Json.Converters.StringEnumConverter() }, NullValueHandling = NullValueHandling.Include };
+    private DataJsonWriter? _writer;
 
-    public GraphQLEngine(GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context) {
+    public GraphQLEngine(GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context, WrapperRegistry wrapperRegistry) {
         _options = options;
         _dependencyResolver = dependencyResolver;
+        _wrapperRegistry = wrapperRegistry;
         Context = context;
     }
 
@@ -35,69 +36,67 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
         _fragmentAccessor = new FragmentAccessor(graphQLDocument!, Context);
         _valueAccessor = new ValueAccessor(request!.Variables, Context);
 
-        var errors = await new RequestValidator(request, _fragmentAccessor, _options, _dependencyResolver, Context).Validate(graphQLDocument!).ConfigureAwait(false);
+        var errors = await new RequestValidator(request, _fragmentAccessor, _options, _dependencyResolver, Context, _wrapperRegistry).Validate(graphQLDocument!).ConfigureAwait(false);
         if(errors.Any()) {
             Context.IncreaseExpectedOperations();
             Context.PublishResult(GenerateValidationErrorResult(errors));
         } else {
+            _writer = !Context.IsWebSocket ? new DataJsonWriter() : null;
             await VisitAsync(graphQLDocument, Context).ConfigureAwait(false);
         }
     }
 
-    public async IAsyncEnumerable<string> Results() {
-        if(Context.IsWebSocket) {
-            await foreach(var subResult in Context.WithCancellation(Context.CancellationToken).ConfigureAwait(false)) {
-                var result = new JObject(new JProperty("data", subResult));
-                yield return JsonConvert.SerializeObject(result, JsonSerializerSettings);
-            }
-        } else {
-            var result = new JObject();
-            var data = new JObject();
-            result.Add("data", data);
-            await foreach(var subResult in Context.WithCancellation(Context.CancellationToken).ConfigureAwait(false)) {
-                data.Merge(subResult);
-            }
+    public async IAsyncEnumerable<byte[]> Results() {
+        await foreach(var result in Context.WithCancellation(Context.CancellationToken).ConfigureAwait(false)) {
+            yield return result;
 
-            yield return JsonConvert.SerializeObject(result, JsonSerializerSettings);
+            if(!Context.IsWebSocket)
+                yield break;
         }
     }
 
-    private (GraphQLDocument?, JObject?) Parse(GraphQLRequest? request) {
-        if(request == null)
-            return (null, new JObject(GenerateErrorResult("Empty request", "GRAPHQL_SYNTAX_ERROR")));
+    private (GraphQLDocument?, ErrorJsonWriter?) Parse(GraphQLRequest? request) {
+        if(request == null || request.Query == null) {
+            return (null, GenerateErrorResult("Empty request", "GRAPHQL_SYNTAX_ERROR"));
+        }
 
         try {
             return (Parser.Parse(request.Query, new ParserOptions { Ignore = IgnoreOptions.All }), null);
         } catch(GraphQLSyntaxErrorException sex) {
-            return (null, new JObject(GenerateErrorResult(sex.Description, "GRAPHQL_SYNTAX_ERROR")));
+            return (null, GenerateErrorResult(sex.Description, "GRAPHQL_SYNTAX_ERROR"));
         }
     }
 
-    private JObject GenerateValidationErrorResult(List<string> errors) {
-        return new JObject(new JProperty("errors", new JArray(errors.Select(error => GenerateMessage(error, "GRAPHQL_VALIDATION_FAILED")))));
+    private ErrorJsonWriter GenerateValidationErrorResult(List<string> errors) {
+        var errorWriter = new ErrorJsonWriter();
+        foreach(var error in errors)
+            GenerateMessage(error, "GRAPHQL_VALIDATION_FAILED", errorWriter);
+
+        return errorWriter;
     }
 
-    private JProperty GenerateErrorResult(string exceptionMessage, string code) {
-        return new JProperty("errors", new JArray(new object[] {
-            GenerateMessage(exceptionMessage, code)
-        }));
+    private ErrorJsonWriter GenerateErrorResult(string exceptionMessage, string code) {
+        var errorWriter = new ErrorJsonWriter();
+        GenerateMessage(exceptionMessage, code, errorWriter);
+        return errorWriter;
     }
 
-    private static JObject GenerateMessage(string exceptionMessage, string code) {
-        return new JObject {
-            { "message", exceptionMessage }, {
-                "extensions", new JObject {
-                    new JProperty("code", code)
-                }
-            }
-        };
+    private static void GenerateMessage(string exceptionMessage, string code, ErrorJsonWriter writer) {
+        writer.WriteStartObject();
+        writer.WriteValue("message", exceptionMessage, TypeCode.String, typeof(string));
+
+        writer.WriteStartObject("extensions");
+        writer.WriteValue("code", code, TypeCode.String, typeof(string));
+        writer.WriteEndObject();
+
+        writer.WriteEndObject();
     }
 
     protected override async ValueTask VisitOperationDefinitionAsync(GraphQLOperationDefinition operationDefinition, IGraphQLContext context) {
         if(operationDefinition.Operation is OperationType.Query or OperationType.Mutation)
             context.IncreaseExpectedOperations(operationDefinition.SelectionSet.Selections.Count);
 
-        var visitor = new OperationVisitor(_options, _dependencyResolver, _fragmentAccessor, _valueAccessor, operationDefinition.Operation, context);
+        var visitor = new OperationVisitor(_options, _dependencyResolver, _fragmentAccessor, _valueAccessor, _wrapperRegistry, operationDefinition.Operation, context, _writer);
         await visitor.VisitAsync(operationDefinition, context).ConfigureAwait(false);
     }
 }

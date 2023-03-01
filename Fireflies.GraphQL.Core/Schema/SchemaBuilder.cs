@@ -7,13 +7,15 @@ namespace Fireflies.GraphQL.Core.Schema;
 
 internal class SchemaBuilder {
     private readonly GraphQLOptions _options;
-    private HashSet<Type> _inputTypes = new();
+    private readonly WrapperRegistry _wrapperRegistry;
+    private readonly HashSet<Type> _inputTypes = new();
     private readonly HashSet<Type> _ignore = new();
     private int _inputLevel;
 
     // ReSharper disable once UnusedMember.Global
-    public SchemaBuilder(GraphQLOptions options) {
+    public SchemaBuilder(GraphQLOptions options, WrapperRegistry wrapperRegistry) {
         _options = options;
+        _wrapperRegistry = wrapperRegistry;
         _ignore.Add(typeof(CancellationToken));
         _ignore.Add(typeof(ASTNode));
     }
@@ -71,6 +73,8 @@ internal class SchemaBuilder {
         if(_ignore.Contains(startingObject))
             return;
 
+        startingObject = _wrapperRegistry.GetWrapperOfSelf(startingObject);
+
         if(startingObject.IsCollection(out var elementType)) {
             FindAllTypes(types, elementType);
             return;
@@ -88,7 +92,7 @@ internal class SchemaBuilder {
 
         if(startingObject.IsInterface) {
             foreach(var impl in startingObject.GetAllClassesThatImplements())
-                FindAllTypes(types, impl);
+                FindAllTypes(types, _wrapperRegistry.GetWrapperOfSelf(impl));
         } else {
             foreach(var interf in startingObject.GetInterfaces()) {
                 FindAllTypes(types, interf);
@@ -120,7 +124,7 @@ internal class SchemaBuilder {
 
         if(startingObject.IsInterface) {
             foreach(var implementingType in startingObject.GetAllClassesThatImplements()) {
-                types.Add(implementingType);
+                types.Add(_wrapperRegistry.GetWrapperOfSelf(implementingType));
             }
         }
     }
@@ -235,7 +239,7 @@ internal class SchemaBuilder {
             };
 
             if(!isTypeReference)
-                interfaceType.PossibleTypes = elementType.GetAllClassesThatImplements().Select(x => CreateType(x, true)).ToArray();
+                interfaceType.PossibleTypes = elementType.GetAllClassesThatImplements().Select(x => CreateType(_wrapperRegistry.GetWrapperOfSelf(x), true)).ToArray();
 
             return interfaceType;
         }

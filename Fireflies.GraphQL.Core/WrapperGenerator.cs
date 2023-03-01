@@ -9,18 +9,19 @@ namespace Fireflies.GraphQL.Core;
 internal class WrapperGenerator {
     private readonly ModuleBuilder _moduleBuilder;
     private readonly GeneratorRegistry _generatorRegistry;
-    private readonly Dictionary<Type, Type> _wrappedTypes = new();
+    private readonly WrapperRegistry _wrapperRegistry;
 
-    public WrapperGenerator(ModuleBuilder moduleBuilder, GeneratorRegistry generatorRegistry) {
+    public WrapperGenerator(ModuleBuilder moduleBuilder, GeneratorRegistry generatorRegistry, WrapperRegistry wrapperRegistry) {
         _moduleBuilder = moduleBuilder;
         _generatorRegistry = generatorRegistry;
+        _wrapperRegistry = wrapperRegistry;
     }
 
     public Type GenerateWrapper(Type baseType, bool copyConstructors = true) {
         if(baseType.HasCustomAttribute<GraphQLNoWrapperAttribute>())
             return baseType;
 
-        if(_wrappedTypes.TryGetValue(baseType, out var existingType)) {
+        if(_wrapperRegistry.TryGetValue(baseType, out var existingType)) {
             return existingType;
         }
 
@@ -110,7 +111,7 @@ internal class WrapperGenerator {
         }
 
         var createdType = typeBuilder.CreateType()!;
-        _wrappedTypes.Add(baseType, createdType);
+        _wrapperRegistry.Add(baseType, createdType);
         return createdType;
     }
 

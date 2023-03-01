@@ -1,20 +1,22 @@
 ﻿using System.Collections;
 using System.Reflection;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.GraphQL.Core.Json;
 using Fireflies.IoC.Abstractions;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
-using Newtonsoft.Json.Linq;
 
 namespace Fireflies.GraphQL.Core;
 
 internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
     private readonly GraphQLOptions _options;
     private readonly IDependencyResolver _dependencyResolver;
-    private readonly FragmentAccessor _fragments;
+    private readonly FragmentAccessor _fragmentAccessor;
     private readonly ValueAccessor _valueAccessor;
     private readonly OperationType _operationType;
     private readonly IGraphQLContext _context;
+    private readonly DataJsonWriter? _writer;
+    private readonly WrapperRegistry _wrapperRegistry;
 
     private static readonly MethodInfo GetResultMethod;
 
@@ -22,55 +24,53 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
         GetResultMethod = typeof(OperationVisitor).GetMethod(nameof(GetResult), BindingFlags.NonPublic | BindingFlags.Instance)!;
     }
 
-    public OperationVisitor(GraphQLOptions options, IDependencyResolver dependencyResolver, FragmentAccessor fragments, ValueAccessor valueAccessor, OperationType operationType, IGraphQLContext context) {
+    public OperationVisitor(GraphQLOptions options, IDependencyResolver dependencyResolver, FragmentAccessor fragmentAccessor, ValueAccessor valueAccessor, WrapperRegistry wrapperRegistry, OperationType operationType, IGraphQLContext context, DataJsonWriter? writer) {
         _options = options;
         _dependencyResolver = dependencyResolver;
-        _fragments = fragments;
+        _fragmentAccessor = fragmentAccessor;
         _valueAccessor = valueAccessor;
+        _wrapperRegistry = wrapperRegistry;
+
         _operationType = operationType;
         _context = context;
+        _writer = writer;
     }
 
     protected override async ValueTask VisitSelectionSetAsync(GraphQLSelectionSet selectionSet, IGraphQLContext context) {
-        foreach(var selection in selectionSet.Selections) {
-            switch(selection) {
-                case GraphQLField graphQLField:
-                    var operationDescriptor = GetHandler(graphQLField);
+        foreach(var graphQLField in selectionSet.Selections.OfType<GraphQLField>()) {
+            var operationDescriptor = GetHandler(graphQLField);
+            var operations = _dependencyResolver.Resolve(operationDescriptor.Type);
 
-                    var operations = _dependencyResolver.Resolve(operationDescriptor.Type);
+            var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _valueAccessor, _context, _dependencyResolver);
+            var returnType = operationDescriptor.Method.DiscardTaskFromReturnType();
+            var asyncEnumerable = (IAsyncEnumerable<object>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder, graphQLField })!;
+            await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken).ConfigureAwait(false)) {
+                var writer = _writer ?? new DataJsonWriter();
 
-                    var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _valueAccessor, _context, _dependencyResolver);
-                    var returnType = operationDescriptor.Method.DiscardTaskFromReturnType();
-                    var asyncEnumerable = (IAsyncEnumerable<object>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder, graphQLField })!;
-                    await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken).ConfigureAwait(false)) {
-                        var jObject = new JObject();
-
-                        if(result is IEnumerable enumerable) {
-                            var container = new JArray();
-                            jObject.Add(graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue, container);
-                            foreach(var obj in enumerable) {
-                                var subResult = new JObject();
-                                container.Add(subResult);
-                                foreach(var subSelection in graphQLField.SelectionSet!.Selections) {
-                                    var resultVisitor = new ResultVisitor(obj, subResult, _fragments, _valueAccessor, _context, _dependencyResolver);
-                                    await resultVisitor.VisitAsync(subSelection, context).ConfigureAwait(false);
-                                }
-                            }
-                        } else {
-                            var subResult = new JObject();
-                            jObject.Add(graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue, subResult);
-                            foreach(var subSelection in graphQLField.SelectionSet!.Selections) {
-                                var resultVisitor = new ResultVisitor(result, subResult, _fragments, _valueAccessor, _context, _dependencyResolver);
-                                await resultVisitor.VisitAsync(subSelection, context).ConfigureAwait(false);
-                            }
-                        }
-
-                        context.PublishResult(jObject);
+                var fieldName = graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue;
+                if(result is IEnumerable enumerable) {
+                    writer.WriteStartArray(fieldName);
+                    foreach(var obj in enumerable) {
+                        writer.WriteStartObject();
+                        await WriteObject(context, writer, graphQLField, obj);
+                        writer.WriteEndObject();
                     }
 
-                    break;
+                    writer.WriteEndArray();
+                } else {
+                    writer.WriteStartObject(fieldName);
+                    await WriteObject(context, writer, graphQLField, result);
+                    writer.WriteEndObject();
+                }
+
+                context.PublishResult(writer);
             }
         }
+    }
+
+    private async Task WriteObject(IGraphQLContext context, DataJsonWriter writer, GraphQLField graphQLField, object obj) {
+        var resultVisitor = new ResultVisitor(obj, writer, _fragmentAccessor, _valueAccessor, _context, _dependencyResolver, _wrapperRegistry);
+        await resultVisitor.VisitAsync(graphQLField.SelectionSet, context).ConfigureAwait(false);
     }
 
     private OperationDescriptor GetHandler(GraphQLField graphQLField) {

@@ -1,11 +1,11 @@
-﻿using GraphQLParser.AST;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
+﻿using System.Text.Json;
+using System.Text.Json.Nodes;
+using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Federation;
 
 public static class FederationQueryBuilder {
-    public static string BuildQuery(string query, OperationType operationType, string name) => JsonConvert.SerializeObject(new JObject(new JProperty("query", $"{operationType.ToString().ToLower()} {name} {{ {query} }}")));
+    public static string BuildQuery(string query, OperationType operationType, string name) => JsonSerializer.Serialize(new JsonObject { { "query", JsonValue.Create($"{operationType.ToString().ToLower()} {name} {{ {query} }}") }});
 
     public static string SchemaQuery =>
         @"__schema {

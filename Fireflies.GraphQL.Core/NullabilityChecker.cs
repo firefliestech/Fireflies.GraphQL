@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Reflection;
+﻿using System.Reflection;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Extensions;
 

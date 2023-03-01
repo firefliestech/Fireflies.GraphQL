@@ -1,11 +1,11 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System.Text.Json.Nodes;
 
 namespace Fireflies.GraphQL.Core.Federation;
 
 public class FederationEntity {
-    protected readonly JObject GraphQLData;
+    protected readonly JsonObject GraphQLData;
 
-    public FederationEntity(JObject data) {
+    public FederationEntity(JsonObject data) {
         GraphQLData = data;
     }
 }

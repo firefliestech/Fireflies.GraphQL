@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace Fireflies.GraphQL.Core.Generators.Connection;
 
@@ -16,12 +16,12 @@ public abstract class EdgeBase<TBase> {
     protected EdgeBase(TBase node) {
         Node = node;
 
-        var cursor = new JObject();
+        var cursor = new JsonObject();
         foreach(var property in IdProperties) {
-            cursor.Add(property.Name, new JValue(property.GetValue(node)));
+            cursor.Add(property.Name, JsonValue.Create(property.GetValue(node)));
         }
 
-        var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(cursor));
+        var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(cursor));
         Cursor = Convert.ToBase64String(plainTextBytes);
     }
 

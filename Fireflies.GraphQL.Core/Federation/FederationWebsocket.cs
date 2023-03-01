@@ -1,6 +1,7 @@
 ﻿using System.Net.WebSockets;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Fireflies.GraphQL.Core.Json;
 
 namespace Fireflies.GraphQL.Core.Federation;
 
@@ -50,7 +51,7 @@ public class FederationWebsocket<T> {
                 break;
 
             var content = System.Text.Encoding.UTF8.GetString(bytes);
-            var json = JsonConvert.DeserializeObject<JObject>(content);
+            var json = JsonSerializer.Deserialize<JsonObject>(content, DefaultJsonSerializerSettings.DefaultSettings);
 
             var data = json?["data"]?[_operationName];
             if(data == null)

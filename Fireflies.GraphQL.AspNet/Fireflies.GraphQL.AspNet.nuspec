@@ -14,7 +14,6 @@
 		<dependency id="Fireflies.GraphQL.Core" version="$version$" />
 		<dependency id="Fireflies.IoC.Abstractions" version="$version$" />
 		<dependency id="Microsoft.AspNetCore.Http.Abstractions" version="2.2.0" />
-		<dependency id="Newtonsoft.Json" version="13.0.2" />
 		<dependency id="Nito.AsyncEx" version="5.1.2" />
 	</dependencies>
 </package>
