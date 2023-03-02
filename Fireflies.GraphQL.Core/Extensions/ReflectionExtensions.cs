@@ -6,7 +6,7 @@ using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Extensions;
 
-internal static class ReflectionExtensions {
+public static class ReflectionExtensions {
     private static readonly MethodInfo InternalExecuteMethodInfo;
     private static readonly ConcurrentDictionary<Type, Type[]> TypeImplementationsCache = new();
 
@@ -143,7 +143,9 @@ internal static class ReflectionExtensions {
         return methodInfo.GetParameters().Where(x =>
             !x.HasCustomAttribute<ResolvedAttribute>() &&
             !x.HasCustomAttribute<EnumeratorCancellationAttribute>() &&
-            !x.ParameterType.IsAssignableTo(typeof(ASTNode)));
+            !x.ParameterType.IsAssignableTo(typeof(ASTNode)) &&
+            !x.ParameterType.IsAssignableTo(typeof(IGraphQLContext))
+        );
     }
 
     public static async Task<object?> ExecuteMethod(this MethodInfo methodInfo, object instance, object?[] arguments) {

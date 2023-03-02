@@ -10,23 +10,19 @@ public static class WrapperHelper {
     }
 
     // Project type to wrapper
-    public static Task<IQueryable<TWrapped?>?> WrapEnumerableTaskResult<TWrapped, TOriginal>(Task<IEnumerable<TOriginal>?> result) {
-        return result.ContinueWith(r => WrapEnumerableResult<TWrapped, TOriginal>(r.Result));
-    }
-
-    public static IQueryable<TWrapped?>? WrapEnumerableResult<TWrapped, TOriginal>(IEnumerable<TOriginal?>? result) {
-        if(result == null)
-            return null;
-
-        var asQueryable = new EnumerableQuery<TOriginal?>(result);
-        return asQueryable.Select(x => WrapResult<TWrapped, TOriginal>(x));
-    }
-
-    public static Task<IQueryable<TWrapped?>?> WrapQueryableTaskResult<TWrapped, TOriginal>(Task<IQueryable<TOriginal>?> result) {
-        return result.ContinueWith(r => WrapEnumerableResult<TWrapped, TOriginal>(r.Result));
+    public static Task<IQueryable<TWrapped?>?>? WrapQueryableTaskResult<TWrapped, TOriginal>(Task<IQueryable<TOriginal>?> result) {
+        return result?.ContinueWith(task => WrapQueryableResult<TWrapped, TOriginal>(task.Result));
     }
 
     public static IQueryable<TWrapped?>? WrapQueryableResult<TWrapped, TOriginal>(IQueryable<TOriginal>? result) {
+        return result?.Select(x => WrapResult<TWrapped, TOriginal>(x));
+    }
+
+    public static Task<IEnumerable<TWrapped?>?>? WrapEnumerableTaskResult<TWrapped, TOriginal>(Task<IEnumerable<TOriginal>?> result) {
+        return result?.ContinueWith(task => WrapEnumerableResult<TWrapped, TOriginal>(task.Result));
+    }
+
+    public static IEnumerable<TWrapped?>? WrapEnumerableResult<TWrapped, TOriginal>(IEnumerable<TOriginal>? result) {
         return result?.Select(x => WrapResult<TWrapped, TOriginal>(x));
     }
 

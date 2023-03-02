@@ -2,6 +2,7 @@
 using System.Reflection.Emit;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Federation;
+using Fireflies.GraphQL.Core.Generators;
 using Fireflies.GraphQL.Core.Generators.Connection;
 using Fireflies.GraphQL.Core.Generators.Sorting;
 using Fireflies.GraphQL.Core.Schema;
@@ -18,9 +19,21 @@ public class GraphQLOptionsBuilder {
     private IFirefliesLoggerFactory _loggerFactory = new NullLoggerFactory();
     private readonly HashSet<(string Name, string Url)> _federations = new();
     private string? _schemaDescription;
+    private readonly GeneratorRegistry _generatorRegistry;
+
+    public static int _optionCounter = 0;
+    private readonly ModuleBuilder _moduleBuilder;
 
     public GraphQLOptionsBuilder() {
         _operationTypes.Add(typeof(__SchemaQuery));
+
+        var assemblyName = new AssemblyName($"Fireflies.GraphQL.ProxyAssembly{_optionCounter++}");
+        var dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+        _moduleBuilder = dynamicAssembly.DefineDynamicModule("Main");
+
+        _generatorRegistry = new GeneratorRegistry();
+        _generatorRegistry.Add(new SortingGenerator(_moduleBuilder));
+        _generatorRegistry.Add(new ConnectionGenerator(_moduleBuilder));
     }
 
     public GraphQLOptionsBuilder Add<T>() {
@@ -41,6 +54,14 @@ public class GraphQLOptionsBuilder {
     public GraphQLOptionsBuilder SetUrl(string url) {
         _url = url;
         return this;
+    }
+
+    public void AddGenerator(IGenerator generator) {
+        _generatorRegistry.Add(generator);
+    }
+
+    public void AddGeneratorBefore<TAddBefore>(IGenerator generator) where TAddBefore : IGenerator {
+        _generatorRegistry.AddBefore<TAddBefore>(generator);
     }
 
     public async Task<GraphQLOptions> Build() {
@@ -77,19 +98,15 @@ public class GraphQLOptionsBuilder {
             }
         }
 
-        var assemblyName = new AssemblyName("Fireflies.GraphQL.ProxyAssembly");
-        var dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-        var moduleBuilder = dynamicAssembly.DefineDynamicModule("Main");
 
-        var generatorRegistry = new GeneratorRegistry();
-        generatorRegistry.Add(new SortingGenerator(moduleBuilder));
-        generatorRegistry.Add(new ConnectionGenerator(moduleBuilder));
+
+
 
         var wrapperRegistry = new WrapperRegistry();
-        var wrapperGenerator = new WrapperGenerator(moduleBuilder, generatorRegistry, wrapperRegistry);
+        var wrapperGenerator = new WrapperGenerator(_moduleBuilder, _generatorRegistry, wrapperRegistry);
 
         options.DependencyResolver = _dependencyResolver.BeginLifetimeScope(builder => {
-            builder.RegisterInstance(moduleBuilder);
+            builder.RegisterInstance(_moduleBuilder);
             builder.RegisterInstance(options);
             builder.RegisterType<GraphQLEngine>();
             builder.RegisterType<__SchemaQuery>();

@@ -1,4 +1,5 @@
-﻿using Fireflies.GraphQL.Core.Generators;
+﻿using Fireflies.GraphQL.Core.Exceptions;
+using Fireflies.GraphQL.Core.Generators;
 
 namespace Fireflies.GraphQL.Core;
 
@@ -11,5 +12,13 @@ internal class GeneratorRegistry {
 
     public void Add<TGenerator>(TGenerator generator) where TGenerator : IGenerator {
         _registered.Add(generator);
+    }
+
+    public void AddBefore<TAddBefore>(IGenerator generator) where TAddBefore : IGenerator {
+        var oldIndex = _registered.FindIndex(x => x is TAddBefore);
+        if(oldIndex == -1)
+            throw new GraphQLException($"Cant find a generator with type {typeof(TAddBefore).Name}");
+
+        _registered.Insert(oldIndex, generator);
     }
 }

@@ -7,7 +7,7 @@ using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Generators.Sorting;
 
-internal class SortingGenerator : IMethodExtenderGenerator {
+public class SortingGenerator : IMethodExtenderGenerator {
     private readonly ModuleBuilder _moduleBuilder;
 
     public SortingGenerator(ModuleBuilder moduleBuilder) {
@@ -23,9 +23,10 @@ internal class SortingGenerator : IMethodExtenderGenerator {
         var contextParameterIndex = parameterCount + 3;
         parameterCount += 3;
 
-        wrappedReturnType.IsCollection(out var elementType);
+        var isQueryable = wrappedReturnType.IsQueryable();
+        var elementType = isQueryable ? originalType : wrappedReturnType.ElementType();
 
-        var generatedSortType = GenerateSortType(elementType);
+        var generatedSortType = GenerateSortType(elementType, isQueryable);
         return
             new MethodExtenderDescriptor(new[] { generatedSortType, typeof(GraphQLField), typeof(IGraphQLContext) },
                 methodBuilder => {
@@ -40,11 +41,11 @@ internal class SortingGenerator : IMethodExtenderGenerator {
                         .SetCustomAttribute(new CustomAttributeBuilder(typeof(ResolvedAttribute).GetConstructors().First(), Array.Empty<object>()));
                 },
                 (step, ilGenerator) => {
-                    if(step == MethodExtenderStep.BeforeWrap && wrappedReturnType.IsQueryable()) {
+                    if(step == MethodExtenderStep.BeforeWrap && isQueryable) {
                         var helperMethodInfo = typeof(SortingHelper).GetMethod(wrappedReturnType.IsTask() ? nameof(SortingHelper.SortQueryableTaskResult) : nameof(SortingHelper.SortQueryableResult), BindingFlags.Public | BindingFlags.Static)!;
                         helperMethodInfo = helperMethodInfo.MakeGenericMethod(originalType, generatedSortType);
                         GenerateEnumerableSort(helperMethodInfo, ilGenerator, sortParameterIndex, astNodeParameterIndex, contextParameterIndex);
-                    } else if(step == MethodExtenderStep.AfterWrap && wrappedReturnType.IsCollection()) {
+                    } else if(step == MethodExtenderStep.AfterWrap && !isQueryable) {
                         var helperMethodInfo = typeof(SortingHelper).GetMethod(wrappedReturnType.IsTask() ? nameof(SortingHelper.SortEnumerableTaskResult) : nameof(SortingHelper.SortEnumerableResult), BindingFlags.Public | BindingFlags.Static)!;
                         helperMethodInfo = helperMethodInfo.MakeGenericMethod(elementType, generatedSortType);
                         GenerateEnumerableSort(helperMethodInfo, ilGenerator, sortParameterIndex, astNodeParameterIndex, contextParameterIndex);
@@ -59,7 +60,7 @@ internal class SortingGenerator : IMethodExtenderGenerator {
         ilGenerator.EmitCall(OpCodes.Call, helperMethodInfo, null);
     }
 
-    private Type GenerateSortType(Type forType) {
+    private Type GenerateSortType(Type forType, bool isQueryable) {
         var sortType = _moduleBuilder.DefineType(forType.Name + "Sort");
 
         foreach(var member in forType.GetAllGraphQLMemberInfo()) {
@@ -68,6 +69,11 @@ internal class SortingGenerator : IMethodExtenderGenerator {
                 MethodInfo methodInfo => methodInfo.ReturnType,
                 _ => throw new ArgumentOutOfRangeException()
             };
+
+            // Only properties is supported for IQueryable
+            if(isQueryable && member is not PropertyInfo) {
+                continue;
+            }
 
             subType.IsCollection(out subType);
             if(!subType.IsValidGraphQLObject()) {

@@ -1,8 +1,8 @@
 ﻿namespace Fireflies.GraphQL.Core.Extensions;
 
-internal static class EnumerableExtensions {
+public static class EnumerableExtensions {
     public static bool IsQueryable(this Type type, out Type elementType) {
-        return GetElementTypeForEnumerableOf(type, out elementType, typeof(IQueryable<>));
+        return GetElementTypeForEnumerableOf(type, out elementType, typeof(IQueryable<>), false);
     }
 
     public static bool IsQueryable(this Type type) {
@@ -10,10 +10,10 @@ internal static class EnumerableExtensions {
     }
 
     public static bool IsEnumerable(this Type type, out Type elementType) {
-        return GetElementTypeForEnumerableOf(type, out elementType, typeof(IEnumerable<>));
+        return GetElementTypeForEnumerableOf(type, out elementType, typeof(IEnumerable<>), true);
     }
 
-    private static bool GetElementTypeForEnumerableOf(Type type, out Type elementType, Type lookingFor) {
+    private static bool GetElementTypeForEnumerableOf(Type type, out Type elementType, Type lookingFor, bool checkArray) {
         elementType = type.DiscardTask();
 
         if(elementType.IsGenericType) {
@@ -25,7 +25,7 @@ internal static class EnumerableExtensions {
             }
         }
 
-        if(elementType.IsArray) {
+        if(checkArray && elementType.IsArray) {
             elementType = GetElementType(elementType);
             return true;
         }
