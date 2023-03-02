@@ -29,6 +29,7 @@ public static class SortingHelper {
     private class SortingBuilder<TElement> : ASTVisitor<IGraphQLContext> {
         // ReSharper disable once StaticMemberInGenericType
         private static readonly MethodInfo WaitForMethod;
+        private bool _firstSort;
 
         static SortingBuilder() {
             WaitForMethod = typeof(SortingBuilder<TElement>).GetMethod(nameof(WaitFor), BindingFlags.NonPublic | BindingFlags.Instance)!;
@@ -38,12 +39,19 @@ public static class SortingHelper {
 
         public SortingBuilder(IQueryable<TElement> elements) {
             Result = elements;
+            _firstSort = true;
         }
 
         protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IGraphQLContext context) {
             if(objectField.Value is GraphQLEnumValue enumValue) {
                 var desc = enumValue.Name.StringValue == nameof(SortOrder.DESC);
-                Result = desc ? Result.OrderByDescending(x => GetValue(x, objectField.Name.StringValue)) : Result.OrderBy(x => GetValue(x, objectField.Name.StringValue));
+                if(!_firstSort) {
+                    var orderedQueryable = (IOrderedQueryable<TElement>)Result;
+                    Result = desc ? orderedQueryable.ThenByDescending(x => GetValue(x, objectField.Name.StringValue)) : orderedQueryable.OrderBy(x => GetValue(x, objectField.Name.StringValue));
+                } else {
+                    Result = desc ? Result.OrderByDescending(x => GetValue(x, objectField.Name.StringValue)) : Result.OrderBy(x => GetValue(x, objectField.Name.StringValue));
+                    _firstSort = false;
+                }
             } else {
                 await VisitAsync(objectField.Value, context).ConfigureAwait(false);
             }
