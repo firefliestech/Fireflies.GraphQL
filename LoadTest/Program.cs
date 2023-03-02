@@ -1,27 +1,22 @@
 ﻿using NBomber.CSharp;
+using NBomber.Http.CSharp;
 
 using var httpClient = new HttpClient();
 
-var scenario = Scenario.Create("hello_world_scenario", async context => {
-        var response = await httpClient.PostAsync("https://localhost:7273/graphql", new StringContent(@"{""query"":""{
-  books {
-    bookId
-    numbers
-    title
-    iSBN
-  }
-}""}"));
+var scenario = Scenario.Create("http_scenario", async context => {
+        var request =
+            Http.CreateRequest("POST", "https://localhost:7273/graphql")
+                .WithHeader("Accept", "text/html")
+                .WithBody(new StringContent(@"{""query"":""{ books { bookId numbers title iSBN } }""}"));
 
-        return response.IsSuccessStatusCode
-            ? Response.Ok()
-            : Response.Fail();
+        var response = await Http.Send(httpClient, request);
+
+        return response;
     })
-    .WithWarmUpDuration(TimeSpan.FromSeconds(5))
-    .WithLoadSimulations(
-        Simulation.Inject(rate: 200,
-            interval: TimeSpan.FromSeconds(1),
-            during: TimeSpan.FromSeconds(10))
-    );
+    .WithWarmUpDuration(TimeSpan.FromSeconds(2))
+    .WithLoadSimulations(Simulation.Inject(rate: 20,
+        interval: TimeSpan.FromSeconds(1),
+        during: TimeSpan.FromSeconds(5)));
 
 NBomberRunner
     .RegisterScenarios(scenario)
