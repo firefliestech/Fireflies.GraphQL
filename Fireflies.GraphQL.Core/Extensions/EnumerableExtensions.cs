@@ -45,6 +45,14 @@ internal static class EnumerableExtensions {
             return true;
         }
 
+        var implementICollection = type.GetInterfaces()
+            .FirstOrDefault(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(ICollection<>));
+
+        if(implementICollection != null) {
+            elementType = implementICollection.GetGenericArguments()[0];
+            return true;
+        }
+
         return false;
     }
 

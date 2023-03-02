@@ -7,7 +7,7 @@ using GraphQLParser.Visitors;
 namespace Fireflies.GraphQL.Core.Generators.Sorting;
 
 public static class SortingHelper {
-    public static Task<IQueryable<TElement>?> WrapEnumerableTaskResult<TElement, TSort>(Task<IQueryable<TElement>?> resultTask, TSort sortType, GraphQLField rootField, IGraphQLContext graphQLContext) {
+    public static Task<IQueryable<TElement>?> SortEnumerableTaskResult<TElement, TSort>(Task<IQueryable<TElement>?> resultTask, TSort sortType, GraphQLField rootField, IGraphQLContext graphQLContext) {
         return resultTask.ContinueWith(taskResult => {
             if(taskResult.Result == null)
                 return null;
@@ -16,28 +16,47 @@ public static class SortingHelper {
             if(sortNode == null)
                 return taskResult.Result;
 
-            var sorter = new SortingBuilder<TElement>(taskResult.Result);
+            var sorter = new EnumerableSortingBuilder<TElement>(taskResult.Result);
             sorter.VisitAsync(sortNode, graphQLContext).GetAwaiter().GetResult();
             return sorter.Result;
         });
     }
 
-    public static IQueryable<TElement>? WrapEnumerableResult<TElement, TSort>(IQueryable<TElement>? result, TSort sortType, GraphQLField graphQLField, IGraphQLContext graphQLContext) {
-        return WrapEnumerableTaskResult(Task.FromResult(result), sortType, graphQLField, graphQLContext).Result;
+    public static IQueryable<TElement>? SortEnumerableResult<TElement, TSort>(IQueryable<TElement>? result, TSort sortType, GraphQLField graphQLField, IGraphQLContext graphQLContext) {
+        return SortEnumerableTaskResult(Task.FromResult(result), sortType, graphQLField, graphQLContext).Result;
     }
 
-    private class SortingBuilder<TElement> : ASTVisitor<IGraphQLContext> {
+    public static Task<IQueryable<TElement>?> SortQueryableTaskResult<TElement, TSort>(Task<IQueryable<TElement>?> resultTask, TSort sortType, GraphQLField rootField, IGraphQLContext graphQLContext) {
+        return resultTask.ContinueWith(taskResult => {
+            if(taskResult.Result == null)
+                return null;
+
+            var sortNode = rootField.Arguments?.FirstOrDefault(x => x.Name == "sort");
+            if(sortNode == null)
+                return taskResult.Result;
+
+            var sorter = new QueryableSortingBuilder<TElement>(taskResult.Result);
+            sorter.VisitAsync(sortNode, graphQLContext).GetAwaiter().GetResult();
+            return sorter.Result;
+        });
+    }
+
+    public static IQueryable<TElement>? SortQueryableResult<TElement, TSort>(IQueryable<TElement>? result, TSort sortType, GraphQLField graphQLField, IGraphQLContext graphQLContext) {
+        return SortQueryableTaskResult(Task.FromResult(result), sortType, graphQLField, graphQLContext).Result;
+    }
+
+    private class EnumerableSortingBuilder<TElement> : ASTVisitor<IGraphQLContext> {
         // ReSharper disable once StaticMemberInGenericType
         private static readonly MethodInfo WaitForMethod;
         private bool _firstSort;
 
-        static SortingBuilder() {
-            WaitForMethod = typeof(SortingBuilder<TElement>).GetMethod(nameof(WaitFor), BindingFlags.NonPublic | BindingFlags.Instance)!;
+        static EnumerableSortingBuilder() {
+            WaitForMethod = typeof(EnumerableSortingBuilder<TElement>).GetMethod(nameof(WaitFor), BindingFlags.NonPublic | BindingFlags.Instance)!;
         }
 
         public IQueryable<TElement> Result { get; private set; }
 
-        public SortingBuilder(IQueryable<TElement> elements) {
+        public EnumerableSortingBuilder(IQueryable<TElement> elements) {
             Result = elements;
             _firstSort = true;
         }
@@ -79,6 +98,33 @@ public static class SortingHelper {
         private async Task<object?> WaitFor<T>(MethodBase valueMethod, object element) {
             var valueTask = (Task<T>)valueMethod.Invoke(element, null)!;
             return await valueTask.ConfigureAwait(false);
+        }
+    }
+
+    private class QueryableSortingBuilder<TElement> : ASTVisitor<IGraphQLContext> {
+        // ReSharper disable once StaticMemberInGenericType
+        private bool _firstSort;
+
+        public IQueryable<TElement> Result { get; private set; }
+
+        public QueryableSortingBuilder(IQueryable<TElement> elements) {
+            Result = elements;
+            _firstSort = true;
+        }
+
+        protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IGraphQLContext context) {
+            if(objectField.Value is GraphQLEnumValue enumValue) {
+                var desc = enumValue.Name.StringValue == nameof(SortOrder.DESC);
+                if(!_firstSort) {
+                    var orderedQueryable = (IOrderedQueryable<TElement>)Result;
+                    Result = desc ? orderedQueryable.ThenByMemberDescending(objectField.Name.StringValue) : orderedQueryable.ThenByMember(objectField.Name.StringValue);
+                } else {
+                    Result = desc ? Result.OrderByMemberDescending(objectField.Name.StringValue) : Result.OrderByMember(objectField.Name.StringValue);
+                    _firstSort = false;
+                }
+            } else {
+                await VisitAsync(objectField.Value, context).ConfigureAwait(false);
+            }
         }
     }
 }

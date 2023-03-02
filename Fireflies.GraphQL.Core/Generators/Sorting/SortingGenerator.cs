@@ -14,7 +14,7 @@ internal class SortingGenerator : IMethodExtenderGenerator {
         _moduleBuilder = moduleBuilder;
     }
 
-    public MethodExtenderDescriptor GetMethodExtenderDescriptor(MemberInfo memberInfo, Type wrappedReturnType, ref int parameterCount) {
+    public MethodExtenderDescriptor GetMethodExtenderDescriptor(MemberInfo memberInfo, Type originalType, Type wrappedReturnType, ref int parameterCount) {
         if(!memberInfo.HasCustomAttribute<GraphQLSortAttribute>())
             return new MethodExtenderDescriptor();
 
@@ -23,12 +23,11 @@ internal class SortingGenerator : IMethodExtenderGenerator {
         var contextParameterIndex = parameterCount + 3;
         parameterCount += 3;
 
-        wrappedReturnType.IsCollection(out var returnType);
+        wrappedReturnType.IsCollection(out var elementType);
 
-        var generatedSortType = GenerateSortType(returnType);
+        var generatedSortType = GenerateSortType(elementType);
         return
-            new MethodExtenderDescriptor(
-                new[] { generatedSortType, typeof(GraphQLField), typeof(IGraphQLContext) },
+            new MethodExtenderDescriptor(new[] { generatedSortType, typeof(GraphQLField), typeof(IGraphQLContext) },
                 methodBuilder => {
                     var parameterBuilder = methodBuilder.DefineParameter(sortParameterIndex, ParameterAttributes.HasDefault | ParameterAttributes.Optional, "sort");
                     parameterBuilder.SetConstant(null);
@@ -40,20 +39,24 @@ internal class SortingGenerator : IMethodExtenderGenerator {
                     methodBuilder.DefineParameter(contextParameterIndex, ParameterAttributes.HasDefault | ParameterAttributes.Optional, Guid.NewGuid().ToString("N"))
                         .SetCustomAttribute(new CustomAttributeBuilder(typeof(ResolvedAttribute).GetConstructors().First(), Array.Empty<object>()));
                 },
-                ilGenerator => {
-                    wrappedReturnType.IsCollection(out var elementType);
-                    var helperMethodInfo = wrappedReturnType.IsTask() ?
-                        typeof(SortingHelper).GetMethod(nameof(SortingHelper.WrapEnumerableTaskResult), BindingFlags.Public | BindingFlags.Static)! :
-                        typeof(SortingHelper).GetMethod(nameof(SortingHelper.WrapEnumerableResult), BindingFlags.Public | BindingFlags.Static)!;
+                (step, ilGenerator) => {
+                    if(step == MethodExtenderStep.BeforeWrap && wrappedReturnType.IsQueryable()) {
+                        var helperMethodInfo = typeof(SortingHelper).GetMethod(wrappedReturnType.IsTask() ? nameof(SortingHelper.SortQueryableTaskResult) : nameof(SortingHelper.SortQueryableResult), BindingFlags.Public | BindingFlags.Static)!;
+                        helperMethodInfo = helperMethodInfo.MakeGenericMethod(originalType, generatedSortType);
+                        GenerateEnumerableSort(helperMethodInfo, ilGenerator, sortParameterIndex, astNodeParameterIndex, contextParameterIndex);
+                    } else if(step == MethodExtenderStep.AfterWrap && wrappedReturnType.IsCollection()) {
+                        var helperMethodInfo = typeof(SortingHelper).GetMethod(wrappedReturnType.IsTask() ? nameof(SortingHelper.SortEnumerableTaskResult) : nameof(SortingHelper.SortEnumerableResult), BindingFlags.Public | BindingFlags.Static)!;
+                        helperMethodInfo = helperMethodInfo.MakeGenericMethod(elementType, generatedSortType);
+                        GenerateEnumerableSort(helperMethodInfo, ilGenerator, sortParameterIndex, astNodeParameterIndex, contextParameterIndex);
+                    }
+                });
+    }
 
-                    helperMethodInfo = helperMethodInfo.MakeGenericMethod(elementType, generatedSortType);
-
-                    ilGenerator.Emit(OpCodes.Ldarg_S, sortParameterIndex);
-                    ilGenerator.Emit(OpCodes.Ldarg_S, astNodeParameterIndex);
-                    ilGenerator.Emit(OpCodes.Ldarg_S, contextParameterIndex);
-                    ilGenerator.EmitCall(OpCodes.Call, helperMethodInfo, null);
-                }
-            );
+    private static void GenerateEnumerableSort(MethodInfo helperMethodInfo, ILGenerator ilGenerator, int sortParameterIndex, int astNodeParameterIndex, int contextParameterIndex) {
+        ilGenerator.Emit(OpCodes.Ldarg_S, sortParameterIndex);
+        ilGenerator.Emit(OpCodes.Ldarg_S, astNodeParameterIndex);
+        ilGenerator.Emit(OpCodes.Ldarg_S, contextParameterIndex);
+        ilGenerator.EmitCall(OpCodes.Call, helperMethodInfo, null);
     }
 
     private Type GenerateSortType(Type forType) {
