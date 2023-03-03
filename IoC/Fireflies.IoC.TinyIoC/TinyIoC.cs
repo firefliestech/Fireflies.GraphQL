@@ -2850,10 +2850,12 @@ namespace Fireflies.IoC.TinyIoC
         /// <summary>
         /// IObjectFactory that creates new instances of types for each resolution
         /// </summary>
-        private class MultiInstanceFactory : ObjectFactoryBase
+        private class MultiInstanceFactory : ObjectFactoryBase, IDisposable
         {
             private readonly Type registerType;
             private readonly Type registerImplementation;
+            private List<object> instances = new();
+
             public override Type CreatesType { get { return this.registerImplementation; } }
 
             public MultiInstanceFactory(Type registerType, Type registerImplementation)
@@ -2876,7 +2878,9 @@ namespace Fireflies.IoC.TinyIoC
             {
                 try
                 {
-                    return container.ConstructType(requestedType, this.registerImplementation, Constructor, parameters, options);
+                    var constructedType = container.ConstructType(requestedType, this.registerImplementation, Constructor, parameters, options);
+                    instances.Add(constructedType);
+                    return constructedType;
                 }
                 catch (TinyIoCResolutionException ex)
                 {
@@ -2902,6 +2906,12 @@ namespace Fireflies.IoC.TinyIoC
                 get
                 {
                     return this;
+                }
+            }
+
+            public void Dispose() {
+                foreach(var instance in instances.OfType<IDisposable>()) {
+                    instance.Dispose();
                 }
             }
         }
