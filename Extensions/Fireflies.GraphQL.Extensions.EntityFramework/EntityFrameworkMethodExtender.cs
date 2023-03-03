@@ -6,6 +6,7 @@ using Fireflies.GraphQL.Core.Generators;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query.Internal;
 
 namespace Fireflies.GraphQL.Extensions.EntityFramework;
 
@@ -19,11 +20,8 @@ public class EntityFrameworkMethodExtender : IMethodExtenderGenerator {
 
         return new MethodExtenderDescriptor(new[] { typeof(GraphQLField), typeof(IGraphQLContext) },
             methodBuilder => {
-                methodBuilder.DefineParameter(astNodeParameterIndex, ParameterAttributes.HasDefault | ParameterAttributes.Optional, Guid.NewGuid().ToString("N"))
-                    .SetCustomAttribute(new CustomAttributeBuilder(typeof(ResolvedAttribute).GetConstructors().First(), Array.Empty<object>()));
-
-                methodBuilder.DefineParameter(graphQLOptionsParameterIndex, ParameterAttributes.HasDefault | ParameterAttributes.Optional, Guid.NewGuid().ToString("N"))
-                    .SetCustomAttribute(new CustomAttributeBuilder(typeof(ResolvedAttribute).GetConstructors().First(), Array.Empty<object>()));
+                methodBuilder.DefineAnonymousResolvedParameter(astNodeParameterIndex);
+                methodBuilder.DefineAnonymousResolvedParameter(graphQLOptionsParameterIndex);
             },
             (step, ilGenerator) => {
                 if(step != MethodExtenderStep.BeforeWrap)
@@ -43,7 +41,7 @@ public class EntityFrameworkMethodExtender : IMethodExtenderGenerator {
                 return null;
 
             var provider = taskResult.Result.Provider;
-            if(provider.GetType().Name != "EntityQueryProvider")
+            if(provider is not EntityQueryProvider)
                 return taskResult.Result;
 
             var includeVisitor = (IncludeVisitor)Activator.CreateInstance(typeof(IncludeVisitor<>).MakeGenericType(typeof(TElement)), taskResult.Result, graphQLContext)!;
@@ -64,7 +62,7 @@ public class EntityFrameworkMethodExtender : IMethodExtenderGenerator {
         private readonly Stack<(string PropertyName, Type Type)> _path = new();
 
         private IQueryable<TElement> _result;
-        private bool isFirst = true;
+        private bool _isFirst = true;
 
         public IncludeVisitor(IQueryable<TElement> queryable, IGraphQLContext context) {
             _context = context;
@@ -80,8 +78,8 @@ public class EntityFrameworkMethodExtender : IMethodExtenderGenerator {
             if(field.SelectionSet == null || field.SelectionSet.Selections.Count == 0)
                 return;
 
-            if(isFirst) {
-                isFirst = false;
+            if(_isFirst) {
+                _isFirst = false;
                 await base.VisitFieldAsync(field, context);
             } else {
                 if(!_path.TryPeek(out var parent)) {

@@ -1,10 +1,11 @@
 ﻿using Fireflies.GraphQL.Core;
-using Fireflies.GraphQL.Core.Generators.Sorting;
 
 namespace Fireflies.GraphQL.Extensions.EntityFramework;
 
 public static class EntityFrameworkGraphQLOptionsBuilder {
-    public static void UseEntityFramework(this GraphQLOptionsBuilder optionsBuilder) {
-        optionsBuilder.AddGeneratorBefore<SortingGenerator>(new EntityFrameworkMethodExtender());
+    public static EntityFrameworkExtensionsBuilder UseEntityFramework(this GraphQLOptionsBuilder optionsBuilder) {
+        var builder = new EntityFrameworkExtensionsBuilder(optionsBuilder);
+        optionsBuilder.AddExtension(builder);
+        return builder;
     }
 }

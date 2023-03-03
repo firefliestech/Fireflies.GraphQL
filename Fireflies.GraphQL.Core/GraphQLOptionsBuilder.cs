@@ -23,6 +23,7 @@ public class GraphQLOptionsBuilder {
 
     public static int _optionCounter = 0;
     private readonly ModuleBuilder _moduleBuilder;
+    private readonly List<IExtensionBuilder> _extensions = new();
 
     public GraphQLOptionsBuilder() {
         _operationTypes.Add(typeof(__SchemaQuery));
@@ -74,6 +75,11 @@ public class GraphQLOptionsBuilder {
             SchemaDescription = _schemaDescription
         };
 
+        foreach(var extension in _extensions)
+            options.Extensions.Add(extension);
+
+        options.Extensions.BuildOptions();
+
         foreach(var federation in _federations) {
             var attempt = 0;
             while(true) {
@@ -98,10 +104,6 @@ public class GraphQLOptionsBuilder {
             }
         }
 
-
-
-
-
         var wrapperRegistry = new WrapperRegistry();
         var wrapperGenerator = new WrapperGenerator(_moduleBuilder, _generatorRegistry, wrapperRegistry);
 
@@ -111,6 +113,8 @@ public class GraphQLOptionsBuilder {
             builder.RegisterType<GraphQLEngine>();
             builder.RegisterType<__SchemaQuery>();
             builder.RegisterInstance(wrapperRegistry);
+
+            options.Extensions.BuildGraphQLLifetimeScope(builder);
 
             foreach(var type in _operationTypes) {
                 foreach(var operation in FindOperations(wrapperGenerator, type, wt => wt.GetAllGraphQLQueryMethods(true))) {
@@ -165,5 +169,9 @@ public class GraphQLOptionsBuilder {
 
     public void AddFederation(string name, string url) {
         _federations.Add((name, url));
+    }
+
+    public void AddExtension(IExtensionBuilder builder) {
+        _extensions.Add(builder);
     }
 }

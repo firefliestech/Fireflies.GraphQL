@@ -29,7 +29,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.GraphQL.Demo", "D
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fireflies.GraphQL.FederationDemo", "Demos\Fireflies.GraphQL.Federation\Fireflies.GraphQL.FederationDemo.csproj", "{077D9D1D-3719-4205-88B4-5AA9119CBDFF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoadTest", "LoadTest\LoadTest.csproj", "{007819FB-8017-4C78-BA59-183292F3EC05}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LoadTest", "LoadTest\LoadTest.csproj", "{007819FB-8017-4C78-BA59-183292F3EC05}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Extensions", "Extensions", "{673420A0-CB78-4AFD-8F9E-98454154445D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fireflies.GraphQL.Extensions.EntityFramework", "Extensions\Fireflies.GraphQL.Extensions.EntityFramework\Fireflies.GraphQL.Extensions.EntityFramework.csproj", "{7A56C1ED-6746-4863-A8D7-891B0C579306}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -81,6 +85,10 @@ Global
 		{007819FB-8017-4C78-BA59-183292F3EC05}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{007819FB-8017-4C78-BA59-183292F3EC05}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{007819FB-8017-4C78-BA59-183292F3EC05}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7A56C1ED-6746-4863-A8D7-891B0C579306}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A56C1ED-6746-4863-A8D7-891B0C579306}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A56C1ED-6746-4863-A8D7-891B0C579306}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A56C1ED-6746-4863-A8D7-891B0C579306}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -94,6 +102,7 @@ Global
 		{1A23CDB9-8C0C-42A6-9ED5-2BAF574E0543} = {CE12D8F7-B1DA-47EC-81FA-A159AD1BFB4F}
 		{077D9D1D-3719-4205-88B4-5AA9119CBDFF} = {CE12D8F7-B1DA-47EC-81FA-A159AD1BFB4F}
 		{007819FB-8017-4C78-BA59-183292F3EC05} = {CE12D8F7-B1DA-47EC-81FA-A159AD1BFB4F}
+		{7A56C1ED-6746-4863-A8D7-891B0C579306} = {673420A0-CB78-4AFD-8F9E-98454154445D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {695A8354-BD19-4074-B3CB-A3822CBD24BE}

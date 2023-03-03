@@ -56,7 +56,7 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
     }
 
     private (GraphQLDocument?, ErrorJsonWriter?) Parse(GraphQLRequest? request) {
-        if(request == null || request.Query == null) {
+        if(request?.Query == null) {
             return (null, GenerateErrorResult("Empty request", "GRAPHQL_SYNTAX_ERROR"));
         }
 

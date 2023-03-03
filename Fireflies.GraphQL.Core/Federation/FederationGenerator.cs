@@ -2,6 +2,7 @@
 using System.Reflection.Emit;
 using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Federation.Schema;
 using Fireflies.GraphQL.Core.Schema;
 using GraphQLParser.AST;
@@ -78,8 +79,7 @@ public class FederationGenerator {
 
         var methodBuilder = typeBuilder.DefineMethod(field.Name, MethodAttributes.Public, taskReturnType, argTypes.Union(new[] { typeof(ASTNode) }).ToArray());
         DefineParameters(argTypes, methodBuilder, field);
-        methodBuilder.DefineParameter(argTypes.Count + 1, ParameterAttributes.HasDefault | ParameterAttributes.Optional, Guid.NewGuid().ToString("N"))
-            .SetCustomAttribute(new CustomAttributeBuilder(typeof(ResolvedAttribute).GetConstructors().First(), Array.Empty<object>()));
+        methodBuilder.DefineAnonymousResolvedParameter(argTypes.Count + 1);
 
         AddAttributes(field, methodBuilder);
         AddOperationAttribute(operation, methodBuilder);

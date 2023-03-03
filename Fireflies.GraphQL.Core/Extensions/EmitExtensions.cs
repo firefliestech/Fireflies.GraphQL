@@ -3,7 +3,7 @@ using System.Reflection;
 
 namespace Fireflies.GraphQL.Core.Extensions;
 
-internal static class EmitExtensions {
+public static class EmitExtensions {
     public static CustomAttributeBuilder ToAttributeBuilder(this CustomAttributeData data) {
         if(data == null) {
             throw new ArgumentNullException(nameof(data));
@@ -34,6 +34,11 @@ internal static class EmitExtensions {
             fieldArgumentValues.ToArray());
     }
 
+    public static void DefineAnonymousResolvedParameter(this MethodBuilder methodBuilder, int index) {
+        methodBuilder.DefineParameter(index, ParameterAttributes.HasDefault | ParameterAttributes.Optional, Guid.NewGuid().ToString("N"))
+            .SetCustomAttribute(new CustomAttributeBuilder(typeof(ResolvedAttribute).GetConstructors().First(), Array.Empty<object>()));
+    }
+
     public static void DefineParameters(this MethodBuilder builder, ParameterInfo[] baseParameters) {
         InternalDefineParameters(baseParameters, (parameter, index) => builder.DefineParameter(index, parameter.HasDefaultValue ? ParameterAttributes.HasDefault : ParameterAttributes.None, parameter.Name));
     }
@@ -49,7 +54,11 @@ internal static class EmitExtensions {
             i++;
 
             foreach(var customAttributeData in parameter.GetCustomAttributesData()) {
-                parameterBuilder.SetCustomAttribute(customAttributeData.ToAttributeBuilder());
+                try {
+                    parameterBuilder.SetCustomAttribute(customAttributeData.ToAttributeBuilder());
+                } catch(Exception ex) {
+                    Console.WriteLine(ex);
+                }
             }
 
             if(parameter.HasDefaultValue)

@@ -34,11 +34,8 @@ public class SortingGenerator : IMethodExtenderGenerator {
                     parameterBuilder.SetConstant(null);
                     parameterBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLNullable).GetConstructors().First(), Array.Empty<object>()));
 
-                    methodBuilder.DefineParameter(astNodeParameterIndex, ParameterAttributes.HasDefault | ParameterAttributes.Optional, Guid.NewGuid().ToString("N"))
-                        .SetCustomAttribute(new CustomAttributeBuilder(typeof(ResolvedAttribute).GetConstructors().First(), Array.Empty<object>()));
-
-                    methodBuilder.DefineParameter(contextParameterIndex, ParameterAttributes.HasDefault | ParameterAttributes.Optional, Guid.NewGuid().ToString("N"))
-                        .SetCustomAttribute(new CustomAttributeBuilder(typeof(ResolvedAttribute).GetConstructors().First(), Array.Empty<object>()));
+                    methodBuilder.DefineAnonymousResolvedParameter(astNodeParameterIndex);
+                    methodBuilder.DefineAnonymousResolvedParameter(contextParameterIndex);
                 },
                 (step, ilGenerator) => {
                     if(step == MethodExtenderStep.BeforeWrap && isQueryable) {

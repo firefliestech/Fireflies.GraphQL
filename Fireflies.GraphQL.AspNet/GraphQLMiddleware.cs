@@ -81,6 +81,8 @@ public class GraphQLMiddleware {
             if(_options.DependencyResolver.TryResolve<IRequestDependencyResolverBuilder>(out var innerBuilder)) {
                 innerBuilder!.Build(builder, httpContext);
             }
+
+            _options.Extensions.BuildRequestLifetimeScope(builder);
         });
         return lifetimeScopeResolver;
     }
