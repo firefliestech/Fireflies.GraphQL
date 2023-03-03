@@ -2,4 +2,4 @@
 
 Implementation of the fireflies IoC container using Autofac.
 
-<sup><sup>Logo by freepik</sup></sup>
+_Logo by freepik_

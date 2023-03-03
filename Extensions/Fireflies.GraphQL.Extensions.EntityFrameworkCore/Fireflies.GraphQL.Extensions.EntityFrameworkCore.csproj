@@ -4,13 +4,18 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+	  <Authors>Fireflies.Tech</Authors>
+	  <Description>Fireflies GraphQL Entity Framework Core extension</Description>
+	  <Copyright>2023 Fireflies.tech</Copyright>
+	  <PackageLicenseExpression>MIT</PackageLicenseExpression>
+	  <PackageReadmeFile>README.md</PackageReadmeFile>
+	  <PackageIcon>Icon-128x128.png</PackageIcon>
+	  <RepositoryUrl>https://github.com/firefliestech/fireflies.graphql</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\Images\Icon-128x128.png" Link="Icon-128x128.png">
-      <PackagePath>\</PackagePath>
-      <Pack>true</Pack>
-    </None>
+	  <None Include="README.md" Pack="true" PackagePath="\" />
+	  <None Include="..\Images\Icon-128x128.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

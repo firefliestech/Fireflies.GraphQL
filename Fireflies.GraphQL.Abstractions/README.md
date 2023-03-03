@@ -2,4 +2,4 @@
 
 Abstractions for Fireflies GraphQL.
 
-<sup><sup>Logo by freepik</sup></sup>
+_Logo by freepik_

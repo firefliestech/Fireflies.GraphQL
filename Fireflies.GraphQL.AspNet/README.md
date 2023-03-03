@@ -147,4 +147,4 @@ To add a federated backend, you only need to register it during startup.
 graphQLOptions.AddFederation("Author", "https://localhost:7274/graphql");
 ```
 
-<sup><sup>Logo by freepik</sup></sup>
+_Logo by freepik_

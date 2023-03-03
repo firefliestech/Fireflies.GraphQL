@@ -2,4 +2,4 @@
 
 Abstractions for Fireflies logging.
 
-<sup><sup>Logo by freepik</sup></sup>
+_Logo by freepik_
