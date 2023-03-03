@@ -8,9 +8,9 @@ using GraphQLParser.Visitors;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query.Internal;
 
-namespace Fireflies.GraphQL.Extensions.EntityFramework;
+namespace Fireflies.GraphQL.Extensions.EntityFrameworkCore;
 
-public class EntityFrameworkMethodExtender : IMethodExtenderGenerator {
+public class EntityFrameworkCoreMethodExtender : IMethodExtenderGenerator {
     public MethodExtenderDescriptor GetMethodExtenderDescriptor(MemberInfo memberInfo, Type originalType, Type wrappedReturnType, ref int parameterCount) {
         if(!wrappedReturnType.IsQueryable())
             return new MethodExtenderDescriptor();
@@ -27,7 +27,7 @@ public class EntityFrameworkMethodExtender : IMethodExtenderGenerator {
                 if(step != MethodExtenderStep.BeforeWrap)
                     return;
 
-                var helperMethodInfo = typeof(EntityFrameworkMethodExtender).GetMethod(wrappedReturnType.IsTask() ? nameof(ExtendTaskResult) : nameof(ExtendResult), BindingFlags.Public | BindingFlags.Static)!;
+                var helperMethodInfo = typeof(EntityFrameworkCoreMethodExtender).GetMethod(wrappedReturnType.IsTask() ? nameof(ExtendTaskResult) : nameof(ExtendResult), BindingFlags.Public | BindingFlags.Static)!;
                 helperMethodInfo = helperMethodInfo.MakeGenericMethod(originalType);
                 ilGenerator.Emit(OpCodes.Ldarg_S, astNodeParameterIndex);
                 ilGenerator.Emit(OpCodes.Ldarg_S, graphQLOptionsParameterIndex);

@@ -3,13 +3,13 @@ using Fireflies.GraphQL.Core.Generators.Sorting;
 using Fireflies.IoC.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
-namespace Fireflies.GraphQL.Extensions.EntityFramework;
+namespace Fireflies.GraphQL.Extensions.EntityFrameworkCore;
 
-public class EntityFrameworkExtensionsBuilder : IExtensionBuilder {
+public class EntityFrameworkCoreExtensionsBuilder : IExtensionBuilder {
     private readonly GraphQLOptionsBuilder _optionsBuilder;
     private readonly List<Type> _dbContexts = new();
 
-    public EntityFrameworkExtensionsBuilder(GraphQLOptionsBuilder optionsBuilder) {
+    public EntityFrameworkCoreExtensionsBuilder(GraphQLOptionsBuilder optionsBuilder) {
         _optionsBuilder = optionsBuilder;
     }
 
@@ -18,7 +18,7 @@ public class EntityFrameworkExtensionsBuilder : IExtensionBuilder {
     }
 
     public void Build() {
-        _optionsBuilder.AddGeneratorBefore<SortingGenerator>(new EntityFrameworkMethodExtender());
+        _optionsBuilder.AddGeneratorBefore<SortingGenerator>(new EntityFrameworkCoreMethodExtender());
     }
 
     public void BuildRequestLifetimeScope(ILifetimeScopeBuilder lifetimeScopeBuilder) {

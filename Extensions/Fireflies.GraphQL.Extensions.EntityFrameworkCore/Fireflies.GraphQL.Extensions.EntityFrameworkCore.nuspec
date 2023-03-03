@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>$author$</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>$description$</description>
+    <copyright>$copyright$</copyright>
+    <tags>fireflies extension entity-framework</tags>
+    <dependencies>
+      <dependency id="Fireflies.GraphQL.Core" version="$version$" />
+      <dependency id="Microsoft.EntityFrameworkCore" version="7.0.3" />
+    </dependencies>
+  </metadata>
+</package>
