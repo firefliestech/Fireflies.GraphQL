@@ -1,6 +1,10 @@
 ﻿namespace Fireflies.GraphQL.Core.Generators.Connection;
 
-public class ConnectionBase<TEdge, TNode> where TEdge : EdgeBase<TNode> {
+public abstract class ConnectionBase {
+
+}
+
+public class ConnectionBase<TEdge, TNode> : ConnectionBase where TEdge : EdgeBase<TNode> {
     private readonly IEnumerable<TEdge> _filteredEdges;
 
     protected ConnectionBase(IEnumerable<TEdge> edges, int first, string? after) {

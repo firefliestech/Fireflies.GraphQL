@@ -1,8 +1,10 @@
-﻿using System.Reflection;
+﻿using System.ComponentModel.Design;
+using System.Reflection;
 using System.Reflection.Emit;
 using Fireflies.GraphQL.Core;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Generators;
+using Fireflies.GraphQL.Core.Generators.Connection;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 using Microsoft.EntityFrameworkCore;
@@ -17,11 +19,13 @@ public class EntityFrameworkCoreMethodExtender : IMethodExtenderGenerator {
 
         var astNodeParameterIndex = ++parameterCount;
         var graphQLOptionsParameterIndex = ++parameterCount;
+        var resultContext = ++parameterCount;
 
-        return new MethodExtenderDescriptor(new[] { typeof(GraphQLField), typeof(IGraphQLContext) },
+        return new MethodExtenderDescriptor(new[] { typeof(GraphQLField), typeof(IGraphQLContext), typeof(ResultContext) },
             methodBuilder => {
                 methodBuilder.DefineAnonymousResolvedParameter(astNodeParameterIndex);
                 methodBuilder.DefineAnonymousResolvedParameter(graphQLOptionsParameterIndex);
+                methodBuilder.DefineAnonymousResolvedParameter(resultContext);
             },
             (step, ilGenerator) => {
                 if(step != MethodExtenderStep.BeforeWrap)
@@ -31,26 +35,38 @@ public class EntityFrameworkCoreMethodExtender : IMethodExtenderGenerator {
                 helperMethodInfo = helperMethodInfo.MakeGenericMethod(originalType);
                 ilGenerator.Emit(OpCodes.Ldarg_S, astNodeParameterIndex);
                 ilGenerator.Emit(OpCodes.Ldarg_S, graphQLOptionsParameterIndex);
+                ilGenerator.Emit(OpCodes.Ldarg_S, resultContext);
                 ilGenerator.EmitCall(OpCodes.Call, helperMethodInfo, null);
             });
     }
 
-    public static Task<IQueryable<TElement>?> ExtendTaskResult<TElement>(Task<IQueryable<TElement>?> resultTask, GraphQLField graphQLField, IGraphQLContext graphQLContext) {
+    public static Task<IQueryable<TElement>?> ExtendTaskResult<TElement>(Task<IQueryable<TElement>?> resultTask, GraphQLField graphQLField, IGraphQLContext graphQLContext, ResultContext resultContext) {
+        var localStack = resultContext;
         return resultTask.ContinueWith(taskResult => {
             if(taskResult.Result == null)
                 return null;
 
+            Console.WriteLine(resultContext);
             var provider = taskResult.Result.Provider;
             if(provider is not EntityQueryProvider)
                 return taskResult.Result;
 
             var includeVisitor = (IncludeVisitor)Activator.CreateInstance(typeof(IncludeVisitor<>).MakeGenericType(typeof(TElement)), taskResult.Result, graphQLContext)!;
+            if(resultContext.Any(x => x.IsAssignableTo(typeof(ConnectionBase)))) {
+                var edgesField = graphQLField.SelectionSet?.Selections.OfType<GraphQLField>().FirstOrDefault(x => x.Name.StringValue == "edges");
+                var nodeField = edgesField?.SelectionSet?.Selections.OfType<GraphQLField>().FirstOrDefault(x => x.Name.StringValue == "node");
+                if(nodeField != null)
+                    return (IQueryable<TElement>?)includeVisitor.Execute(nodeField);
+
+                return taskResult.Result;
+            }
+
             return (IQueryable<TElement>?)includeVisitor.Execute(graphQLField);
         });
     }
 
-    public static IQueryable<TElement>? ExtendResult<TElement>(IQueryable<TElement>? result, GraphQLField graphQLField, IGraphQLContext graphQLContext) where TElement : class {
-        return ExtendTaskResult(Task.FromResult(result), graphQLField, graphQLContext).Result;
+    public static IQueryable<TElement>? ExtendResult<TElement>(IQueryable<TElement>? result, GraphQLField graphQLField, IGraphQLContext graphQLContext, ResultContext resultContext) where TElement : class {
+        return ExtendTaskResult(Task.FromResult(result), graphQLField, graphQLContext, resultContext).Result;
     }
 
     private abstract class IncludeVisitor : ASTVisitor<IGraphQLContext> {

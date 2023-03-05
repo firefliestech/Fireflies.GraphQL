@@ -13,18 +13,20 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
     private readonly ValueAccessor _valueAccessor;
     private readonly IGraphQLContext _context;
     private readonly IDependencyResolver _dependencyResolver;
+    private readonly ResultContext _resultContext;
     private readonly Dictionary<string, ParameterInfo> _parameters;
 
     public Dictionary<string, object?> Values { get; set; } = new();
 
     private readonly Stack<object?> _stack = new();
 
-    public ArgumentBuilder(GraphQLArguments? arguments, MethodInfo methodInfo, ValueAccessor valueAccessor, IGraphQLContext context, IDependencyResolver dependencyResolver) {
+    public ArgumentBuilder(GraphQLArguments? arguments, MethodInfo methodInfo, ValueAccessor valueAccessor, IGraphQLContext context, IDependencyResolver dependencyResolver, ResultContext resultContext) {
         _arguments = arguments;
         _methodInfo = methodInfo;
         _valueAccessor = valueAccessor;
         _context = context;
         _dependencyResolver = dependencyResolver;
+        _resultContext = resultContext;
         _parameters = methodInfo.GetParameters().ToDictionary(x => x.Name!);
     }
 
@@ -37,9 +39,11 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
             if(typeof(TASTNode).IsAssignableTo(x.ParameterType))
                 return node;
 
-            if(x.ParameterType == typeof(CancellationToken)) {
+            if(x.ParameterType == typeof(CancellationToken))
                 return !x.HasCustomAttribute<EnumeratorCancellationAttribute>() ? _context.CancellationToken : default;
-            }
+
+            if(x.ParameterType == typeof(ResultContext))
+                return _resultContext;
 
             if (x.HasCustomAttribute<ResolvedAttribute>(out _))
                 return _dependencyResolver.Resolve(x.ParameterType);

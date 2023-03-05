@@ -41,8 +41,8 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
             var operationDescriptor = GetHandler(graphQLField);
             var operations = _dependencyResolver.Resolve(operationDescriptor.Type);
 
-            var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _valueAccessor, _context, _dependencyResolver);
             var returnType = operationDescriptor.Method.DiscardTaskFromReturnType();
+            var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _valueAccessor, _context, _dependencyResolver, new ResultContext().Push(returnType));
             var asyncEnumerable = (IAsyncEnumerable<object>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder, graphQLField })!;
             await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken).ConfigureAwait(false)) {
                 var writer = _writer ?? new DataJsonWriter();

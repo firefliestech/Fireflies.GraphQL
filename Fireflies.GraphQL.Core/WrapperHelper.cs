@@ -41,11 +41,11 @@ public static class WrapperHelper {
     }
 
     // Connection
-    public static Task<TConnection> CreateEnumerableTaskConnection<TConnection, TEdge, TNode>(Task<IQueryable<TNode>> nodesTask, int first, string after) {
+    public static Task<TConnection> CreateEnumerableTaskConnection<TConnection, TEdge, TNode>(Task<IEnumerable<TNode>> nodesTask, int first, string after) {
         return nodesTask.ContinueWith(r => CreateEnumerableConnection<TConnection, TEdge, TNode>(r.Result, first, after));
     }
 
-    public static TConnection CreateEnumerableConnection<TConnection, TEdge, TNode>(IQueryable<TNode> nodes, int first, string after) {
+    public static TConnection CreateEnumerableConnection<TConnection, TEdge, TNode>(IEnumerable<TNode> nodes, int first, string after) {
         var edges = nodes.Select(n => (TEdge)Activator.CreateInstance(typeof(TEdge), n)!).ToArray();
         var type = typeof(TConnection);
         return (TConnection)Activator.CreateInstance(type, edges, first, after)!;

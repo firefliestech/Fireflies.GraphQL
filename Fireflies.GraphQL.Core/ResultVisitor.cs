@@ -15,6 +15,8 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     private readonly IGraphQLContext _context;
 
     private readonly Stack<Level> _stack = new();
+    private readonly ResultContext _resultContext = new();
+
     private readonly IDependencyResolver _dependencyResolver;
     private readonly WrapperRegistry _wrapperRegistry;
 
@@ -26,6 +28,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
         _dependencyResolver = dependencyResolver;
         _wrapperRegistry = wrapperRegistry;
         _stack.Push(new Level(data, 0));
+        _resultContext.Push(data.GetType());
     }
 
     protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, IGraphQLContext context) {
@@ -107,11 +110,13 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
 
                 var localLevel = new Level(fieldValue, parentLevel.SubLevel + 1);
                 _stack.Push(localLevel);
+                _resultContext.Push(localLevel.GetType());
 
                 if(isEnumerable) {
                     foreach(var data in (IEnumerable)fieldValue) {
                         var arrayLevel = new Level(data, localLevel.SubLevel + 1);
                         _stack.Push(arrayLevel);
+                        _resultContext.Push(data.GetType());
                         _writer.WriteStartObject();
 
                         foreach(var subSelection in field.SelectionSet.Selections) {
@@ -119,6 +124,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
                         }
 
                         _writer.WriteEndObject();
+                        _resultContext.Pop();
                         _stack.Pop();
                     }
                 } else {
@@ -132,6 +138,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
                 else
                     _writer.WriteEndObject();
 
+                _resultContext.Pop();
                 _stack.Pop();
             }
         }
@@ -156,7 +163,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     }
 
     private async Task<object?> InvokeMethod(GraphQLField graphQLField, MethodInfo methodInfo, Level parentLevel) {
-        var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, _valueAccessor, _context, _dependencyResolver);
+        var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, _valueAccessor, _context, _dependencyResolver, _resultContext);
         var arguments = await argumentBuilder.Build(graphQLField).ConfigureAwait(false);
         return await methodInfo.ExecuteMethod(parentLevel.Data!, arguments).ConfigureAwait(false);
     }
