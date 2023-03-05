@@ -14,7 +14,6 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     private readonly ValueAccessor _valueAccessor;
     private readonly IGraphQLContext _context;
 
-    private readonly Stack<Level> _stack = new();
     private readonly ResultContext _resultContext = new();
 
     private readonly IDependencyResolver _dependencyResolver;
@@ -27,13 +26,12 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
         _context = context;
         _dependencyResolver = dependencyResolver;
         _wrapperRegistry = wrapperRegistry;
-        _stack.Push(new Level(data, 0));
-        _resultContext.Push(data.GetType());
+        _resultContext.Push(data.GetType(), data);
     }
 
     protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, IGraphQLContext context) {
         if(inlineFragment.TypeCondition != null) {
-            var currentType = _stack.Peek();
+            var currentType = _resultContext.Peek();
             var matching = currentType.Data!.GetType().GetAllClassesThatImplements().Select(x => _wrapperRegistry.GetWrapperOfSelf(x)).FirstOrDefault(x => x.Name == inlineFragment.TypeCondition.Type.Name);
             if(matching != null) {
                 await base.VisitInlineFragmentAsync(inlineFragment, context).ConfigureAwait(false);
@@ -44,7 +42,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     }
 
     protected override async ValueTask VisitFieldAsync(GraphQLField field, IGraphQLContext context) {
-        var parentLevel = _stack.Peek();
+        var parentLevel = _resultContext.Peek();
         
         if(parentLevel.Data == null)
             return;
@@ -107,16 +105,12 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
                     _writer.WriteStartArray(fieldName);
                 else
                     _writer.WriteStartObject(fieldName);
-
-                var localLevel = new Level(fieldValue, parentLevel.SubLevel + 1);
-                _stack.Push(localLevel);
-                _resultContext.Push(localLevel.GetType());
+                
+                _resultContext.Push(fieldValue.GetType(), fieldValue);
 
                 if(isEnumerable) {
                     foreach(var data in (IEnumerable)fieldValue) {
-                        var arrayLevel = new Level(data, localLevel.SubLevel + 1);
-                        _stack.Push(arrayLevel);
-                        _resultContext.Push(data.GetType());
+                        _resultContext.Push(data.GetType(), data);
                         _writer.WriteStartObject();
 
                         foreach(var subSelection in field.SelectionSet.Selections) {
@@ -125,7 +119,6 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
 
                         _writer.WriteEndObject();
                         _resultContext.Pop();
-                        _stack.Pop();
                     }
                 } else {
                     foreach(var subSelection in field.SelectionSet.Selections) {
@@ -139,7 +132,6 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
                     _writer.WriteEndObject();
 
                 _resultContext.Pop();
-                _stack.Pop();
             }
         }
     }
@@ -162,7 +154,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
         return false;
     }
 
-    private async Task<object?> InvokeMethod(GraphQLField graphQLField, MethodInfo methodInfo, Level parentLevel) {
+    private async Task<object?> InvokeMethod(GraphQLField graphQLField, MethodInfo methodInfo, ResultContext.Entry parentLevel) {
         var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, _valueAccessor, _context, _dependencyResolver, _resultContext);
         var arguments = await argumentBuilder.Build(graphQLField).ConfigureAwait(false);
         return await methodInfo.ExecuteMethod(parentLevel.Data!, arguments).ConfigureAwait(false);
@@ -178,19 +170,5 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
         }
     }
 
-    private class Level {
-        private readonly HashSet<string> _addedFields = new();
 
-        public object? Data { get; }
-        public int SubLevel { get; }
-
-        public Level(object data, int subLevel) {
-            SubLevel = subLevel;
-            Data = data;
-        }
-
-        public bool ShouldAdd(string name) {
-            return _addedFields.Add(name);
-        }
-    }
 }
