@@ -63,11 +63,14 @@ public static class FederationHelper {
         return CreateInstance<T>(token);
     }
 
-    private static IEnumerable<T> GetEnumerableResult<T>(JsonNode token) {
+    private static IEnumerable<T?> GetEnumerableResult<T>(JsonNode token) {
         return token.AsArray().Select(CreateInstance<T>);
     }
 
-    private static T CreateInstance<T>(JsonNode token) {
+    private static T? CreateInstance<T>(JsonNode? token) {
+        if(token == null)
+            return default;
+
         switch(Type.GetTypeCode(typeof(T))) {
             case TypeCode.Int16:
             case TypeCode.Int32:

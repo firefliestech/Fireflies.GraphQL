@@ -72,7 +72,7 @@ public class FederationGenerator {
     }
 
     private void GenerateOperation(OperationType operation, TypeBuilder typeBuilder, FederationField field) {
-        var argTypes = field.Args.Select(argType => GetTypeFromSchemaType(argType.Type)).ToList();
+        var argTypes = field.Args.Select(argType => GetTypeFromSchemaType(argType.Type!)).ToList();
 
         var returnType = GetTypeFromSchemaType(field.Type);
         var taskReturnType = operation == OperationType.Subscription ? typeof(IAsyncEnumerable<>).MakeGenericType(returnType) : typeof(Task<>).MakeGenericType(returnType);
@@ -152,7 +152,7 @@ public class FederationGenerator {
         foreach(var field in schemaType.Fields) {
             var argTypes = new List<Type>();
             foreach(var argType in field.Args) {
-                var argumentType = GetTypeFromSchemaType(argType.Type);
+                var argumentType = GetTypeFromSchemaType(argType.Type!);
                 argTypes.Add(argumentType);
             }
 
@@ -212,7 +212,7 @@ public class FederationGenerator {
             var parameterBuilder = fieldMethod.DefineParameter(i + 1, ParameterAttributes.None, field.Args[i].Name);
             if(field.Args[i].DefaultValue != null)
                 parameterBuilder.SetConstant(Convert.ChangeType(field.Args[0].DefaultValue, argTypes[i]));
-            else if(IsNullable(field.Args[i].Type))
+            else if(IsNullable(field.Args[i].Type!))
                 parameterBuilder.SetConstant(null);
         }
     }
