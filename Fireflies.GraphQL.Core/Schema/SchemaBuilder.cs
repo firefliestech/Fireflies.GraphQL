@@ -100,6 +100,9 @@ internal class SchemaBuilder {
         }
 
         foreach(var method in startingObject.GetAllGraphQLMethods()) {
+            if(method.HasCustomAttribute<GraphQLInternalAttribute>())
+                continue;
+
             foreach(var parameter in method.GetAllGraphQLParameters()) {
                 if(_ignore.Contains(parameter.ParameterType))
                     continue;
@@ -133,6 +136,9 @@ internal class SchemaBuilder {
         var fields = new List<__Field>();
 
         foreach(var query in operations.Select(x => x.Method)) {
+            if(query.HasCustomAttribute<GraphQLInternalAttribute>())
+                continue;
+
             fields.Add(new __Field(query) {
                 Type = CreateType(query.DiscardTaskFromReturnType(), true),
                 Args = GetArguments(query).ToArray()

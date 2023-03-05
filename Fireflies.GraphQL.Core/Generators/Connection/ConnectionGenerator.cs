@@ -54,7 +54,7 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
             connectionReturnType,
             methodParameters.ToArray());
 
-        baseMember.CopyAttributes(ab => methodBuilder.SetCustomAttribute(ab));
+        baseMember.CopyAttributes(ab => methodBuilder.SetCustomAttribute(ab), x => x != typeof(GraphQLInternalAttribute));
 
         methodBuilder.DefineParameters(baseParameters);
         foreach(var parameter in decoratorDescriptors)
@@ -62,7 +62,7 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
 
         var baseParametersLength = baseParameters.Length + decoratedParameters.Length;
         methodBuilder.DefineParameter(baseParametersLength + 1, ParameterAttributes.HasDefault, "first").SetConstant(10);
-        methodBuilder.DefineParameter(baseParametersLength + 2, ParameterAttributes.HasDefault, "after").SetConstant(null);
+        methodBuilder.DefineParameter(baseParametersLength + 2, ParameterAttributes.HasDefault | ParameterAttributes.Optional, "after").AsNullable();
 
         var methodIlGenerator = methodBuilder.GetILGenerator();
 

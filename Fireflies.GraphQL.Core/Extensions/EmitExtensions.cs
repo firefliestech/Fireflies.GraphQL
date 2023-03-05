@@ -1,9 +1,16 @@
 ﻿using System.Reflection.Emit;
 using System.Reflection;
+using Fireflies.GraphQL.Abstractions;
 
 namespace Fireflies.GraphQL.Core.Extensions;
 
 public static class EmitExtensions {
+    public static ParameterBuilder AsNullable(this ParameterBuilder parameterBuilder) {
+        parameterBuilder.SetConstant(null);
+        parameterBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLNullable).GetConstructors().First(), Array.Empty<object>()));
+        return parameterBuilder;
+    }
+
     public static CustomAttributeBuilder ToAttributeBuilder(this CustomAttributeData data) {
         if(data == null) {
             throw new ArgumentNullException(nameof(data));
@@ -68,9 +75,10 @@ public static class EmitExtensions {
         }
     }
 
-    public static void CopyAttributes(this MemberInfo copyFrom, Action<CustomAttributeBuilder> callback) {
+    public static void CopyAttributes(this MemberInfo copyFrom, Action<CustomAttributeBuilder> callback, Func<Type, bool>? copyIf = null) {
         foreach(var customAttribute in copyFrom.GetCustomAttributesData()) {
-            callback(customAttribute.ToAttributeBuilder());
+            if(copyIf == null || copyIf(customAttribute.AttributeType))
+                callback(customAttribute.ToAttributeBuilder());
         }
     }
 }
