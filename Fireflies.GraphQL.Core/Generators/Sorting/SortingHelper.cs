@@ -7,7 +7,7 @@ using GraphQLParser.Visitors;
 namespace Fireflies.GraphQL.Core.Generators.Sorting;
 
 public static class SortingHelper {
-    public static Task<IQueryable<TElement>?> SortEnumerableTaskResult<TElement, TSort>(Task<IQueryable<TElement>?> resultTask, TSort sortType, GraphQLField rootField, IGraphQLContext graphQLContext) {
+    public static Task<IEnumerable<TElement>?> SortEnumerableTaskResult<TElement, TSort>(Task<IEnumerable<TElement>?> resultTask, TSort sortType, GraphQLField rootField, IGraphQLContext graphQLContext) {
         return resultTask.ContinueWith(taskResult => {
             if(taskResult.Result == null)
                 return null;
@@ -22,7 +22,7 @@ public static class SortingHelper {
         });
     }
 
-    public static IQueryable<TElement>? SortEnumerableResult<TElement, TSort>(IQueryable<TElement>? result, TSort sortType, GraphQLField graphQLField, IGraphQLContext graphQLContext) {
+    public static IEnumerable<TElement>? SortEnumerableResult<TElement, TSort>(IEnumerable<TElement>? result, TSort sortType, GraphQLField graphQLField, IGraphQLContext graphQLContext) {
         return SortEnumerableTaskResult(Task.FromResult(result), sortType, graphQLField, graphQLContext).Result;
     }
 
@@ -54,9 +54,9 @@ public static class SortingHelper {
             WaitForMethod = typeof(EnumerableSortingBuilder<TElement>).GetMethod(nameof(WaitFor), BindingFlags.NonPublic | BindingFlags.Instance)!;
         }
 
-        public IQueryable<TElement> Result { get; private set; }
+        public IEnumerable<TElement> Result { get; private set; }
 
-        public EnumerableSortingBuilder(IQueryable<TElement> elements) {
+        public EnumerableSortingBuilder(IEnumerable<TElement> elements) {
             Result = elements;
             _firstSort = true;
         }
@@ -65,7 +65,7 @@ public static class SortingHelper {
             if(objectField.Value is GraphQLEnumValue enumValue) {
                 var desc = enumValue.Name.StringValue == nameof(SortOrder.DESC);
                 if(!_firstSort) {
-                    var orderedQueryable = (IOrderedQueryable<TElement>)Result;
+                    var orderedQueryable = (IOrderedEnumerable<TElement>)Result;
                     Result = desc ? orderedQueryable.ThenByDescending(x => GetValue(x, objectField.Name.StringValue)) : orderedQueryable.OrderBy(x => GetValue(x, objectField.Name.StringValue));
                 } else {
                     Result = desc ? Result.OrderByDescending(x => GetValue(x, objectField.Name.StringValue)) : Result.OrderBy(x => GetValue(x, objectField.Name.StringValue));
