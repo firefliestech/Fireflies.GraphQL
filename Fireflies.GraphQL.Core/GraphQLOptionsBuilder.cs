@@ -5,6 +5,7 @@ using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Generators;
 using Fireflies.GraphQL.Core.Generators.Connection;
 using Fireflies.GraphQL.Core.Generators.Sorting;
+using Fireflies.GraphQL.Core.Generators.Where;
 using Fireflies.GraphQL.Core.Schema;
 using Fireflies.IoC.Abstractions;
 using Fireflies.IoC.TinyIoC;
@@ -33,6 +34,7 @@ public class GraphQLOptionsBuilder {
         _moduleBuilder = dynamicAssembly.DefineDynamicModule("Main");
 
         _generatorRegistry = new GeneratorRegistry();
+        _generatorRegistry.Add(new WhereGenerator(_moduleBuilder));
         _generatorRegistry.Add(new SortingGenerator(_moduleBuilder));
         _generatorRegistry.Add(new ConnectionGenerator(_moduleBuilder));
     }

@@ -1,4 +1,6 @@
-﻿namespace Fireflies.GraphQL.Abstractions.Where;
+﻿using Fireflies.GraphQL.Abstractions.Generator;
 
-public class GraphQLWhereAttribute : GraphQLMiddlewareAttribute {
+namespace Fireflies.GraphQL.Abstractions.Where;
+
+public class GraphQLWhereAttribute : GraphQLGeneratorAttribute {
 }

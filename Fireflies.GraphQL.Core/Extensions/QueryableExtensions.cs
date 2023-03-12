@@ -1,6 +1,5 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
-using System.Reflection.Metadata.Ecma335;
 
 namespace Fireflies.GraphQL.Core.Extensions;
 
@@ -31,7 +30,7 @@ public static class QueryableExtensions {
         return (IOrderedQueryable<T>)source.Provider.CreateQuery(methodCall);
     }
 
-    private static IEnumerable<string> GetMemberParts<T>(string memberPath) {
+    public static IEnumerable<string> GetMemberParts<T>(string memberPath) {
         var memberParts = memberPath.Split('.');
 
         var currentType = typeof(T);

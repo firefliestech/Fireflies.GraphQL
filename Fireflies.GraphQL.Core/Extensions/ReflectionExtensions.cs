@@ -34,6 +34,19 @@ public static class ReflectionExtensions {
         return name.LowerCaseFirstLetter();
     }
 
+    public static string GetPrimitiveGraphQLName(this Type type) {
+        if(type == typeof(int))
+            return "Int";
+        if(type == typeof(string))
+            return "String";
+        if(type == typeof(bool))
+            return "Boolean";
+        if(type == typeof(decimal))
+            return "Float";
+
+        return type.Name;
+    }
+
     public static string LowerCaseFirstLetter(this string name) {
         if(char.IsUpper(name[0]))
             return name.Length == 1 ? $"{char.ToLower(name[0])}" : $"{char.ToLower(name[0])}{name[1..]}";
@@ -145,8 +158,7 @@ public static class ReflectionExtensions {
             !x.HasCustomAttribute<ResolvedAttribute>() &&
             !x.HasCustomAttribute<EnumeratorCancellationAttribute>() &&
             !x.ParameterType.IsAssignableTo(typeof(ASTNode)) &&
-            !x.ParameterType.IsAssignableTo(typeof(IGraphQLContext))
-        );
+            !x.ParameterType.IsAssignableTo(typeof(IGraphQLContext)));
     }
 
     public static async Task<object?> ExecuteMethod(this MethodInfo methodInfo, object instance, object?[] arguments) {
@@ -225,5 +237,40 @@ public static class ReflectionExtensions {
 
     public static bool IsAsyncEnumerable(this Type type) {
         return IsAsyncEnumerable(type, out _);
+    }
+
+    public static Type GetGraphQLBaseType(this Type type) {
+        type = type.GetGraphQLType();
+        type = Nullable.GetUnderlyingType(type) ?? type;
+
+        if(type.IsEnum)
+            return type;
+
+        switch(Type.GetTypeCode(type)) {
+            case TypeCode.Int16:
+            case TypeCode.Int32:
+            case TypeCode.Int64:
+            case TypeCode.UInt16:
+            case TypeCode.UInt32:
+            case TypeCode.UInt64:
+            case TypeCode.Byte:
+            case TypeCode.SByte:
+                return typeof(int);
+
+            case TypeCode.Boolean:
+                return typeof(bool);
+
+            case TypeCode.Char:
+            case TypeCode.String:
+                return typeof(string);
+
+            case TypeCode.Single:
+            case TypeCode.Double:
+            case TypeCode.Decimal:
+                return typeof(decimal);
+
+            default:
+                return type;
+        }
     }
 }
