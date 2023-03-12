@@ -186,6 +186,8 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
                 _errors.Add($"Unknown argument \"{arg.Name}\" on field \"{field.Name.StringValue}\".");
             } else {
                 remainingParameters.Remove(matchingParameter);
+                var argumentValidator = new ArgumentValidator(matchingParameter, _errors);
+                await argumentValidator.VisitAsync(arg.Value, context);
                 await VisitAsync(arg, context).ConfigureAwait(false);
             }
         }
@@ -212,6 +214,71 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
 
         foreach(var selection in fragmentDefinition.SelectionSet.Selections) {
             await VisitAsync(selection, context).ConfigureAwait(false);
+        }
+    }
+
+    private class ArgumentValidator : ASTVisitor<IGraphQLContext> {
+        private readonly List<string> _errors;
+        private readonly Stack<Type> _stack = new();
+
+        public ArgumentValidator(ParameterInfo matchingParameter, List<string> errors) {
+            _stack.Push(matchingParameter.ParameterType);
+            _errors = errors;
+        }
+
+        protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IGraphQLContext context) {
+            var currentType = _stack.Peek();
+            var member = currentType.GetProperty(objectField.Name.StringValue, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if(member == null) {
+                _errors.Add($"Field with name \"{objectField.Name.StringValue}\" of type \"{currentType.GraphQLName()}\" does not exist");
+            } else {
+                var memberPropertyType = member.PropertyType.GetGraphQLBaseType();
+                _stack.Push(memberPropertyType);
+                switch(objectField.Value) {
+                    case GraphQLFalseBooleanValue:
+                    case GraphQLTrueBooleanValue:
+                    case GraphQLBooleanValue:
+                        if(memberPropertyType != typeof(bool))
+                            AddTypeError(objectField, currentType, memberPropertyType);
+                        break;
+                    case GraphQLIntValue:
+                        if(memberPropertyType != typeof(int))
+                            AddTypeError(objectField, currentType, memberPropertyType);
+                        break;
+                    case GraphQLListValue:
+                        // TODO: Handle?
+                        break;
+
+                    case GraphQLNullValue:
+                        // TODO: Handle?
+                        break;
+
+                    case GraphQLObjectValue:
+                        // TODO: Handle?
+                        break;
+                    case GraphQLStringValue:
+                        if(memberPropertyType != typeof(string))
+                            AddTypeError(objectField, currentType, memberPropertyType);
+                        break;
+                    case GraphQLVariable:
+                        // TODO: Handle?
+                        break;
+                    case GraphQLEnumValue:
+                        // TODO: Handle?
+                        break;
+                    case GraphQLFloatValue:
+                        if(memberPropertyType != typeof(decimal))
+                            AddTypeError(objectField, currentType, memberPropertyType);
+                        break;
+                }
+
+                await VisitAsync(objectField.Value, context);
+                _stack.Pop();
+            }
+        }
+
+        private void AddTypeError(GraphQLObjectField objectField, Type currentType, Type memberPropertyType) {
+            _errors.Add($"Value for field with name \"{objectField.Name.StringValue}\" of type \"{currentType.Name}\" must be of type {memberPropertyType.GetPrimitiveGraphQLName()}");
         }
     }
 }

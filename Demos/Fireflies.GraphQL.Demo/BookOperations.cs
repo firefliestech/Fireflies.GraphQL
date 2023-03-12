@@ -1,6 +1,9 @@
 ﻿using Fireflies.GraphQL.Abstractions;
 using System.Runtime.CompilerServices;
+using Fireflies.GraphQL.Abstractions.Connection;
 using Fireflies.GraphQL.Abstractions.Sorting;
+using Fireflies.GraphQL.Abstractions.Where;
+using Fireflies.GraphQL.Core;
 using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Demo;

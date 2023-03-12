@@ -2,6 +2,8 @@
 using System.Reflection.Emit;
 using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Abstractions.Generator;
+using Fireflies.GraphQL.Abstractions.Schema;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Federation.Schema;
 using Fireflies.GraphQL.Core.Schema;

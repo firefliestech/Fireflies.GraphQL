@@ -1,4 +1,5 @@
 ﻿using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Abstractions.Authorization;
 
 namespace Fireflies.GraphQL.FederationDemo;
 

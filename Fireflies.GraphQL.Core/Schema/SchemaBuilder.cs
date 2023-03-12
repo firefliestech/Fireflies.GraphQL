@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Abstractions.Schema;
 using Fireflies.GraphQL.Core.Extensions;
 using GraphQLParser.AST;
 
@@ -151,7 +152,7 @@ internal class SchemaBuilder {
     private __Type CreateType(Type type, bool isTypeReference) {
         type = type.DiscardTask();
 
-        var elementType = GetBaseType(type);
+        var elementType = type.GetGraphQLBaseType();
         if(elementType.IsEnum) {
             if(type.IsCollection(out _)) {
                 return new __Type(elementType) {
@@ -161,7 +162,7 @@ internal class SchemaBuilder {
             }
 
             return new __Type(elementType, null, isTypeReference ? Array.Empty<__EnumValue>() : CreateEnumValues(elementType)) {
-                Name = elementType.Name,
+                Name = elementType.GetPrimitiveGraphQLName(),
                 Kind = __TypeKind.ENUM,
             };
         }
@@ -175,35 +176,35 @@ internal class SchemaBuilder {
 
         if(elementType == typeof(int)) {
             return new __Type(elementType) {
-                Name = "Int",
+                Name = elementType.GetPrimitiveGraphQLName(),
                 Kind = __TypeKind.SCALAR,
             };
         }
 
         if(elementType == typeof(string)) {
             return new __Type(elementType) {
-                Name = "String",
+                Name = elementType.GetPrimitiveGraphQLName(),
                 Kind = __TypeKind.SCALAR
             };
         }
 
         if(elementType == typeof(bool)) {
             return new __Type(elementType) {
-                Name = "Boolean",
+                Name = elementType.GetPrimitiveGraphQLName(),
                 Kind = __TypeKind.SCALAR
             };
         }
 
         if(elementType == typeof(decimal)) {
             return new __Type(elementType) {
-                Name = "Float",
+                Name = elementType.GetPrimitiveGraphQLName(),
                 Kind = __TypeKind.SCALAR,
             };
         }
 
         if(elementType == typeof(DateTime) || elementType == typeof(DateTimeOffset)) {
             return new __Type(elementType) {
-                Name = elementType.Name,
+                Name = elementType.GetPrimitiveGraphQLName(),
                 Kind = __TypeKind.SCALAR
             };
         }
@@ -226,7 +227,7 @@ internal class SchemaBuilder {
             }
 
             return new __Type(elementType, inputValues: inputValues) {
-                Name = elementType.Name,
+                Name = elementType.GetPrimitiveGraphQLName(),
                 Kind = __TypeKind.INPUT_OBJECT,
                 Description = elementType.GetDescription()
             };
@@ -239,7 +240,7 @@ internal class SchemaBuilder {
 
         if(elementType.IsInterface) {
             var interfaceType = new __Type(elementType, fields) {
-                Name = elementType.Name,
+                Name = elementType.GetPrimitiveGraphQLName(),
                 Kind = elementType.HasCustomAttribute<GraphQLUnionAttribute>() ? __TypeKind.UNION : __TypeKind.INTERFACE,
                 Description = elementType.GetDescription()
             };
@@ -251,7 +252,7 @@ internal class SchemaBuilder {
         }
 
         var objectType = new __Type(elementType, fields) {
-            Name = elementType.Name,
+            Name = elementType.GetPrimitiveGraphQLName(),
             Kind = __TypeKind.OBJECT,
             Description = elementType.GetDescription()
         };
@@ -319,44 +320,6 @@ internal class SchemaBuilder {
             Kind = __TypeKind.NON_NULL,
             OfType = typeToBeWrapped
         };
-    }
-
-    private Type GetBaseType(Type type) {
-        type = type.GetGraphQLType();
-
-        var underlyingType = Nullable.GetUnderlyingType(type);
-        if(underlyingType != null)
-            type = underlyingType;
-
-        if(type.IsEnum)
-            return type;
-
-        switch(Type.GetTypeCode(type)) {
-            case TypeCode.Int16:
-            case TypeCode.Int32:
-            case TypeCode.Int64:
-            case TypeCode.UInt16:
-            case TypeCode.UInt32:
-            case TypeCode.UInt64:
-            case TypeCode.Byte:
-            case TypeCode.SByte:
-                return typeof(int);
-
-            case TypeCode.Boolean:
-                return typeof(bool);
-
-            case TypeCode.Char:
-            case TypeCode.String:
-                return typeof(string);
-
-            case TypeCode.Single:
-            case TypeCode.Double:
-            case TypeCode.Decimal:
-                return typeof(decimal);
-
-            default:
-                return type;
-        }
     }
 
     private __EnumValue[] CreateEnumValues(Type type) {

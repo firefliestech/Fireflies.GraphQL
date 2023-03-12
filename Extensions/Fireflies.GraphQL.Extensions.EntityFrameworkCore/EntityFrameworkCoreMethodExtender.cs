@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.Design;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Reflection.Emit;
 using Fireflies.GraphQL.Core;
 using Fireflies.GraphQL.Core.Extensions;

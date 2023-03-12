@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
 using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Abstractions.Connection;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
 

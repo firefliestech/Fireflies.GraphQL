@@ -1,6 +1,8 @@
 ﻿using Fireflies.GraphQL.Core.Extensions;
 using System.Reflection;
 using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Abstractions.Authorization;
+using Fireflies.GraphQL.Abstractions.Generator;
 
 namespace Fireflies.GraphQL.Core.Schema;
 

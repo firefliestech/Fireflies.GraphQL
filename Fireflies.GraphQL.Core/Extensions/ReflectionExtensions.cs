@@ -2,6 +2,7 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Abstractions.Schema;
 using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Extensions;

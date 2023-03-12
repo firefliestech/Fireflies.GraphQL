@@ -1,4 +1,6 @@
-﻿namespace Fireflies.GraphQL.Abstractions.Sorting;
+﻿using Fireflies.GraphQL.Abstractions.Generator;
 
-public class GraphQLSortAttribute : GraphQLMiddlewareAttribute {
+namespace Fireflies.GraphQL.Abstractions.Sorting;
+
+public class GraphQLSortAttribute : GraphQLGeneratorAttribute {
 }

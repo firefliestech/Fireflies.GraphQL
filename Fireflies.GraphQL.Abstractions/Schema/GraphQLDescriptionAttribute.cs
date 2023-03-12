@@ -1,4 +1,4 @@
-﻿namespace Fireflies.GraphQL.Abstractions;
+﻿namespace Fireflies.GraphQL.Abstractions.Schema;
 
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Method | AttributeTargets.Class)]
 public class GraphQLDescriptionAttribute : GraphQLAttribute {

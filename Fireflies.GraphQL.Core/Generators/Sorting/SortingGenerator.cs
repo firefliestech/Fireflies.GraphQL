@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
 using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Abstractions.Sorting;
 using Fireflies.GraphQL.Core.Extensions;
 using GraphQLParser.AST;
@@ -18,12 +19,12 @@ public class SortingGenerator : IMethodExtenderGenerator {
         if(!memberInfo.HasCustomAttribute<GraphQLSortAttribute>())
             return new MethodExtenderDescriptor();
 
-        var sortParameterIndex = parameterCount + 1;
-        var astNodeParameterIndex = parameterCount + 2;
-        var contextParameterIndex = parameterCount + 3;
-        parameterCount += 3;
+        var sortParameterIndex = ++parameterCount;
+        var astNodeParameterIndex = ++parameterCount;
+        var contextParameterIndex = ++parameterCount;
 
         var isQueryable = wrappedReturnType.IsQueryable();
+        // If isQueryable == true the generator will execute before wrapping. Hence we will use the unwrapped element type
         var elementType = isQueryable ? originalType : wrappedReturnType.ElementType();
 
         var generatedSortType = GenerateSortType(elementType, isQueryable);
