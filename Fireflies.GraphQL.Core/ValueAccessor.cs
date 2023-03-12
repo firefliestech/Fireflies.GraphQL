@@ -3,11 +3,11 @@ using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core;
 
-internal class ValueAccessor {
+public class ValueAccessor {
     private readonly IGraphQLContext _context;
     private readonly ValueVisitor _visitor;
 
-    public ValueAccessor(Dictionary<string, object>? variables, IGraphQLContext context) {
+    internal ValueAccessor(Dictionary<string, object>? variables, IGraphQLContext context) {
         _context = context;
         _visitor = new ValueVisitor(variables);
     }

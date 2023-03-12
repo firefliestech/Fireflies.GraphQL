@@ -45,6 +45,9 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
             if(x.ParameterType == typeof(ResultContext))
                 return _resultContext;
 
+            if(x.ParameterType == typeof(ValueAccessor))
+                return _valueAccessor;
+
             if (x.HasCustomAttribute<ResolvedAttribute>(out _))
                 return _dependencyResolver.Resolve(x.ParameterType);
 
