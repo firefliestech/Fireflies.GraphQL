@@ -1,4 +1,4 @@
-﻿namespace Fireflies.GraphQL.Demo;
+﻿namespace Fireflies.GraphQL.Demo.Books;
 
 public class RemoteBook : IBook {
     public int BookId { get; set; }

@@ -1,6 +1,6 @@
 ﻿using Fireflies.GraphQL.Abstractions;
 
-namespace Fireflies.GraphQL.Demo;
+namespace Fireflies.GraphQL.Demo.Books;
 
 public interface IBook {
     [GraphQlId]

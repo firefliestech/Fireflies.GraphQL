@@ -1,6 +1,9 @@
 using Fireflies.GraphQL.AspNet;
 using Fireflies.GraphQL.Core;
 using Fireflies.GraphQL.Demo;
+using Fireflies.GraphQL.Demo.Blogs;
+using Fireflies.GraphQL.Demo.Books;
+using Fireflies.GraphQL.Extensions.EntityFrameworkCore;
 using Fireflies.IoC.TinyIoC;
 using Fireflies.Logging.NLog;
 using NLog;
@@ -20,7 +23,7 @@ builder.Services.AddCors(options => {
 });
 
 var app = builder.Build();
-
+    
 app.UseCors(corsPolicyBuilder => corsPolicyBuilder.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
 
 var config = new LoggingConfiguration();
@@ -35,13 +38,33 @@ var container = new TinyIoCContainer();
 container.Register<MustBeSalesmanAttribute>();
 container.Register<IRequestDependencyResolverBuilder, RequestDependencyResolverBuilder>();
 
+// Enable websockets (needed for subscriptions)
+app.UseWebSockets();
+
+///////////////////////////////////////
+// Start GraphQL setup
 var graphQLOptions = new GraphQLOptionsBuilder();
+
+// Add entity framework support
+var entityFrameworkOptions = graphQLOptions.UseEntityFramework();
+entityFrameworkOptions.Register<BloggingContext>();
+
+// Set framework libraries
 graphQLOptions.SetDependencyResolver(new TinyIoCDependencyResolver(container));
 graphQLOptions.SetLoggerFactory(new FirefliesNLogFactory());
+
+// Add operations
 graphQLOptions.Add<BookOperations>();
+graphQLOptions.Add<BlogOperations>();
+
+// Add federation
 graphQLOptions.AddFederation("Author", "https://localhost:7274/graphql");
-app.UseWebSockets();
+
+// Add to pipeline
 app.UseGraphQL(await graphQLOptions.Build());
+
+// End GraphQL setup
+///////////////////////////////////////
 
 app.MapGet("/", () => "Hello World!");
 

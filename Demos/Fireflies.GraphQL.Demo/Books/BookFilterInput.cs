@@ -1,4 +1,4 @@
-﻿namespace Fireflies.GraphQL.Demo;
+﻿namespace Fireflies.GraphQL.Demo.Books;
 
 public class BookFilterInput {
     public string? Title { get; set; }

@@ -1,23 +1,29 @@
-﻿using Fireflies.GraphQL.Abstractions;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
+using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Connection;
 using Fireflies.GraphQL.Abstractions.Sorting;
 using Fireflies.GraphQL.Abstractions.Where;
-using Fireflies.GraphQL.Core;
 using GraphQLParser.AST;
 
-namespace Fireflies.GraphQL.Demo;
+namespace Fireflies.GraphQL.Demo.Books;
 
 public class BookOperations {
+    [GraphQLInternal]
     [GraphQlPagination]
     [GraphQLQuery]
     [GraphQLSort]
-    public IQueryable<InventoryBook> Books(BookFilterInput? filter) {
-        return Getbooks().AsQueryable().Where(x => filter == null || string.IsNullOrWhiteSpace(filter.Title) || x.Title == filter.Title);
+    [GraphQLWhere]
+    public IEnumerable<InventoryBook> Books(BookFilterInput? filter) {
+        var x = YieldBooks()
+            .Where(x => x.BookId != 1 || filter == null || string.IsNullOrWhiteSpace(filter.Title) || x.Title == filter.Title);
+        return x;
     }
 
-    private IEnumerable<InventoryBook> Getbooks() {
+    private IEnumerable<InventoryBook> YieldBooks() {
+        Console.WriteLine("Yielding 1");
         yield return new() { BookId = 1, Title = "My first book", ISBN = "1234", ExactInventory = 20, Editions = new[] { new Edition { Name = "Deluxeutgåva", Released = DateTimeOffset.UtcNow.AddYears(-1) }, new Edition { Name = "First", Released = DateTimeOffset.UtcNow.AddYears(-2) } }.AsQueryable() };
+
+        Console.WriteLine("Yielding 2");
         yield return new() { BookId = 2, Title = "My second book", ISBN = "5678", ExactInventory = 29 };
     }
 

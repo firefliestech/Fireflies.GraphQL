@@ -1,7 +1,8 @@
 ﻿using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Abstractions.Schema;
 using Fireflies.GraphQL.Abstractions.Sorting;
 
-namespace Fireflies.GraphQL.Demo;
+namespace Fireflies.GraphQL.Demo.Books;
 
 public class InventoryBook : IBook {
     [GraphQlId]
