@@ -1,0 +1,3 @@
+[submodule "Fireflies.Shared"]
+	path = Fireflies.Shared
+	url = git@github.com:firefliestech/Fireflies.Shared.git

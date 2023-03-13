@@ -25,7 +25,6 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Fireflies.GraphQL.Core\Fireflies.GraphQL.Core.csproj" />
-		<ProjectReference Include="..\IoC\Fireflies.IoC.Abstractions\Fireflies.IoC.Abstractions.csproj" />
 	</ItemGroup>
 
 </Project>

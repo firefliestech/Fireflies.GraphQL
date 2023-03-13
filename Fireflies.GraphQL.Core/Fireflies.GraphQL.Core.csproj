@@ -24,9 +24,9 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Fireflies.GraphQL.Abstractions\Fireflies.GraphQL.Abstractions.csproj" />
-		<ProjectReference Include="..\IoC\Fireflies.IoC.Abstractions\Fireflies.IoC.Abstractions.csproj" />
-		<ProjectReference Include="..\IoC\Fireflies.IoC.TinyIoC\Fireflies.IoC.TinyIoC.csproj" />
-		<ProjectReference Include="..\Logging\Fireflies.Logging.Abstractions\Fireflies.Logging.Abstractions.csproj" />
+		<ProjectReference Include="..\Fireflies.Shared\IoC\Fireflies.IoC.Abstractions\Fireflies.IoC.Abstractions.csproj" />
+		<ProjectReference Include="..\Fireflies.Shared\IoC\Fireflies.IoC.TinyIoC\Fireflies.IoC.TinyIoC.csproj" />
+		<ProjectReference Include="..\Fireflies.Shared\Logging\Fireflies.Logging.Abstractions\Fireflies.Logging.Abstractions.csproj" />
 	</ItemGroup>
 
 </Project>

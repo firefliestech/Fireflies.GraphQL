@@ -13,8 +13,8 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\Fireflies.GraphQL.AspNet\Fireflies.GraphQL.AspNet.csproj" />
 		<ProjectReference Include="..\..\Fireflies.GraphQL.Core\Fireflies.GraphQL.Core.csproj" />
-		<ProjectReference Include="..\..\IoC\Fireflies.IoC.Autofac\Fireflies.IoC.Autofac.csproj" />
-		<ProjectReference Include="..\..\Logging\Fireflies.Logging.NLog\Fireflies.Logging.NLog.csproj" />
+		<ProjectReference Include="..\..\Fireflies.Shared\IoC\Fireflies.IoC.Autofac\Fireflies.IoC.Autofac.csproj" />
+		<ProjectReference Include="..\..\Fireflies.Shared\Logging\Fireflies.Logging.NLog\Fireflies.Logging.NLog.csproj" />
 	</ItemGroup>
 
 </Project>
