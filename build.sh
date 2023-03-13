@@ -1,7 +1,7 @@
 VERSION=$1
 ROOT_PATH=$(pwd)
 
-find -name *.nuspec | grep -v "/obj/" | while read -r i
+find -name *.nuspec | grep -v "/obj/" | grep -v "Fireflies.Shared" | while read -r i
 do
 	DIR_NAME=$(dirname $i)
 	echo "Entering $DIR_NAME"
