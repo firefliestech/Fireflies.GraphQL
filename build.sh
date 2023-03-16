@@ -7,7 +7,7 @@ do
 	echo "Entering $DIR_NAME"
 	cd $DIR_NAME
 
-	dotnet pack -p:PackageVersion=$VERSION --output $ROOT_PATH/nupkgs
+	dotnet pack -p:PackageVersion=$VERSION --output $ROOT_PATH/nupkg
 
 	cd $ROOT_PATH
 done
