@@ -11,10 +11,9 @@
 		<tags>fireflies graphql core</tags>
 	</metadata>
 	<dependencies>
-		<dependency id="Fireflies.GraphQL.Core" version="$version$" />
-		<dependency id="Fireflies.IoC.Abstractions" version="$version$" />
-		<dependency id="Fireflies.IoC.TinyIoC" version="$version$" />
-		<dependency id="Fireflies.Logging.Abstractions" version="$version$" />
+		<dependency id="Fireflies.IoC.Abstractions" version="1.0.0" />
+		<dependency id="Fireflies.IoC.TinyIoC" version="1.0.0" />
+		<dependency id="Fireflies.Logging.Abstractions" version="1.0.0" />
 		<dependency id="GraphQL-Parser" version="8.1.0" />
 	</dependencies>
 </package>

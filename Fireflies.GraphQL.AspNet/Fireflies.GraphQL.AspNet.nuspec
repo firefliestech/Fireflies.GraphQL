@@ -12,7 +12,7 @@
 	</metadata>
 	<dependencies>
 		<dependency id="Fireflies.GraphQL.Core" version="$version$" />
-		<dependency id="Fireflies.IoC.Abstractions" version="$version$" />
+		<dependency id="Fireflies.IoC.Abstractions" version="1.0.0" />
 		<dependency id="Microsoft.AspNetCore.Http.Abstractions" version="2.2.0" />
 		<dependency id="Nito.AsyncEx" version="5.1.2" />
 	</dependencies>
