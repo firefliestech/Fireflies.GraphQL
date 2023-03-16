@@ -1,5 +1,4 @@
 ﻿using System.Reflection;
-using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Authorization;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.IoC.Abstractions;

@@ -1,5 +1,4 @@
-﻿using Fireflies.GraphQL.Abstractions;
-using Fireflies.GraphQL.Abstractions.Generator;
+﻿using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Core.Schema;
 
 namespace Fireflies.GraphQL.Core.Federation.Schema;
