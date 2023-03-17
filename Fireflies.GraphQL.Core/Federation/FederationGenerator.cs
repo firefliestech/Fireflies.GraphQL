@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
+using System.Security.AccessControl;
 using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Generator;
@@ -124,15 +125,40 @@ public class FederationGenerator {
     private Type GenerateType(FederationType schemaType, Action<TypeBuilder>? extras = null, Type? interfaceType = null) {
         var typeName = GenerateName(schemaType);
 
-        if(_nameLookup.TryGetValue(typeName, out var existingType)) {
+        if(_nameLookup.TryGetValue(typeName, out var existingType))
             return existingType;
+
+        if(schemaType.Kind == __TypeKind.ENUM) {
+            return GenerateEnum(schemaType, typeName);
         }
 
+        return GenerateObject(schemaType, extras, interfaceType, typeName);
+    }
+
+    private Type GenerateEnum(FederationType schemaType, string typeName) {
+        var generatedType = _dynamicModule.DefineEnum(schemaType.Name!, TypeAttributes.Public, typeof(int));
+        _nameLookup.Add(typeName, generatedType);
+
+        var id = 0;
+        foreach(var enumValue in schemaType.EnumValues) {
+            var literalBuilder = generatedType.DefineLiteral(enumValue.Name, id++);
+            if(enumValue.Description != null)
+                literalBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLDescriptionAttribute).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(string) })!, new object?[] { enumValue.Description }));
+            if(enumValue.IsDeprecated)
+                literalBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLDeprecatedAttribute).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(string) })!, new object?[] { enumValue.DeprecationReason }));
+        }
+        
+        return generatedType.CreateType()!;
+    }
+
+    private Type GenerateObject(FederationType schemaType, Action<TypeBuilder>? extras, Type? interfaceType, string typeName) {
         var isInterface = schemaType.Kind is __TypeKind.INTERFACE or __TypeKind.UNION;
         var isUnion = schemaType.Kind is __TypeKind.UNION;
 
         var baseType = isInterface ? null : typeof(FederationEntity);
         var generatedType = _dynamicModule.DefineType(typeName, isInterface ? TypeAttributes.Interface | TypeAttributes.Abstract : TypeAttributes.Class, baseType);
+        _nameLookup.Add(typeName, generatedType);
+
         generatedType.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLNoWrapperAttribute).GetConstructors().First(), Array.Empty<object>()));
 
         if(interfaceType != null) {
@@ -187,7 +213,6 @@ public class FederationGenerator {
         extras?.Invoke(generatedType);
 
         var finalType = generatedType.CreateType()!;
-        _nameLookup.Add(typeName, finalType);
 
         if(isInterface) {
             foreach(var implementation in schemaType.PossibleTypes) {
@@ -200,13 +225,10 @@ public class FederationGenerator {
     }
 
     private static void AddAttributes(FederationField field, MethodBuilder fieldMethod) {
-        if(field.Description != null) {
+        if(field.Description != null)
             fieldMethod.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLDescriptionAttribute).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(string) })!, new object?[] { field.Description }));
-        }
-
-        if(field.IsDeprecated) {
+        if(field.IsDeprecated)
             fieldMethod.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLDeprecatedAttribute).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(string) })!, new object?[] { field.DeprecationReason }));
-        }
     }
 
     private void DefineParameters(List<Type> argTypes, MethodBuilder fieldMethod, FederationField field) {
@@ -251,6 +273,12 @@ public class FederationGenerator {
         if(type.Name == "ID" || type.OfType?.Name == "ID")
             throw new NotImplementedException("ID type is yet to be implemented");
 
+        if(type.Name == "DateTime")
+            return typeof(DateTime);
+
+        if(type.Name == "DateTimeOffset")
+            return typeof(DateTimeOffset);
+
         if(type.Kind == __TypeKind.NON_NULL)
             return GetTypeFromSchemaType(type.OfType!);
 
@@ -262,7 +290,8 @@ public class FederationGenerator {
             return existingType;
         }
 
-        return GenerateType(type, _ => { });
+        var rootType = _federationSchema.Types.First(x => x.Name == type.Name);
+        return GenerateType(rootType, _ => { });
     }
 
     private string GenerateName(FederationType type) {
@@ -282,6 +311,6 @@ public class FederationGenerator {
         if(type.Name == _federationSchema.QueryType?.Name || type.Name == _federationSchema.MutationType?.Name || type.Name == _federationSchema.SubscriptionType?.Name)
             return false;
 
-        return type.Name is not ("Int" or "Float" or "String" or "Boolean" or "ID");
+        return type.Name is not ("Int" or "Float" or "String" or "Boolean" or "ID" or "DateTime" or "DateTimeOffset");
     }
 }

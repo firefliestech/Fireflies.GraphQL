@@ -71,7 +71,16 @@ public static class FederationHelper {
         if(token == null)
             return default;
 
-        switch(Type.GetTypeCode(typeof(T))) {
+        var type = typeof(T);
+        if(type.IsEnum) {
+            var value = token.GetValue<JsonElement>();
+            if(value.ValueKind == JsonValueKind.String)
+                return (T)Enum.Parse(type, token.GetValue<string>());
+
+            return (T)Convert.ChangeType(token.GetValue<int>(), typeof(T));
+        }
+
+        switch(Type.GetTypeCode(type)) {
             case TypeCode.Int16:
             case TypeCode.Int32:
             case TypeCode.Int64:
@@ -97,12 +106,12 @@ public static class FederationHelper {
             default:
                 var typename = token["__typename"]?.GetValue<string>();
                 if(typename != null) {
-                    var assembly = typeof(T).Assembly;
+                    var assembly = type.Assembly;
                     var implementation = assembly.GetType(typename)!;
                     return (T)Activator.CreateInstance(implementation, token)!;
                 }
 
-                return (T)Activator.CreateInstance(typeof(T), token)!;
+                return (T)Activator.CreateInstance(type, token)!;
         }
     }
 
