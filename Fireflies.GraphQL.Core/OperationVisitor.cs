@@ -43,7 +43,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
 
             var returnType = operationDescriptor.Method.DiscardTaskFromReturnType();
             var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _valueAccessor, _context, _dependencyResolver, new ResultContext().Push(returnType));
-            var asyncEnumerable = (IAsyncEnumerable<object>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder, graphQLField })!;
+            var asyncEnumerable = (IAsyncEnumerable<object?>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder, graphQLField })!;
             await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken).ConfigureAwait(false)) {
                 var writer = _writer ?? new DataJsonWriter();
 
@@ -58,9 +58,13 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
 
                     writer.WriteEndArray();
                 } else {
-                    writer.WriteStartObject(fieldName);
-                    await WriteObject(context, writer, graphQLField, result);
-                    writer.WriteEndObject();
+                    if(result != null) {
+                        writer.WriteStartObject(fieldName);
+                        await WriteObject(context, writer, graphQLField, result);
+                        writer.WriteEndObject();
+                    } else {
+                        writer.WriteNull(fieldName);
+                    }
                 }
 
                 context.PublishResult(writer);
