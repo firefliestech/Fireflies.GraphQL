@@ -8,6 +8,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Autofac" Version="6.5.0" />
+		<PackageReference Include="Fireflies.Logging.NLog" Version="1.0.0" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.3">
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		  <PrivateAssets>all</PrivateAssets>
@@ -20,7 +21,6 @@
 		<ProjectReference Include="..\..\Fireflies.GraphQL.AspNet\Fireflies.GraphQL.AspNet.csproj" />
 		<ProjectReference Include="..\..\Fireflies.GraphQL.Abstractions\Fireflies.GraphQL.Abstractions.csproj" />
 		<ProjectReference Include="..\..\Fireflies.GraphQL.Core\Fireflies.GraphQL.Core.csproj" />
-		<ProjectReference Include="..\..\Fireflies.Shared\Logging\Fireflies.Logging.NLog\Fireflies.Logging.NLog.csproj" />
 	</ItemGroup>
 
 </Project>

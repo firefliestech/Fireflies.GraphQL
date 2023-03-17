@@ -19,14 +19,14 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Fireflies.IoC.Abstractions" Version="1.0.0" />
+		<PackageReference Include="Fireflies.IoC.TinyIoC" Version="1.0.0" />
+		<PackageReference Include="Fireflies.Logging.Abstractions" Version="1.0.0" />
 		<PackageReference Include="GraphQL-Parser" Version="8.1.0" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\Fireflies.GraphQL.Abstractions\Fireflies.GraphQL.Abstractions.csproj" />
-		<ProjectReference Include="..\Fireflies.Shared\IoC\Fireflies.IoC.Abstractions\Fireflies.IoC.Abstractions.csproj" />
-		<ProjectReference Include="..\Fireflies.Shared\IoC\Fireflies.IoC.TinyIoC\Fireflies.IoC.TinyIoC.csproj" />
-		<ProjectReference Include="..\Fireflies.Shared\Logging\Fireflies.Logging.Abstractions\Fireflies.Logging.Abstractions.csproj" />
 	</ItemGroup>
 
 </Project>
