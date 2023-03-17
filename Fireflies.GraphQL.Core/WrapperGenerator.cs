@@ -34,11 +34,12 @@ internal class WrapperGenerator {
             TypeAttributes.AutoLayout,
             typeof(object));
 
+        _wrapperRegistry.Add(baseType, typeBuilder);
+
         var instanceField = typeBuilder.DefineField("_instance", baseType, FieldAttributes.Private);
 
-        foreach(var attribute in baseType.GetCustomAttributesData()) {
+        foreach(var attribute in baseType.GetCustomAttributesData())
             typeBuilder.SetCustomAttribute(attribute.ToAttributeBuilder());
-        }
 
         var createdConstructor = false;
         if(copyConstructors) {
@@ -115,7 +116,6 @@ internal class WrapperGenerator {
         }
 
         var createdType = typeBuilder.CreateType()!;
-        _wrapperRegistry.Add(baseType, createdType);
         return createdType;
     }
 
