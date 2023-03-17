@@ -52,37 +52,37 @@ internal class WhereExpressionBuilder<TElement> : ASTVisitor<IGraphQLContext> {
 
         // StringWhere
         if(objectField.Name.StringValue.Equals(nameof(StringWhere.StartsWith), StringComparison.InvariantCultureIgnoreCase)) {
-            var method = typeof(string).GetMethod(nameof(string.StartsWith), new[] { typeof(string) });
+            var method = typeof(string).GetMethod(nameof(string.StartsWith), new[] { typeof(string) })!;
             await CreateOperationExpression(objectField, false, (memberExpression, valueExpression) => Expression.Call(memberExpression, method, valueExpression));
             return;
         }
 
         if(objectField.Name.StringValue.Equals(nameof(StringWhere.DoesntStartWith), StringComparison.InvariantCultureIgnoreCase)) {
-            var method = typeof(string).GetMethod(nameof(string.StartsWith), new[] { typeof(string) });
+            var method = typeof(string).GetMethod(nameof(string.StartsWith), new[] { typeof(string) })!;
             await CreateOperationExpression(objectField, true, (memberExpression, valueExpression) => Expression.Call(memberExpression, method, valueExpression));
             return;
         }
 
         if(objectField.Name.StringValue.Equals(nameof(StringWhere.EndsWith), StringComparison.InvariantCultureIgnoreCase)) {
-            var method = typeof(string).GetMethod(nameof(string.EndsWith), new[] { typeof(string) });
+            var method = typeof(string).GetMethod(nameof(string.EndsWith), new[] { typeof(string) })!;
             await CreateOperationExpression(objectField, false, (memberExpression, valueExpression) => Expression.Call(memberExpression, method, valueExpression));
             return;
         }
 
         if(objectField.Name.StringValue.Equals(nameof(StringWhere.DoesntEndWith), StringComparison.InvariantCultureIgnoreCase)) {
-            var method = typeof(string).GetMethod(nameof(string.EndsWith), new[] { typeof(string) });
+            var method = typeof(string).GetMethod(nameof(string.EndsWith), new[] { typeof(string) })!;
             await CreateOperationExpression(objectField, true, (memberExpression, valueExpression) => Expression.Call(memberExpression, method, valueExpression));
             return;
         }
 
         if(objectField.Name.StringValue.Equals(nameof(StringWhere.Contains), StringComparison.InvariantCultureIgnoreCase)) {
-            var method = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) });
+            var method = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
             await CreateOperationExpression(objectField, false, (memberExpression, valueExpression) => Expression.Call(memberExpression, method, valueExpression));
             return;
         }
 
         if(objectField.Name.StringValue.Equals(nameof(StringWhere.DoesntContain), StringComparison.InvariantCultureIgnoreCase)) {
-            var method = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) });
+            var method = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
             await CreateOperationExpression(objectField, true, (memberExpression, valueExpression) => Expression.Call(memberExpression, method, valueExpression));
             return;
         }
