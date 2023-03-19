@@ -169,6 +169,4 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
             await VisitAsync(selection, context).ConfigureAwait(false);
         }
     }
-
-
 }

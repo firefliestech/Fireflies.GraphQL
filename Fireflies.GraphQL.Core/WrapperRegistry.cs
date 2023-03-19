@@ -14,7 +14,7 @@ public class WrapperRegistry {
     }
 
     public void Add(Type type, Type wrapper) {
-        _wrappedTypes.Add(type, wrapper);
+        _wrappedTypes[type] = wrapper;
     }
 
     public Type GetWrapperOfSelf(Type impl) {

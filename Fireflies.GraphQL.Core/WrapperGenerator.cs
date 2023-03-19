@@ -117,6 +117,7 @@ internal class WrapperGenerator {
         }
 
         var createdType = typeBuilder.CreateType()!;
+        _wrapperRegistry.Add(baseType, createdType);
         return createdType;
     }
 
