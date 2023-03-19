@@ -10,7 +10,7 @@ public abstract class EdgeBase<TBase> {
     private static readonly IEnumerable<PropertyInfo> IdProperties;
 
     static EdgeBase() {
-        IdProperties = typeof(TBase).GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy).Where(x => x.GetCustomAttribute<GraphQlIdAttribute>(true) != null);
+        IdProperties = typeof(TBase).GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy).Where(x => x.GetCustomAttribute<GraphQLIdAttribute>(true) != null);
     }
 
     protected EdgeBase(TBase node) {

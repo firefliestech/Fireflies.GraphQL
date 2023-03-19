@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Text.Json;
+using Fireflies.GraphQL.Abstractions;
 
 namespace Fireflies.GraphQL.Core.Json;
 
@@ -144,7 +145,14 @@ public abstract class JsonWriter {
                 break;
 
             default:
-                if(value.GetType() == typeof(DateTimeOffset)) {
+                var memberInfo = value.GetType();
+
+                if(memberInfo.IsSubclassOf(typeof(GraphQLId))) {
+                    Writer.WriteString(property, value.ToString());
+                    break;
+                }
+
+                if(memberInfo == typeof(DateTimeOffset)) {
                     Writer.WriteString(property, ((DateTimeOffset)value).ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", DateTimeFormatInfo.InvariantInfo));
                     break;
                 }

@@ -15,7 +15,7 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
     }
 
     public void Extend(TypeBuilder typeBuilder, MethodBuilder wrappedMethod, MemberInfo baseMember, FieldBuilder instanceField, MethodExtenderDescriptor[] decoratorDescriptors) {
-        if(!baseMember.HasCustomAttribute<GraphQlPaginationAttribute>())
+        if(!baseMember.HasCustomAttribute<GraphQLPaginationAttribute>())
             return;
 
         var baseReturnType = baseMember switch {
@@ -33,8 +33,8 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
         if(!baseReturnType.IsCollection(out var baseElementType))
             throw new GraphQLTypeException($"Cant add pagination for {baseElementType} because return type is not IEnumerable");
 
-        if(!baseElementType.GetProperties(BindingFlags.Public | BindingFlags.Instance).Any(x => x.HasCustomAttribute<GraphQlIdAttribute>()))
-            throw new GraphQLTypeException($"Cant add pagination for {baseElementType} because return type does not have any {nameof(GraphQlIdAttribute)} attributes");
+        if(!baseElementType.GetProperties(BindingFlags.Public | BindingFlags.Instance).Any(x => x.HasCustomAttribute<GraphQLIdAttribute>()))
+            throw new GraphQLTypeException($"Cant add pagination for {baseElementType} because return type does not have any {nameof(GraphQLIdAttribute)} attributes");
 
         var returnType = wrappedMethod.ReturnType;
         returnType.IsCollection(out var elementType);

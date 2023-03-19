@@ -168,7 +168,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         var selections = field.SelectionSet?.Selections ?? Enumerable.Empty<ASTNode>();
         var currentType = _fieldStack.Peek();
         var currentTypeName = currentType.GetGraphQLType().GraphQLName();
-        if(!selections.Any() && currentType.IsClass && currentType != typeof(string)) {
+        if(!selections.Any() && currentType.IsClass && currentType != typeof(string) && !currentType.IsSubclassOf(typeof(GraphQLId))) {
             _errors.Add($"Field of type \"{field.Name}\" of type \"{currentTypeName}\" must have a selection of sub fields");
         }
 

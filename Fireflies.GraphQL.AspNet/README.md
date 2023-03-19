@@ -13,7 +13,7 @@ app.UseGraphQL(await graphQLOptions.Build());
 ## Operation definition
 ```
 public class BookOperations {
-    [GraphQlPagination]
+    [GraphQLPagination]
     [GraphQLQuery]
     public async Task<IEnumerable<InventoryBook>> Books(BookFilterInput? filter) {
         return new InventoryBook[] {
@@ -62,7 +62,7 @@ public interface IBook {
 }
 
 public class InventoryBook : IBook {
-    [GraphQlId]
+    [GraphQLId]
     public int BookId { get; set; }
 
     public string Title { get; set; }

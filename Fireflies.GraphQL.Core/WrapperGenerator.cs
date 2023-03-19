@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
+using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Generators;
@@ -74,7 +75,7 @@ internal class WrapperGenerator {
         var methods = baseType.GetAllGraphQLMethods().Select(x => new { Name = x.Name, MethodInfo = x, Parameters = x.GetParameters(), MemberInfo = x as MemberInfo });
         var properties = baseType.GetAllGraphQLProperties().Select(x => new { Name = x.Name, MethodInfo = x.GetMethod!, Parameters = Array.Empty<ParameterInfo>(), MemberInfo = x as MemberInfo });
         foreach(var baseMethod in methods.Concat(properties)) {
-            var (wrappedReturnType, isEnumerable, originalType, wrapperType) = GetWrappedReturnType(baseMethod.MethodInfo);
+            var (wrappedReturnType, originalType, wrapperType) = GetWrappedReturnType(baseMethod.MethodInfo, baseMethod.MemberInfo);
 
             var parameterTypes = baseMethod.Parameters.Select(x => x.ParameterType);
             var parameterCount = baseMethod.Parameters.Length;
@@ -153,27 +154,32 @@ internal class WrapperGenerator {
         methodIlGenerator.EmitCall(OpCodes.Call, methodInfo, null);
     }
 
-    private (Type, bool, Type, Type) GetWrappedReturnType(MethodInfo methodInfo) {
+    private (Type, Type, Type) GetWrappedReturnType(MethodInfo methodInfo, MemberInfo memberInfo) {
         var isEnumerable = methodInfo.ReturnType.IsCollection(out var elementType);
         if(elementType.HasCustomAttribute<GraphQLNoWrapperAttribute>() || elementType.IsValueType || elementType == typeof(string) || elementType.IsInterface) {
-            return isEnumerable ? CreateReturnType(methodInfo, elementType, elementType, isEnumerable) : (methodInfo.ReturnType, isEnumerable, elementType, elementType);
+            if(memberInfo.HasCustomAttribute<GraphQLIdAttribute>()) {
+                var graphQlId = typeof(GraphQLId<>).MakeGenericType(elementType);
+                return CreateReturnType(methodInfo, graphQlId, elementType);
+            }
+
+            return isEnumerable ? CreateReturnType(methodInfo, elementType, elementType) : (methodInfo.ReturnType, elementType, elementType);
         }
 
         var wrapperType = GenerateWrapper(elementType, false);
-        return CreateReturnType(methodInfo, wrapperType, elementType, isEnumerable);
+        return CreateReturnType(methodInfo, wrapperType, elementType);
     }
 
-    private static (Type, bool, Type, Type) CreateReturnType(MethodInfo methodInfo, Type wrapperType, Type elementType, bool isEnumerable) {
+    private static (Type, Type, Type) CreateReturnType(MethodInfo methodInfo, Type wrapperType, Type elementType) {
         if(methodInfo.ReturnType.IsAsyncEnumerable()) {
-            return (typeof(IAsyncEnumerable<>).MakeGenericType(wrapperType), true, elementType, wrapperType);
+            return (typeof(IAsyncEnumerable<>).MakeGenericType(wrapperType), elementType, wrapperType);
         }
 
         if(methodInfo.ReturnType.IsQueryable())
-            return methodInfo.ReturnType.IsTask() ? (typeof(Task<>).MakeGenericType(typeof(IQueryable<>).MakeGenericType(wrapperType)), true, elementType, wrapperType) : (typeof(IQueryable<>).MakeGenericType(wrapperType), true, elementType, wrapperType);
+            return methodInfo.ReturnType.IsTask() ? (typeof(Task<>).MakeGenericType(typeof(IQueryable<>).MakeGenericType(wrapperType)), elementType, wrapperType) : (typeof(IQueryable<>).MakeGenericType(wrapperType), elementType, wrapperType);
 
         if(methodInfo.ReturnType.IsCollection())
-            return methodInfo.ReturnType.IsTask() ? (typeof(Task<>).MakeGenericType(typeof(IEnumerable<>).MakeGenericType(wrapperType)), true, elementType, wrapperType) : (typeof(IEnumerable<>).MakeGenericType(wrapperType), true, elementType, wrapperType);
+            return methodInfo.ReturnType.IsTask() ? (typeof(Task<>).MakeGenericType(typeof(IEnumerable<>).MakeGenericType(wrapperType)), elementType, wrapperType) : (typeof(IEnumerable<>).MakeGenericType(wrapperType), elementType, wrapperType);
 
-        return methodInfo.ReturnType.IsTask() ? (typeof(Task<>).MakeGenericType(wrapperType), false, elementType, wrapperType) : (wrapperType, false, elementType, wrapperType);
+        return methodInfo.ReturnType.IsTask() ? (typeof(Task<>).MakeGenericType(wrapperType), elementType, wrapperType) : (wrapperType, elementType, wrapperType);
     }
 }

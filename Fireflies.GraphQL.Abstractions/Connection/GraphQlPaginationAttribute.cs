@@ -1,4 +1,4 @@
 ﻿namespace Fireflies.GraphQL.Abstractions.Connection;
 
-public class GraphQlPaginationAttribute : GraphQLAttribute {
+public class GraphQLPaginationAttribute : GraphQLAttribute {
 }

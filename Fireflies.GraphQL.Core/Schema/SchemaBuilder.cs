@@ -188,6 +188,13 @@ internal class SchemaBuilder {
             };
         }
 
+        if(elementType.IsSubclassOf(typeof(GraphQLId))) {
+            return new __Type(elementType) {
+                Name = elementType.GetPrimitiveGraphQLName(),
+                Kind = __TypeKind.SCALAR
+            };
+        }
+
         if(elementType == typeof(bool)) {
             return new __Type(elementType) {
                 Name = elementType.GetPrimitiveGraphQLName(),

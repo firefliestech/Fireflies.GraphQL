@@ -43,6 +43,8 @@ public static class ReflectionExtensions {
             return "Boolean";
         if(type == typeof(decimal))
             return "Float";
+        if(type.IsSubclassOf(typeof(GraphQLId)))
+            return "ID";
 
         return type.Name;
     }
