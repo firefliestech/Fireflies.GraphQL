@@ -4,7 +4,7 @@ using Fireflies.GraphQL.Abstractions.Schema;
 namespace Fireflies.GraphQL.FederationDemo;
 
 public class RealAuthor : IAuthor {
-    [GraphQlId]
+    [GraphQLId]
     public int Id { get; set; }
 
     public string Name { get; set; } = null!;

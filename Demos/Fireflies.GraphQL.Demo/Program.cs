@@ -53,12 +53,13 @@ entityFrameworkOptions.Register<BloggingContext>();
 graphQLOptions.SetDependencyResolver(new TinyIoCDependencyResolver(container));
 graphQLOptions.SetLoggerFactory(new FirefliesNLogFactory());
 
-// Add operations
+//// Add operations
 graphQLOptions.Add<BookOperations>();
 graphQLOptions.Add<BlogOperations>();
 
 // Add federation
-graphQLOptions.AddFederation("Author", "https://localhost:7274/graphql");
+//graphQLOptions.AddFederation("Author", "https://localhost:7274/graphql");
+//graphQLOptions.AddFederation("Facility", "http://localhost:9511/graphql");
 
 // Add to pipeline
 app.UseGraphQL(await graphQLOptions.Build());

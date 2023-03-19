@@ -5,7 +5,7 @@ namespace Fireflies.GraphQL.FederationDemo;
 
 [GraphQLUnion]
 public interface IAuthor {
-    [GraphQlId]
+    [GraphQLId]
     public int Id { get; set; }
 
     [GraphQLDescription("The authors name")]

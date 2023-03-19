@@ -3,7 +3,7 @@
 namespace Fireflies.GraphQL.Demo.Blogs;
 
 public class Blog {
-    [GraphQlId]
+    [GraphQLId]
     public int BlogId { get; set; }
     public string Url { get; set; }
 

@@ -8,8 +8,7 @@ using GraphQLParser.AST;
 namespace Fireflies.GraphQL.Demo.Books;
 
 public class BookOperations {
-    [GraphQLInternal]
-    [GraphQlPagination]
+    [GraphQLPagination]
     [GraphQLQuery]
     [GraphQLSort]
     [GraphQLWhere]
@@ -17,6 +16,11 @@ public class BookOperations {
         var x = YieldBooks()
             .Where(x => x.BookId != 1 || filter == null || string.IsNullOrWhiteSpace(filter.Title) || x.Title == filter.Title);
         return x;
+    }
+
+    [GraphQLQuery]
+    public async Task<InventoryBook> GetBook() {
+        return null;
     }
 
     private IEnumerable<InventoryBook> YieldBooks() {

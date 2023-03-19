@@ -9,7 +9,7 @@ namespace Fireflies.GraphQL.Demo.Blogs;
 public class BlogOperations {
     [GraphQLSort]
     [GraphQLQuery]
-    [GraphQlPagination]
+    [GraphQLPagination]
     [GraphQLWhere]
     public IQueryable<Blog> Blogs([Resolved] BloggingContext db) {
         return db.Blogs;

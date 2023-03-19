@@ -5,7 +5,7 @@ using Fireflies.GraphQL.Abstractions.Sorting;
 namespace Fireflies.GraphQL.Demo.Books;
 
 public class InventoryBook : IBook {
-    [GraphQlId]
+    [GraphQLId]
     public int BookId { get; set; }
 
     public string Title { get; set; } = null!;
