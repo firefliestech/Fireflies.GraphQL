@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
 
@@ -24,7 +25,7 @@ internal class SchemaValidator {
             type = elementType;
         }
 
-        if(Type.GetTypeCode(type) != TypeCode.Object)
+        if(Type.GetTypeCode(type) != TypeCode.Object || type == typeof(DateTimeOffset?) || type == typeof(DateTime) || type.IsSubclassOf(typeof(GraphQLId)))
             return;
 
         if(type == typeof(void))

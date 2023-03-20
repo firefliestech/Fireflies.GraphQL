@@ -1,6 +1,5 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
-using System.Security.AccessControl;
 using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Generator;
@@ -271,7 +270,7 @@ public class FederationGenerator {
             return typeof(bool);
 
         if(type.Name == "ID" || type.OfType?.Name == "ID")
-            throw new NotImplementedException("ID type is yet to be implemented");
+            return typeof(GraphQLId<string>);
 
         if(type.Name == "DateTime")
             return typeof(DateTime);

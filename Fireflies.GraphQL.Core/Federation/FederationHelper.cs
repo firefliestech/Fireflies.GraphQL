@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Extensions;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
@@ -104,6 +105,10 @@ public static class FederationHelper {
                 return token.GetValue<T>()!;
 
             default:
+                if(type.IsSubclassOf(typeof(GraphQLId))) {
+                    return (T)(object)new GraphQLId<string>(token.GetValue<string>());
+                }
+
                 var typename = token["__typename"]?.GetValue<string>();
                 if(typename != null) {
                     var assembly = type.Assembly;
