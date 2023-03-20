@@ -7,8 +7,8 @@ using Fireflies.GraphQL.Core;
 namespace Fireflies.GraphQL.Demo.Blogs;
 
 public class BlogOperations {
-    [GraphQLSort]
     [GraphQLQuery]
+    [GraphQLSort]
     [GraphQLPagination]
     [GraphQLWhere]
     public IQueryable<Blog> Blogs([Resolved] BloggingContext db) {

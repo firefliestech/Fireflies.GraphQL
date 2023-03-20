@@ -12,7 +12,7 @@ public class BookOperations {
     [GraphQLQuery]
     [GraphQLSort]
     [GraphQLWhere]
-    public IEnumerable<InventoryBook> Books(BookFilterInput? filter) {
+    public IEnumerable<IBook> Books(BookFilterInput? filter) {
         var x = YieldBooks()
             .Where(x => x.BookId != 1 || filter == null || string.IsNullOrWhiteSpace(filter.Title) || x.Title == filter.Title);
         return x;

@@ -14,21 +14,11 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
         _moduleBuilder = moduleBuilder;
     }
 
-    public void Extend(TypeBuilder typeBuilder, MethodBuilder wrappedMethod, MemberInfo baseMember, FieldBuilder instanceField, MethodExtenderDescriptor[] decoratorDescriptors) {
-        if(!baseMember.HasCustomAttribute<GraphQLPaginationAttribute>())
+    public void Extend(TypeBuilder typeBuilder, MethodBuilder wrappedMethod, BaseDescriptor baseDescriptor) {
+        if(!baseDescriptor.MemberInfo.HasCustomAttribute<GraphQLPaginationAttribute>())
             return;
 
-        var baseReturnType = baseMember switch {
-            MethodInfo methodInfo => methodInfo.ReturnType,
-            PropertyInfo propertyInfo => propertyInfo.PropertyType,
-            _ => throw new ArgumentOutOfRangeException(nameof(baseMember), baseMember, null)
-        };
-
-        var baseParameters = baseMember switch {
-            MethodInfo methodInfo => methodInfo.GetParameters(),
-            PropertyInfo => Array.Empty<ParameterInfo>(),
-            _ => throw new ArgumentOutOfRangeException(nameof(baseMember), baseMember, null)
-        };
+        var baseReturnType = baseDescriptor.ReturnType;
 
         if(!baseReturnType.IsCollection(out var baseElementType))
             throw new GraphQLTypeException($"Cant add pagination for {baseElementType} because return type is not IEnumerable");
@@ -42,9 +32,7 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
         var connectorTypeName = $"{wrappedMethod.Name}Connection";
         var (connectionType, edgeType) = GenerateConnectionType(connectorTypeName, elementType);
         var methodParameters = new List<Type>();
-        var decoratedParameters = decoratorDescriptors.SelectMany(x => x.ParameterTypes).ToArray();
-        methodParameters.AddRange(baseParameters.Select(x => x.ParameterType));
-        methodParameters.AddRange(decoratedParameters);
+        methodParameters.AddRange(baseDescriptor.ParameterTypes);
         methodParameters.Add(typeof(int));
         methodParameters.Add(typeof(string));
 
@@ -55,36 +43,37 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
             connectionReturnType,
             methodParameters.ToArray());
 
-        baseMember.CopyAttributes(ab => methodBuilder.SetCustomAttribute(ab), x => x != typeof(GraphQLInternalAttribute));
+        baseDescriptor.MemberInfo.CopyAttributes(ab => methodBuilder.SetCustomAttribute(ab), x => x != typeof(GraphQLInternalAttribute));
 
-        methodBuilder.DefineParameters(baseParameters);
-        foreach(var parameter in decoratorDescriptors)
-            parameter.DefineParametersCallback(methodBuilder);
+        foreach(var defineCallback in baseDescriptor.DefineParameterCallbacks)
+            defineCallback(methodBuilder);
 
-        var baseParametersLength = baseParameters.Length + decoratedParameters.Length;
+        var baseParametersLength = baseDescriptor.ParameterTypes.Count();
         methodBuilder.DefineParameter(baseParametersLength + 1, ParameterAttributes.HasDefault, "first").SetConstant(10);
         methodBuilder.DefineParameter(baseParametersLength + 2, ParameterAttributes.HasDefault | ParameterAttributes.Optional, "after").AsNullable();
 
-        var methodIlGenerator = methodBuilder.GetILGenerator();
+        if(!baseDescriptor.GeneratingInterface) {
+            var methodIlGenerator = methodBuilder.GetILGenerator();
 
-        methodIlGenerator.Emit(OpCodes.Ldarg_0);
-        for(var i = 1; i <= baseParametersLength; i++)
-            methodIlGenerator.Emit(OpCodes.Ldarg_S, i);
+            methodIlGenerator.Emit(OpCodes.Ldarg_0);
+            for(var i = 1; i <= baseParametersLength; i++)
+                methodIlGenerator.Emit(OpCodes.Ldarg_S, i);
 
-        methodIlGenerator.EmitCall(OpCodes.Call, wrappedMethod, null);
+            methodIlGenerator.EmitCall(OpCodes.Call, wrappedMethod, null);
 
-        if(!baseReturnType.IsTask()) {
-            var taskFromResultMethod = typeof(Task).GetMethod(nameof(Task.FromResult), BindingFlags.Public | BindingFlags.Static)!.MakeGenericMethod(connectionType);
-            methodIlGenerator.EmitCall(OpCodes.Call, taskFromResultMethod, null);
+            if(!baseReturnType.IsTask()) {
+                var taskFromResultMethod = typeof(Task).GetMethod(nameof(Task.FromResult), BindingFlags.Public | BindingFlags.Static)!.MakeGenericMethod(connectionType);
+                methodIlGenerator.EmitCall(OpCodes.Call, taskFromResultMethod, null);
+            }
+
+            methodIlGenerator.Emit(OpCodes.Ldarg_S, baseParametersLength + 1); // first
+            methodIlGenerator.Emit(OpCodes.Ldarg_S, baseParametersLength + 2); // after
+
+            var createConnectionMethod = typeof(WrapperHelper).GetMethod(nameof(WrapperHelper.CreateEnumerableTaskConnection), BindingFlags.Public | BindingFlags.Static)!.MakeGenericMethod(connectionType, edgeType, elementType);
+            methodIlGenerator.EmitCall(OpCodes.Call, createConnectionMethod, null);
+
+            methodIlGenerator.Emit(OpCodes.Ret);
         }
-
-        methodIlGenerator.Emit(OpCodes.Ldarg_S, baseParametersLength + 1); // first
-        methodIlGenerator.Emit(OpCodes.Ldarg_S, baseParametersLength + 2); // after
-
-        var createConnectionMethod = typeof(WrapperHelper).GetMethod(nameof(WrapperHelper.CreateEnumerableTaskConnection), BindingFlags.Public | BindingFlags.Static)!.MakeGenericMethod(connectionType, edgeType, elementType);
-        methodIlGenerator.EmitCall(OpCodes.Call, createConnectionMethod, null);
-
-        methodIlGenerator.Emit(OpCodes.Ret);
     }
 
     private (Type, Type) GenerateConnectionType(string typeName, Type nodeType) {

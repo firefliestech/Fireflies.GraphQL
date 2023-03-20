@@ -24,7 +24,7 @@ public class SortingGenerator : IMethodExtenderGenerator {
 
         var isQueryable = wrappedReturnType.IsQueryable();
         // If isQueryable == true the generator will execute before wrapping. Hence we will use the unwrapped element type
-        var elementType = isQueryable ? originalType : wrappedReturnType.ElementType();
+        var elementType = originalType;
 
         var generatedSortType = GenerateSortType(elementType, isQueryable);
         return
@@ -38,11 +38,14 @@ public class SortingGenerator : IMethodExtenderGenerator {
                     methodBuilder.DefineAnonymousResolvedParameter(contextParameterIndex);
                 },
                 (step, ilGenerator) => {
-                    if(step == MethodExtenderStep.BeforeWrap && isQueryable) {
+                    if(step != MethodExtenderStep.BeforeWrap)
+                        return;
+
+                    if(isQueryable) {
                         var helperMethodInfo = typeof(SortingHelper).GetMethod(wrappedReturnType.IsTask() ? nameof(SortingHelper.SortQueryableTaskResult) : nameof(SortingHelper.SortQueryableResult), BindingFlags.Public | BindingFlags.Static)!;
                         helperMethodInfo = helperMethodInfo.MakeGenericMethod(originalType, generatedSortType);
                         GenerateEnumerableSort(helperMethodInfo, ilGenerator, sortParameterIndex, astNodeParameterIndex, contextParameterIndex);
-                    } else if(step == MethodExtenderStep.AfterWrap && !isQueryable) {
+                    } else if(!isQueryable) {
                         var helperMethodInfo = typeof(SortingHelper).GetMethod(wrappedReturnType.IsTask() ? nameof(SortingHelper.SortEnumerableTaskResult) : nameof(SortingHelper.SortEnumerableResult), BindingFlags.Public | BindingFlags.Static)!;
                         helperMethodInfo = helperMethodInfo.MakeGenericMethod(elementType, generatedSortType);
                         GenerateEnumerableSort(helperMethodInfo, ilGenerator, sortParameterIndex, astNodeParameterIndex, contextParameterIndex);

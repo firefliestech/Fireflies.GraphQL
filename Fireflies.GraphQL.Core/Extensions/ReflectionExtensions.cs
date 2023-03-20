@@ -181,10 +181,11 @@ public static class ReflectionExtensions {
         return methodInfo.Invoke(instance, arguments);
     }
 
-    public static IEnumerable<Type> GetAllClassesThatImplements(this Type baseType) {
+    public static IEnumerable<Type> GetAllClassesThatImplements(this Type baseType, bool includeDynamic = true) {
         return TypeImplementationsCache.GetOrAdd(baseType, _ =>
             AppDomain.CurrentDomain
                 .GetAssemblies()
+                .Where(x => includeDynamic || !x.IsDynamic)
                 .SelectMany(x => x.GetTypes())
                 .Where(x => x.IsClass && x.IsAssignableTo(baseType))
                 .ToArray());

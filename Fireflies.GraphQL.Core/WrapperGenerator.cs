@@ -22,26 +22,109 @@ internal class WrapperGenerator {
         if(baseType.HasCustomAttribute<GraphQLNoWrapperAttribute>())
             return baseType;
 
-        if(_wrapperRegistry.TryGetValue(baseType, out var existingType)) {
+        if(_wrapperRegistry.TryGetValue(baseType, out var existingType))
             return existingType;
-        }
+
+        var isInterface = baseType.IsInterface;
 
         var typeBuilder = _moduleBuilder.DefineType($"{baseType.Name}",
-            TypeAttributes.Public |
-            TypeAttributes.Class |
-            TypeAttributes.AutoClass |
-            TypeAttributes.AnsiClass |
-            TypeAttributes.BeforeFieldInit |
-            TypeAttributes.AutoLayout,
-            typeof(object));
-
+            isInterface ? TypeAttributes.Interface | TypeAttributes.Public | TypeAttributes.Abstract : TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.AutoClass | TypeAttributes.AnsiClass | TypeAttributes.BeforeFieldInit | TypeAttributes.AutoLayout,
+            isInterface ? null : typeof(object));
         _wrapperRegistry.Add(baseType, typeBuilder);
-
-        var instanceField = typeBuilder.DefineField("_instance", baseType, FieldAttributes.Private);
 
         foreach(var attribute in baseType.GetCustomAttributesData())
             typeBuilder.SetCustomAttribute(attribute.ToAttributeBuilder());
 
+        foreach(var interf in baseType.GetInterfaces()) {
+            var wrappedInterfaceType = GenerateWrapper(interf);
+            typeBuilder.AddInterfaceImplementation(wrappedInterfaceType);
+        }
+
+        FieldBuilder instanceField = null!;
+        if(!isInterface) {
+            instanceField = typeBuilder.DefineField("_instance", baseType, FieldAttributes.Private);
+            CreateConstructor(baseType, copyConstructors, typeBuilder, instanceField);
+        }
+        
+        var methods = baseType.GetAllGraphQLMethods().Select(x => new { Name = x.Name, MethodInfo = x, Parameters = x.GetParameters(), MemberInfo = x as MemberInfo });
+        var properties = baseType.GetAllGraphQLProperties().Select(x => new { Name = x.Name, MethodInfo = x.GetMethod!, Parameters = Array.Empty<ParameterInfo>(), MemberInfo = x as MemberInfo });
+        foreach(var baseMethod in methods.Concat(properties)) {
+            var (wrappedReturnType, originalType, wrapperType) = GetWrappedReturnType(baseMethod.MethodInfo, baseMethod.MemberInfo);
+
+            var parameterTypes = baseMethod.Parameters.Select(x => x.ParameterType);
+            var parameterCount = baseMethod.Parameters.Length;
+
+            parameterTypes = parameterTypes.Concat(new[] { typeof(WrapperRegistry) });
+            parameterCount += 1;
+            var wrapperRegistryIndex = parameterCount;
+
+            var decoratorDescriptors = _generatorRegistry.GetGenerators<IMethodExtenderGenerator>()
+                .Select(m => m.GetMethodExtenderDescriptor(baseMethod.MemberInfo, originalType, wrappedReturnType, ref parameterCount))
+                .Where(x => x.ShouldDecorate).ToArray();
+            parameterTypes = parameterTypes.Concat(decoratorDescriptors.SelectMany(x => x.ParameterTypes));
+
+            var methodBuilder = typeBuilder.DefineMethod(baseMethod.Name,
+                isInterface ? MethodAttributes.Abstract | MethodAttributes.Public | MethodAttributes.Virtual : MethodAttributes.Public | MethodAttributes.Virtual,
+                CallingConventions.Standard, wrappedReturnType, parameterTypes.ToArray());
+            baseMethod.MemberInfo.CopyAttributes(ab => methodBuilder.SetCustomAttribute(ab));
+            methodBuilder.DefineParameters(baseMethod.Parameters);
+            methodBuilder.DefineAnonymousResolvedParameter(wrapperRegistryIndex);
+
+            foreach(var interf in baseType.GetInterfaces()) {
+                var wrappedInterfaceType = GenerateWrapper(interf);
+                var overridingMember = wrappedInterfaceType.GetMethod(baseMethod.Name, BindingFlags.Public | BindingFlags.Instance);
+                if(overridingMember != null) {
+                    typeBuilder.DefineMethodOverride(methodBuilder, overridingMember);
+                    break;
+                }
+            }
+
+            foreach(var middlewareParameter in decoratorDescriptors)
+                middlewareParameter.DefineParametersCallback(methodBuilder);
+
+            if(!isInterface) {
+                var methodIlGenerator = methodBuilder.GetILGenerator();
+                methodIlGenerator.Emit(OpCodes.Ldarg_0);
+                methodIlGenerator.Emit(OpCodes.Ldfld, instanceField); // Load wrapped object from this
+                for(var i = 1; i <= baseMethod.Parameters.Length; i++)
+                    methodIlGenerator.Emit(OpCodes.Ldarg_S, i); // Load base arguments
+                methodIlGenerator.EmitCall(OpCodes.Call, baseMethod.MethodInfo, null); // Call method on wrapped object with the base arguments
+
+                // Call method middlewares passing result from previous operation
+                foreach(var decorator in decoratorDescriptors)
+                    decorator.GenerateCallback(MethodExtenderStep.BeforeWrap, methodIlGenerator);
+
+                // If the returned value a wrapper it needs to be converted from original return type
+                GenerateResultConverter(baseMethod.MethodInfo.ReturnType, wrapperType, originalType, methodIlGenerator, wrapperRegistryIndex);
+            
+                // Call method middlewares passing result from previous operation
+                foreach(var decorator in decoratorDescriptors)
+                    decorator.GenerateCallback(MethodExtenderStep.AfterWrap, methodIlGenerator);
+
+                methodIlGenerator.Emit(OpCodes.Ret); // Return
+            }
+
+            var baseDescriptor = new BaseDescriptor() {
+                ReturnType = baseMethod.MethodInfo.ReturnType,
+                MemberInfo = baseMethod.MemberInfo,
+                ParameterTypes = parameterTypes,
+                GeneratingInterface = isInterface,
+                DefineParameterCallbacks = new Action<MethodBuilder>[] {
+                    mb => mb.DefineParameters(baseMethod.Parameters),
+                    mb => mb.DefineAnonymousResolvedParameter(wrapperRegistryIndex)
+                }.Union(decoratorDescriptors.Select(x => x.DefineParametersCallback))
+            };
+
+            foreach(var typeExtender in _generatorRegistry.GetGenerators<ITypeExtenderGenerator>())
+                typeExtender.Extend(typeBuilder, methodBuilder, baseDescriptor);
+        }
+
+        var createdType = typeBuilder.CreateType()!;
+        _wrapperRegistry.Add(baseType, createdType);
+        return createdType;
+    }
+
+    private static void CreateConstructor(Type baseType, bool copyConstructors, TypeBuilder typeBuilder, FieldBuilder instanceField) {
         var createdConstructor = false;
         if(copyConstructors) {
             foreach(var constructor in baseType.GetConstructors(BindingFlags.Public | BindingFlags.Instance)) {
@@ -71,57 +154,9 @@ internal class WrapperGenerator {
             constructorIlGenerator.Emit(OpCodes.Stfld, instanceField);
             constructorIlGenerator.Emit(OpCodes.Ret);
         }
-
-        var methods = baseType.GetAllGraphQLMethods().Select(x => new { Name = x.Name, MethodInfo = x, Parameters = x.GetParameters(), MemberInfo = x as MemberInfo });
-        var properties = baseType.GetAllGraphQLProperties().Select(x => new { Name = x.Name, MethodInfo = x.GetMethod!, Parameters = Array.Empty<ParameterInfo>(), MemberInfo = x as MemberInfo });
-        foreach(var baseMethod in methods.Concat(properties)) {
-            var (wrappedReturnType, originalType, wrapperType) = GetWrappedReturnType(baseMethod.MethodInfo, baseMethod.MemberInfo);
-
-            var parameterTypes = baseMethod.Parameters.Select(x => x.ParameterType);
-            var parameterCount = baseMethod.Parameters.Length;
-
-            var decoratorDescriptors = _generatorRegistry.GetGenerators<IMethodExtenderGenerator>()
-                .Select(m => m.GetMethodExtenderDescriptor(baseMethod.MemberInfo, originalType, wrappedReturnType, ref parameterCount))
-                .Where(x => x.ShouldDecorate).ToArray();
-            parameterTypes = parameterTypes.Concat(decoratorDescriptors.SelectMany(x => x.ParameterTypes));
-
-            var methodBuilder = typeBuilder.DefineMethod(baseMethod.Name, MethodAttributes.Public, CallingConventions.Standard, wrappedReturnType, parameterTypes.ToArray());
-            baseMethod.MemberInfo.CopyAttributes(ab => methodBuilder.SetCustomAttribute(ab));
-            methodBuilder.DefineParameters(baseMethod.Parameters);
-
-            foreach(var middlewareParameter in decoratorDescriptors)
-                middlewareParameter.DefineParametersCallback(methodBuilder);
-
-            var methodIlGenerator = methodBuilder.GetILGenerator();
-            methodIlGenerator.Emit(OpCodes.Ldarg_0);
-            methodIlGenerator.Emit(OpCodes.Ldfld, instanceField); // Load wrapped object from this
-            for(var i = 1; i <= baseMethod.Parameters.Length; i++)
-                methodIlGenerator.Emit(OpCodes.Ldarg_S, i); // Load base arguments
-            methodIlGenerator.EmitCall(OpCodes.Call, baseMethod.MethodInfo, null); // Call method on wrapped object with the base arguments
-
-            // Call method middlewares passing result from previous operation
-            foreach(var decorator in decoratorDescriptors)
-                decorator.GenerateCallback(MethodExtenderStep.BeforeWrap, methodIlGenerator);
-
-            // If the returned value a wrapper it needs to be converted from original return type
-            GenerateResultConverter(baseMethod.MethodInfo.ReturnType, wrapperType, originalType, methodIlGenerator);
-
-            // Call method middlewares passing result from previous operation
-            foreach(var decorator in decoratorDescriptors)
-                decorator.GenerateCallback(MethodExtenderStep.AfterWrap, methodIlGenerator);
-
-            methodIlGenerator.Emit(OpCodes.Ret); // Return
-
-            foreach(var typeExtender in _generatorRegistry.GetGenerators<ITypeExtenderGenerator>())
-                typeExtender.Extend(typeBuilder, methodBuilder, baseMethod.MemberInfo, instanceField, decoratorDescriptors);
-        }
-
-        var createdType = typeBuilder.CreateType()!;
-        _wrapperRegistry.Add(baseType, createdType);
-        return createdType;
     }
 
-    private void GenerateResultConverter(Type returnType, Type wrapperType, Type originalType, ILGenerator methodIlGenerator) {
+    private void GenerateResultConverter(Type returnType, Type wrapperType, Type originalType, ILGenerator methodIlGenerator, int wrapperRegistryIndex) {
         var wrapperHelperType = typeof(WrapperHelper);
 
         MethodInfo? methodInfo = null;
@@ -152,17 +187,28 @@ internal class WrapperGenerator {
         }
 
         methodInfo = methodInfo.MakeGenericMethod(wrapperType, originalType);
+        methodIlGenerator.Emit(OpCodes.Ldarg_S, wrapperRegistryIndex);
         methodIlGenerator.EmitCall(OpCodes.Call, methodInfo, null);
     }
 
     private (Type, Type, Type) GetWrappedReturnType(MethodInfo methodInfo, MemberInfo memberInfo) {
         var isEnumerable = methodInfo.ReturnType.IsCollection(out var elementType);
-        if(elementType.HasCustomAttribute<GraphQLNoWrapperAttribute>() || elementType.IsValueType || elementType == typeof(string) || elementType.IsInterface) {
-            if(memberInfo.HasCustomAttribute<GraphQLIdAttribute>()) {
-                var graphQlId = typeof(GraphQLId<>).MakeGenericType(elementType);
-                return CreateReturnType(methodInfo, graphQlId, elementType);
+        if(elementType.IsInterface) {
+            var interfaceType = GenerateWrapper(elementType);
+
+            foreach(var impl in elementType.GetAllClassesThatImplements(false)) {
+                GenerateWrapper(impl, false);
             }
 
+            return CreateReturnType(methodInfo, interfaceType, elementType);
+        }
+
+        if(memberInfo.HasCustomAttribute<GraphQLIdAttribute>()) {
+            var graphQlId = typeof(GraphQLId<>).MakeGenericType(elementType);
+            return CreateReturnType(methodInfo, graphQlId, elementType);
+        }
+
+        if(elementType.HasCustomAttribute<GraphQLNoWrapperAttribute>() || elementType.IsValueType || elementType == typeof(string)) {
             return isEnumerable ? CreateReturnType(methodInfo, elementType, elementType) : (methodInfo.ReturnType, elementType, elementType);
         }
 
