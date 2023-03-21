@@ -109,6 +109,10 @@ public static class FederationHelper {
                     return (T)(object)new GraphQLId<string>(token.GetValue<string>());
                 }
 
+                if(type.IsSubclassOf(typeof(GraphQLScalar))) {
+                    return (T)Activator.CreateInstance(type, token.GetValue<string>())!;
+                }
+
                 var typename = token["__typename"]?.GetValue<string>();
                 if(typename != null) {
                     var assembly = type.Assembly;

@@ -1,7 +1,6 @@
 ﻿using Fireflies.GraphQL.Core.Exceptions;
-using Fireflies.GraphQL.Core.Generators;
 
-namespace Fireflies.GraphQL.Core;
+namespace Fireflies.GraphQL.Core.Generators;
 
 internal class GeneratorRegistry {
     private readonly List<object> _registered = new();

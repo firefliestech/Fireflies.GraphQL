@@ -2,6 +2,7 @@
 using System.Reflection;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Json;
+using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.IoC.Abstractions;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
@@ -15,6 +16,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
     private readonly ValueAccessor _valueAccessor;
     private readonly OperationType _operationType;
     private readonly IGraphQLContext _context;
+    private readonly ScalarRegistry _scalarRegistry;
     private readonly DataJsonWriter? _writer;
     private readonly WrapperRegistry _wrapperRegistry;
 
@@ -24,7 +26,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
         GetResultMethod = typeof(OperationVisitor).GetMethod(nameof(GetResult), BindingFlags.NonPublic | BindingFlags.Instance)!;
     }
 
-    public OperationVisitor(GraphQLOptions options, IDependencyResolver dependencyResolver, FragmentAccessor fragmentAccessor, ValueAccessor valueAccessor, WrapperRegistry wrapperRegistry, OperationType operationType, IGraphQLContext context, DataJsonWriter? writer) {
+    public OperationVisitor(GraphQLOptions options, IDependencyResolver dependencyResolver, FragmentAccessor fragmentAccessor, ValueAccessor valueAccessor, WrapperRegistry wrapperRegistry, OperationType operationType, IGraphQLContext context, ScalarRegistry scalarRegistry, DataJsonWriter? writer) {
         _options = options;
         _dependencyResolver = dependencyResolver;
         _fragmentAccessor = fragmentAccessor;
@@ -33,6 +35,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
 
         _operationType = operationType;
         _context = context;
+        _scalarRegistry = scalarRegistry;
         _writer = writer;
     }
 
@@ -45,7 +48,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
             var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _valueAccessor, _context, _dependencyResolver, new ResultContext().Push(returnType));
             var asyncEnumerable = (IAsyncEnumerable<object?>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder, graphQLField })!;
             await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken).ConfigureAwait(false)) {
-                var writer = _writer ?? new DataJsonWriter();
+                var writer = _writer ?? new DataJsonWriter(_scalarRegistry);
 
                 var fieldName = graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue;
                 if(result is IEnumerable enumerable) {

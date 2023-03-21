@@ -2,15 +2,18 @@
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.GraphQL.Core.Scalar;
 
 namespace Fireflies.GraphQL.Core;
 
 internal class SchemaValidator {
     private readonly IEnumerable<OperationDescriptor> _operations;
+    private readonly ScalarRegistry _scalarRegistry;
     private readonly Dictionary<string, Type> _verifiedTyped = new();
 
-    public SchemaValidator(IEnumerable<OperationDescriptor> operations) {
+    public SchemaValidator(IEnumerable<OperationDescriptor> operations, ScalarRegistry scalarRegistry) {
         _operations = operations;
+        _scalarRegistry = scalarRegistry;
     }
 
     public void Validate() {
@@ -25,7 +28,7 @@ internal class SchemaValidator {
             type = elementType;
         }
 
-        if(Type.GetTypeCode(type) != TypeCode.Object || type == typeof(DateTimeOffset?) || type == typeof(DateTime) || type.IsSubclassOf(typeof(GraphQLId)))
+        if(!_scalarRegistry.IsValidGraphQLObjectType(type) || type.IsSubclassOf(typeof(GraphQLId)))
             return;
 
         if(type == typeof(void))

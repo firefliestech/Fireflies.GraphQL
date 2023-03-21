@@ -4,15 +4,18 @@ using Fireflies.GraphQL.Abstractions.Where;
 using System.Reflection.Emit;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Generator;
+using Fireflies.GraphQL.Core.Scalar;
 using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Generators.Where;
 
 public class WhereGenerator : IMethodExtenderGenerator {
     private readonly ModuleBuilder _moduleBuilder;
+    private readonly ScalarRegistry _scalarRegistry;
 
-    public WhereGenerator(ModuleBuilder moduleBuilder) {
+    public WhereGenerator(ModuleBuilder moduleBuilder, ScalarRegistry scalarRegistry) {
         _moduleBuilder = moduleBuilder;
+        _scalarRegistry = scalarRegistry;
     }
 
     public MethodExtenderDescriptor GetMethodExtenderDescriptor(MemberInfo memberInfo, Type originalType, Type wrappedReturnType, ref int parameterCount) {
@@ -78,7 +81,7 @@ public class WhereGenerator : IMethodExtenderGenerator {
             }
 
             subType.IsCollection(out subType);
-            if(!subType.IsValidGraphQLObject()) {
+            if(!_scalarRegistry.IsValidGraphQLObjectType(subType)) {
                 var graphQLType = subType.GetGraphQLBaseType();
 
                 Type propertyType;

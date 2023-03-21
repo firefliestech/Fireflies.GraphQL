@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.IoC.Abstractions;
 
 namespace Fireflies.GraphQL.Core;
@@ -16,18 +17,20 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
     private readonly IDependencyResolver _dependencyResolver;
     private readonly IGraphQLContext _context;
     private readonly WrapperRegistry _wrapperRegistry;
+    private readonly ScalarRegistry _scalarRegistry;
     private readonly List<string> _errors = new();
     private readonly HashSet<string> _usedVariables = new();
     private readonly Stack<Type> _fieldStack = new();
     private OperationType _operationType;
 
-    public RequestValidator(GraphQLRequest request, FragmentAccessor fragments, GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context, WrapperRegistry wrapperRegistry) {
+    public RequestValidator(GraphQLRequest request, FragmentAccessor fragments, GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry) {
         _request = request;
         _fragments = fragments;
         _options = options;
         _dependencyResolver = dependencyResolver;
         _context = context;
         _wrapperRegistry = wrapperRegistry;
+        _scalarRegistry = scalarRegistry;
     }
 
     public async Task<List<string>> Validate(ASTNode startNode) {
@@ -151,7 +154,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         var pushed = false;
         if(inlineFragment.TypeCondition != null) {
             var currentType = _fieldStack.Peek();
-            var matching = currentType.GetAllClassesThatImplements().Select(x => _wrapperRegistry.GetWrapperOfSelf(x)).FirstOrDefault(x => x.GraphQLName() == inlineFragment.TypeCondition.Type.Name);
+            var matching = currentType.GetAllClassesThatImplements().Select(x => _wrapperRegistry.GetWrapperOfSelf(x)).FirstOrDefault(x => x.Name == inlineFragment.TypeCondition.Type.Name.StringValue);
             if(matching != null) {
                 _fieldStack.Push(matching);
                 pushed = true;
@@ -168,7 +171,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         var selections = field.SelectionSet?.Selections ?? Enumerable.Empty<ASTNode>();
         var currentType = _fieldStack.Peek();
         var currentTypeName = currentType.GetGraphQLType().GraphQLName();
-        if(!selections.Any() && currentType.IsClass && currentType != typeof(string) && !currentType.IsSubclassOf(typeof(GraphQLId))) {
+        if(!selections.Any() && currentType.IsClass && currentType != typeof(string) && !currentType.IsSubclassOf(typeof(GraphQLId)) && !_scalarRegistry.Contains(currentType)) {
             _errors.Add($"Field of type \"{field.Name}\" of type \"{currentTypeName}\" must have a selection of sub fields");
         }
 

@@ -2,6 +2,8 @@
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Schema;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.GraphQL.Core.Federation;
+using Fireflies.GraphQL.Core.Scalar;
 using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Schema;
@@ -9,14 +11,16 @@ namespace Fireflies.GraphQL.Core.Schema;
 internal class SchemaBuilder {
     private readonly GraphQLOptions _options;
     private readonly WrapperRegistry _wrapperRegistry;
+    private readonly ScalarRegistry _scalarRegistry;
     private readonly HashSet<Type> _inputTypes = new();
     private readonly HashSet<Type> _ignore = new();
     private int _inputLevel;
 
     // ReSharper disable once UnusedMember.Global
-    public SchemaBuilder(GraphQLOptions options, WrapperRegistry wrapperRegistry) {
+    public SchemaBuilder(GraphQLOptions options, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry) {
         _options = options;
         _wrapperRegistry = wrapperRegistry;
+        _scalarRegistry = scalarRegistry;
         _ignore.Add(typeof(CancellationToken));
         _ignore.Add(typeof(ASTNode));
     }
@@ -88,7 +92,7 @@ internal class SchemaBuilder {
         if(!isOperation && !types.Add(startingObject))
             return;
 
-        if(!startingObject.IsValidGraphQLObject())
+        if(!_scalarRegistry.IsValidGraphQLObjectType(startingObject))
             return;
 
         if(startingObject.IsInterface) {
@@ -209,15 +213,13 @@ internal class SchemaBuilder {
             };
         }
 
-        if(elementType == typeof(DateTime) || elementType == typeof(DateTimeOffset)) {
+        if(_scalarRegistry.Contains(elementType)) {
             return new __Type(elementType) {
                 Name = elementType.GetPrimitiveGraphQLName(),
                 Kind = __TypeKind.SCALAR
             };
         }
-
-        // Todo: ID is missing
-
+        
         if(_inputTypes.Contains(elementType)) {
             var inputValues = new List<__InputValue>();
 

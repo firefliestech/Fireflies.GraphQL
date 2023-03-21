@@ -1,11 +1,14 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
+using System.Reflection.PortableExecutable;
+using System.Security.AccessControl;
 using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Abstractions.Schema;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Federation.Schema;
+using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.GraphQL.Core.Schema;
 using GraphQLParser.AST;
 
@@ -14,13 +17,15 @@ namespace Fireflies.GraphQL.Core.Federation;
 public class FederationGenerator {
     private readonly (string Name, string Url) _federation;
     private readonly FederationSchema _federationSchema;
+    private readonly ScalarRegistry _scalarRegistry;
     private readonly ModuleBuilder _dynamicModule;
 
     private readonly Dictionary<string, Type> _nameLookup = new();
 
-    public FederationGenerator((string Name, string Url) federation, FederationSchema federationSchema) {
+    public FederationGenerator((string Name, string Url) federation, FederationSchema federationSchema, ScalarRegistry scalarRegistry) {
         _federation = federation;
         _federationSchema = federationSchema;
+        _scalarRegistry = scalarRegistry;
 
         var assemblyName = new AssemblyName($"Fireflies.GraphQL.Federation.{_federation.Name}.ProxyAssembly");
         var dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
@@ -31,7 +36,7 @@ public class FederationGenerator {
     public Type Generate() {
         var typesToGenerate = FindTypesToGenerate();
         foreach(var type in typesToGenerate.OrderBy(x => x.Kind is __TypeKind.INTERFACE or __TypeKind.UNION ? 0 : 1)) {
-            GenerateType(type, _ => { });
+            GenerateType(type);
         }
 
         var operationsTypeBuilder = _dynamicModule.DefineType($"{_federation.Name}Operations", TypeAttributes.Class | TypeAttributes.Public, typeof(FederationBase));
@@ -121,17 +126,19 @@ public class FederationGenerator {
         }
     }
 
-    private Type GenerateType(FederationType schemaType, Action<TypeBuilder>? extras = null, Type? interfaceType = null) {
+    private Type GenerateType(FederationType schemaType, Type? interfaceType = null) {
         var typeName = GenerateName(schemaType);
 
         if(_nameLookup.TryGetValue(typeName, out var existingType))
             return existingType;
 
-        if(schemaType.Kind == __TypeKind.ENUM) {
-            return GenerateEnum(schemaType, typeName);
-        }
+        if(_scalarRegistry.NameToType(typeName, out var existingScalarType))
+            return existingScalarType!;
 
-        return GenerateObject(schemaType, extras, interfaceType, typeName);
+        if(schemaType.Kind == __TypeKind.ENUM)
+            return GenerateEnum(schemaType, typeName);
+
+        return GenerateObject(schemaType, interfaceType, typeName);
     }
 
     private Type GenerateEnum(FederationType schemaType, string typeName) {
@@ -146,11 +153,11 @@ public class FederationGenerator {
             if(enumValue.IsDeprecated)
                 literalBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLDeprecatedAttribute).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(string) })!, new object?[] { enumValue.DeprecationReason }));
         }
-        
+
         return generatedType.CreateType()!;
     }
 
-    private Type GenerateObject(FederationType schemaType, Action<TypeBuilder>? extras, Type? interfaceType, string typeName) {
+    private Type GenerateObject(FederationType schemaType, Type? interfaceType, string typeName) {
         var isInterface = schemaType.Kind is __TypeKind.INTERFACE or __TypeKind.UNION;
         var isUnion = schemaType.Kind is __TypeKind.UNION;
 
@@ -209,14 +216,12 @@ public class FederationGenerator {
             }
         }
 
-        extras?.Invoke(generatedType);
-
         var finalType = generatedType.CreateType()!;
 
         if(isInterface) {
             foreach(var implementation in schemaType.PossibleTypes) {
                 var implementationType = _federationSchema.Types.First(x => x.Name == implementation.Name);
-                GenerateType(implementationType, null, finalType);
+                GenerateType(implementationType, finalType);
             }
         }
 
@@ -272,11 +277,14 @@ public class FederationGenerator {
         if(type.Name == "ID" || type.OfType?.Name == "ID")
             return typeof(GraphQLId<string>);
 
-        if(type.Name == "DateTime")
-            return typeof(DateTime);
+        if(type.Kind == __TypeKind.SCALAR) {
+            if(_scalarRegistry.NameToType(type.Name, out var existingScalarType))
+                return existingScalarType!;
 
-        if(type.Name == "DateTimeOffset")
-            return typeof(DateTimeOffset);
+            var scalarType = GenerateScalarType(type);
+            _scalarRegistry.AddScalar(scalarType, new FederatedScalarHandler());
+            return scalarType;
+        }
 
         if(type.Kind == __TypeKind.NON_NULL)
             return GetTypeFromSchemaType(type.OfType!);
@@ -290,7 +298,20 @@ public class FederationGenerator {
         }
 
         var rootType = _federationSchema.Types.First(x => x.Name == type.Name);
-        return GenerateType(rootType, _ => { });
+        return GenerateType(rootType);
+    }
+
+    private Type? GenerateScalarType(FederationType type) {
+        var scalarTypeBuilder = _dynamicModule.DefineType(type.Name!, TypeAttributes.Public, typeof(GraphQLScalar));
+        var constructorBuilder = scalarTypeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { typeof(string) });
+        var constructorIlGenerator = constructorBuilder.GetILGenerator();
+        constructorIlGenerator.Emit(OpCodes.Ldarg_0);
+        constructorIlGenerator.Emit(OpCodes.Ldarg_1);
+        constructorIlGenerator.Emit(OpCodes.Call, typeof(GraphQLScalar).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(string) })!);
+        constructorIlGenerator.Emit(OpCodes.Ret);
+
+        var scalarType = scalarTypeBuilder.CreateType();
+        return scalarType;
     }
 
     private string GenerateName(FederationType type) {
@@ -310,6 +331,12 @@ public class FederationGenerator {
         if(type.Name == _federationSchema.QueryType?.Name || type.Name == _federationSchema.MutationType?.Name || type.Name == _federationSchema.SubscriptionType?.Name)
             return false;
 
-        return type.Name is not ("Int" or "Float" or "String" or "Boolean" or "ID" or "DateTime" or "DateTimeOffset");
+        if(type.Name is ("Int" or "Float" or "String" or "Boolean" or "ID"))
+            return false;
+
+        if(_scalarRegistry.NameToType(type.Name, out _))
+            return false;
+
+        return true;
     }
 }

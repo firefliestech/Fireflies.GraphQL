@@ -3,15 +3,18 @@ using System.Reflection.Emit;
 using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Abstractions.Sorting;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.GraphQL.Core.Scalar;
 using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Generators.Sorting;
 
 public class SortingGenerator : IMethodExtenderGenerator {
     private readonly ModuleBuilder _moduleBuilder;
+    private readonly ScalarRegistry _scalarRegistry;
 
-    public SortingGenerator(ModuleBuilder moduleBuilder) {
+    public SortingGenerator(ModuleBuilder moduleBuilder, ScalarRegistry scalarRegistry) {
         _moduleBuilder = moduleBuilder;
+        _scalarRegistry = scalarRegistry;
     }
 
     public MethodExtenderDescriptor GetMethodExtenderDescriptor(MemberInfo memberInfo, Type originalType, Type wrappedReturnType, ref int parameterCount) {
@@ -76,7 +79,7 @@ public class SortingGenerator : IMethodExtenderGenerator {
             }
 
             subType.IsCollection(out subType);
-            if(!subType.IsValidGraphQLObject()) {
+            if(!_scalarRegistry.IsValidGraphQLObjectType(subType)) {
                 DefineSortProperty(typeof(SortOrder?), sortType, member);
             }
         }

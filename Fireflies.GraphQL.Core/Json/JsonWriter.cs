@@ -1,16 +1,20 @@
 ﻿using System.Globalization;
+using System.Reflection;
 using System.Text.Json;
 using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Core.Scalar;
 
 namespace Fireflies.GraphQL.Core.Json;
 
 public abstract class JsonWriter {
+    private readonly ScalarRegistry _scalarRegistry;
     private readonly MemoryStream _stream;
     protected readonly Utf8JsonWriter Writer;
 
     public byte[]? Result { get; set; }
 
-    protected JsonWriter() {
+    protected JsonWriter(ScalarRegistry scalarRegistry) {
+        _scalarRegistry = scalarRegistry;
         _stream = new MemoryStream();
         Writer = new Utf8JsonWriter(_stream);
         Writer.WriteStartObject(); // Root object
@@ -93,14 +97,9 @@ public abstract class JsonWriter {
                 Writer.WriteNumberValue((decimal)Convert.ChangeType(value, TypeCode.Decimal));
                 break;
 
-            case TypeCode.DateTime:
-                Writer.WriteStringValue(((DateTimeOffset)value).ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", DateTimeFormatInfo.InvariantInfo));
-                break;
-
             default:
-                if(value.GetType() == typeof(DateTimeOffset)) {
-                    Writer.WriteStringValue(((DateTimeOffset)value).ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", DateTimeFormatInfo.InvariantInfo));
-                    break;
+                if(_scalarRegistry.GetHandler(value.GetType(), out var handler)) {
+                    handler!.Serialize(Writer, value);
                 }
 
                 throw new ArgumentOutOfRangeException(nameof(typeCode));
@@ -140,10 +139,6 @@ public abstract class JsonWriter {
                 Writer.WriteNumber(property, (decimal)Convert.ChangeType(value, TypeCode.Decimal));
                 break;
 
-            case TypeCode.DateTime:
-                Writer.WriteString(property, ((DateTimeOffset)value).ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", DateTimeFormatInfo.InvariantInfo));
-                break;
-
             default:
                 var memberInfo = value.GetType();
 
@@ -152,8 +147,8 @@ public abstract class JsonWriter {
                     break;
                 }
 
-                if(memberInfo == typeof(DateTimeOffset)) {
-                    Writer.WriteString(property, ((DateTimeOffset)value).ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", DateTimeFormatInfo.InvariantInfo));
+                if(_scalarRegistry.GetHandler(memberInfo, out var handler)) {
+                    handler!.Serialize(Writer, property, value);
                     break;
                 }
 

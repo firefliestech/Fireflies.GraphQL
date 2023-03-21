@@ -1,4 +1,5 @@
 ﻿using Fireflies.GraphQL.Core.Json;
+using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.IoC.Abstractions;
 using GraphQLParser;
 using GraphQLParser.AST;
@@ -11,6 +12,7 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
     private readonly GraphQLOptions _options;
     private readonly IDependencyResolver _dependencyResolver;
     private readonly WrapperRegistry _wrapperRegistry;
+    private readonly ScalarRegistry _scalarRegistry;
     private FragmentAccessor _fragmentAccessor = null!;
     private ValueAccessor _valueAccessor = null!;
 
@@ -18,10 +20,11 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
 
     private DataJsonWriter? _writer;
 
-    public GraphQLEngine(GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context, WrapperRegistry wrapperRegistry) {
+    public GraphQLEngine(GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry) {
         _options = options;
         _dependencyResolver = dependencyResolver;
         _wrapperRegistry = wrapperRegistry;
+        _scalarRegistry = scalarRegistry;
         Context = context;
     }
 
@@ -36,12 +39,12 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
         _fragmentAccessor = new FragmentAccessor(graphQLDocument!, Context);
         _valueAccessor = new ValueAccessor(request!.Variables, Context);
 
-        var errors = await new RequestValidator(request, _fragmentAccessor, _options, _dependencyResolver, Context, _wrapperRegistry).Validate(graphQLDocument!).ConfigureAwait(false);
+        var errors = await new RequestValidator(request, _fragmentAccessor, _options, _dependencyResolver, Context, _wrapperRegistry, _scalarRegistry).Validate(graphQLDocument!).ConfigureAwait(false);
         if(errors.Any()) {
             Context.IncreaseExpectedOperations();
             Context.PublishResult(GenerateValidationErrorResult(errors));
         } else {
-            _writer = !Context.IsWebSocket ? new DataJsonWriter() : null;
+            _writer = !Context.IsWebSocket ? new DataJsonWriter(_scalarRegistry) : null;
             await VisitAsync(graphQLDocument, Context).ConfigureAwait(false);
         }
     }
@@ -68,7 +71,7 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
     }
 
     private ErrorJsonWriter GenerateValidationErrorResult(List<string> errors) {
-        var errorWriter = new ErrorJsonWriter();
+        var errorWriter = new ErrorJsonWriter(_scalarRegistry);
         foreach(var error in errors)
             GenerateMessage(error, "GRAPHQL_VALIDATION_FAILED", errorWriter);
 
@@ -76,7 +79,7 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
     }
 
     private ErrorJsonWriter GenerateErrorResult(string exceptionMessage, string code) {
-        var errorWriter = new ErrorJsonWriter();
+        var errorWriter = new ErrorJsonWriter(_scalarRegistry);
         GenerateMessage(exceptionMessage, code, errorWriter);
         return errorWriter;
     }
@@ -96,7 +99,7 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
         if(operationDefinition.Operation is OperationType.Query or OperationType.Mutation)
             context.IncreaseExpectedOperations(operationDefinition.SelectionSet.Selections.Count);
 
-        var visitor = new OperationVisitor(_options, _dependencyResolver, _fragmentAccessor, _valueAccessor, _wrapperRegistry, operationDefinition.Operation, context, _writer);
+        var visitor = new OperationVisitor(_options, _dependencyResolver, _fragmentAccessor, _valueAccessor, _wrapperRegistry, operationDefinition.Operation, context, _scalarRegistry, _writer);
         await visitor.VisitAsync(operationDefinition, context).ConfigureAwait(false);
     }
 }

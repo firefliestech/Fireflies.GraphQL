@@ -108,12 +108,6 @@ public static class ReflectionExtensions {
         return type;
     }
 
-    public static bool IsValidGraphQLObject(this Type type) {
-        return Type.GetTypeCode(type) == TypeCode.Object
-               && type != typeof(DateTimeOffset)
-               && type != typeof(DateTimeOffset?);
-    }
-
     public static IEnumerable<PropertyInfo> GetAllGraphQLProperties(this Type type) {
         return type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy | BindingFlags.GetProperty | BindingFlags.IgnoreCase).Where(p => p.DeclaringType != typeof(object));
     }

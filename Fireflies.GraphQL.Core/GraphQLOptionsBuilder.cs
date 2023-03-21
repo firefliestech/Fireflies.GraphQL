@@ -6,6 +6,7 @@ using Fireflies.GraphQL.Core.Generators;
 using Fireflies.GraphQL.Core.Generators.Connection;
 using Fireflies.GraphQL.Core.Generators.Sorting;
 using Fireflies.GraphQL.Core.Generators.Where;
+using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.GraphQL.Core.Schema;
 using Fireflies.IoC.Abstractions;
 using Fireflies.IoC.TinyIoC;
@@ -25,6 +26,7 @@ public class GraphQLOptionsBuilder {
     public static int _optionCounter = 0;
     private readonly ModuleBuilder _moduleBuilder;
     private readonly List<IExtensionBuilder> _extensions = new();
+    private readonly ScalarRegistry _scalarRegistry = new();
 
     public GraphQLOptionsBuilder() {
         _operationTypes.Add(typeof(__SchemaQuery));
@@ -34,9 +36,14 @@ public class GraphQLOptionsBuilder {
         _moduleBuilder = dynamicAssembly.DefineDynamicModule("Main");
 
         _generatorRegistry = new GeneratorRegistry();
-        _generatorRegistry.Add(new WhereGenerator(_moduleBuilder));
-        _generatorRegistry.Add(new SortingGenerator(_moduleBuilder));
+        _generatorRegistry.Add(new WhereGenerator(_moduleBuilder, _scalarRegistry));
+        _generatorRegistry.Add(new SortingGenerator(_moduleBuilder, _scalarRegistry));
         _generatorRegistry.Add(new ConnectionGenerator(_moduleBuilder));
+    }
+
+    public GraphQLOptionsBuilder AddScalar<T>(IScalarHandler scalarHandler) {
+        _scalarRegistry.AddScalar<T>(scalarHandler);
+        return this;
     }
 
     public GraphQLOptionsBuilder Add<T>() {
@@ -89,7 +96,7 @@ public class GraphQLOptionsBuilder {
                 try {
                     logger.Info($"Fetching federated schema for {federation.Name} from {federation.Url}");
                     var federationSchema = await new FederationClient(federation.Url).FetchSchema().ConfigureAwait(false);
-                    var generator = new FederationGenerator(federation, federationSchema);
+                    var generator = new FederationGenerator(federation, federationSchema, _scalarRegistry);
                     var generatedType = generator.Generate();
                     _operationTypes.Add(generatedType);
                     break;
@@ -115,6 +122,7 @@ public class GraphQLOptionsBuilder {
             builder.RegisterType<GraphQLEngine>();
             builder.RegisterType<__SchemaQuery>();
             builder.RegisterInstance(wrapperRegistry);
+            builder.RegisterInstance(_scalarRegistry);
 
             options.Extensions.BuildGraphQLLifetimeScope(builder);
 
@@ -138,12 +146,12 @@ public class GraphQLOptionsBuilder {
                 }
             }
 
-            var schemaBuilder = new SchemaBuilder(options, wrapperRegistry);
+            var schemaBuilder = new SchemaBuilder(options, wrapperRegistry, _scalarRegistry);
             var schema = schemaBuilder.GenerateSchema();
             builder.RegisterInstance(schema);
         });
 
-        var validator = new SchemaValidator(options.AllOperations);
+        var validator = new SchemaValidator(options.AllOperations, _scalarRegistry);
         validator.Validate();
 
         options.LoggerFactory = _loggerFactory;
