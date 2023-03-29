@@ -35,6 +35,9 @@ public class GraphQLOptionsBuilder {
         var dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
         _moduleBuilder = dynamicAssembly.DefineDynamicModule("Main");
 
+        AddScalar<DateTimeOffset>(new DateTimeScalarHandler());
+        AddScalar<DateTime>(new DateTimeScalarHandler());
+
         _generatorRegistry = new GeneratorRegistry();
         _generatorRegistry.Add(new WhereGenerator(_moduleBuilder, _scalarRegistry));
         _generatorRegistry.Add(new SortingGenerator(_moduleBuilder, _scalarRegistry));
