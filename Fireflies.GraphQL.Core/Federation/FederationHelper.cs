@@ -16,13 +16,13 @@ public static class FederationHelper {
         EnumerableMethod = typeof(FederationHelper).GetMethod(nameof(GetEnumerableResult), BindingFlags.NonPublic | BindingFlags.Static)!;
     }
 
-    public static async Task<T?> ExecuteRequest<T>(ASTNode astNode, IGraphQLContext context, string url, OperationType operation) {
+    public static async Task<T?> ExecuteRequest<T>(ASTNode astNode, ValueAccessor valueAccessor, IGraphQLContext context, string url, OperationType operation) {
         var query = await CreateFederationQuery(astNode, context).ConfigureAwait(false);
 
         var request = new HttpRequestMessage(HttpMethod.Post, url);
         foreach(var item in context.RequestHeaders)
             request.Headers.TryAddWithoutValidation(item.Key, item.Value);
-        request.Content = new StringContent(FederationQueryBuilder.BuildQuery(query, operation, ""));
+        request.Content = new StringContent(FederationQueryBuilder.BuildQuery(query, operation, "", valueAccessor.Variables));
 
         var result = await HttpClient.SendAsync(request, context.CancellationToken).ConfigureAwait(false);
         var stream = await result.Content.ReadAsStreamAsync().ConfigureAwait(false);
@@ -33,9 +33,9 @@ public static class FederationHelper {
         return GetResult<T>(json?["data"]?[field.Name.StringValue]);
     }
 
-    public static async IAsyncEnumerable<T> ExecuteSubscription<T>(ASTNode astNode, IGraphQLContext context, string url, OperationType operation, string operationName) {
+    public static async IAsyncEnumerable<T> ExecuteSubscription<T>(ASTNode astNode, ValueAccessor valueAccessor, IGraphQLContext context, string url, OperationType operation, string operationName) {
         var query = await CreateFederationQuery(astNode, context).ConfigureAwait(false);
-        var client = new FederationWebsocket<T>(FederationQueryBuilder.BuildQuery(query, operation, ""), url, context, operationName);
+        var client = new FederationWebsocket<T>(FederationQueryBuilder.BuildQuery(query, operation, "", valueAccessor.Variables), url, context, operationName);
         await foreach(var value in client.Results().ConfigureAwait(false))
             yield return value;
     }

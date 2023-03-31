@@ -39,7 +39,7 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
         _fragmentAccessor = new FragmentAccessor(graphQLDocument!, Context);
         _valueAccessor = new ValueAccessor(request!.Variables, Context);
 
-        var errors = await new RequestValidator(request, _fragmentAccessor, _options, _dependencyResolver, Context, _wrapperRegistry, _scalarRegistry).Validate(graphQLDocument!).ConfigureAwait(false);
+        var errors = await new RequestValidator(request, _fragmentAccessor, _options, _dependencyResolver, Context, _wrapperRegistry, _scalarRegistry, _valueAccessor).Validate(graphQLDocument!).ConfigureAwait(false);
         if(errors.Any()) {
             Context.IncreaseExpectedOperations();
             Context.PublishResult(GenerateValidationErrorResult(errors));

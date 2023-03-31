@@ -5,7 +5,11 @@ using GraphQLParser.AST;
 namespace Fireflies.GraphQL.Core.Federation;
 
 public static class FederationQueryBuilder {
-    public static string BuildQuery(string query, OperationType operationType, string name) => JsonSerializer.Serialize(new JsonObject { { "query", JsonValue.Create($"{operationType.ToString().ToLower()} {name} {{ {query} }}") }});
+    public static string BuildQuery(string query, OperationType operationType, string name, Dictionary<string, object?>? variables) =>
+        JsonSerializer.Serialize(new JsonObject {
+            { "query", JsonValue.Create($"{operationType.ToString().ToLower()} {name} {{ {query} }}") },
+            { "variables", variables != null ? JsonValue.Create(variables) : null }
+        });
 
     public static string SchemaQuery =>
         @"__schema {

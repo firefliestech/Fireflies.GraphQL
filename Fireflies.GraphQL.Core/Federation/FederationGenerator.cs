@@ -84,9 +84,10 @@ public class FederationGenerator {
         var returnType = GetTypeFromSchemaType(field.Type);
         var taskReturnType = operation == OperationType.Subscription ? typeof(IAsyncEnumerable<>).MakeGenericType(returnType) : typeof(Task<>).MakeGenericType(returnType);
 
-        var methodBuilder = typeBuilder.DefineMethod(field.Name, MethodAttributes.Public, taskReturnType, argTypes.Union(new[] { typeof(ASTNode) }).ToArray());
+        var methodBuilder = typeBuilder.DefineMethod(field.Name, MethodAttributes.Public, taskReturnType, argTypes.Union(new[] { typeof(ASTNode), typeof(ValueAccessor) }).ToArray());
         DefineParameters(argTypes, methodBuilder, field);
         methodBuilder.DefineAnonymousResolvedParameter(argTypes.Count + 1);
+        methodBuilder.DefineAnonymousResolvedParameter(argTypes.Count + 2);
 
         AddAttributes(field, methodBuilder);
         AddOperationAttribute(operation, methodBuilder);
@@ -96,6 +97,7 @@ public class FederationGenerator {
         var contextField = typeof(FederationBase).GetField("GraphQLContext", BindingFlags.NonPublic | BindingFlags.Instance)!;
 
         methodILGenerator.Emit(OpCodes.Ldarg_S, argTypes.Count + 1);
+        methodILGenerator.Emit(OpCodes.Ldarg_S, argTypes.Count + 2);
         methodILGenerator.Emit(OpCodes.Ldarg_0);
         methodILGenerator.Emit(OpCodes.Ldfld, contextField);
         methodILGenerator.Emit(OpCodes.Ldstr, _federation.Url);

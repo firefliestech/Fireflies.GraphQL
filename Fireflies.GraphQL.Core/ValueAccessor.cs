@@ -1,4 +1,5 @@
-﻿using GraphQLParser.AST;
+﻿using System.Text.Json;
+using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core;
@@ -9,8 +10,11 @@ public class ValueAccessor {
 
     internal ValueAccessor(Dictionary<string, object>? variables, IGraphQLContext context) {
         _context = context;
+
         _visitor = new ValueVisitor(variables);
     }
+
+    public Dictionary<string, object?> Variables => _visitor.Variables;
 
     public async Task<T?> GetValue<T>(ASTNode node) {
         var unconvertedValue = await GetValue(node).ConfigureAwait(false);
@@ -32,11 +36,31 @@ public class ValueAccessor {
         return visitorContext.Result;
     }
 
+    public object? GetVariable(string variableName) {
+        return _visitor.GetVariable(variableName);
+    }
+
     private class ValueVisitor : ASTVisitor<ValueVisitorContext> {
-        private readonly Dictionary<string, object>? _variables;
+        private readonly Dictionary<string, object?> _variables;
+
+        public Dictionary<string, object?> Variables => _variables;
 
         public ValueVisitor(Dictionary<string, object>? variables) {
-            _variables = variables;
+            _variables = variables?.Where(x => x.Value is JsonElement).Select(x => new { x.Key, Value = ConvertToValue((JsonElement)x.Value) }).ToDictionary(x => x.Key, x => x.Value) ?? new Dictionary<string, object?>();
+        }
+
+        private object? ConvertToValue(JsonElement value) {
+            return value.ValueKind switch {
+                JsonValueKind.String => value.GetString(),
+                JsonValueKind.Number => value.GetDecimal(),
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.Undefined => null,
+                JsonValueKind.Null => null,
+                JsonValueKind.Object => throw new NotImplementedException(),
+                JsonValueKind.Array => throw new NotImplementedException(),
+                _ => null
+            };
         }
 
         protected override ValueTask VisitBooleanValueAsync(GraphQLBooleanValue booleanValue, ValueVisitorContext context) {
@@ -65,13 +89,12 @@ public class ValueAccessor {
         }
 
         protected override ValueTask VisitVariableAsync(GraphQLVariable variable, ValueVisitorContext context) {
-            if(_variables?.TryGetValue(variable.Name.StringValue, out var value) ?? false) {
-                context.Result = value;
-            } else {
-                context.Result = null;
-            }
-
+            context.Result = GetVariable(variable.Name.StringValue);
             return ValueTask.CompletedTask;
+        }
+
+        public object? GetVariable(string variableName) {
+            return _variables.TryGetValue(variableName, out var value) ? value : null;
         }
     }
 

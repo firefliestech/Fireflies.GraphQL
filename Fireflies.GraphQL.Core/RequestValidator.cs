@@ -2,6 +2,7 @@
 using GraphQLParser.Visitors;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
@@ -18,12 +19,13 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
     private readonly IGraphQLContext _context;
     private readonly WrapperRegistry _wrapperRegistry;
     private readonly ScalarRegistry _scalarRegistry;
+    private readonly ValueAccessor _valueAccessor;
     private readonly List<string> _errors = new();
     private readonly HashSet<string> _usedVariables = new();
     private readonly Stack<Type> _fieldStack = new();
     private OperationType _operationType;
 
-    public RequestValidator(GraphQLRequest request, FragmentAccessor fragments, GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry) {
+    public RequestValidator(GraphQLRequest request, FragmentAccessor fragments, GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry, ValueAccessor valueAccessor) {
         _request = request;
         _fragments = fragments;
         _options = options;
@@ -31,6 +33,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         _context = context;
         _wrapperRegistry = wrapperRegistry;
         _scalarRegistry = scalarRegistry;
+        _valueAccessor = valueAccessor;
     }
 
     public async Task<List<string>> Validate(ASTNode startNode) {
@@ -189,7 +192,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
                 _errors.Add($"Unknown argument \"{arg.Name}\" on field \"{field.Name.StringValue}\".");
             } else {
                 remainingParameters.Remove(matchingParameter);
-                var argumentValidator = new ArgumentValidator(matchingParameter, _errors);
+                var argumentValidator = new ArgumentValidator(matchingParameter, _valueAccessor, _errors);
                 await argumentValidator.VisitAsync(arg.Value, context);
                 await VisitAsync(arg, context).ConfigureAwait(false);
             }
@@ -221,11 +224,13 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
     }
 
     private class ArgumentValidator : ASTVisitor<IGraphQLContext> {
+        private readonly ValueAccessor _valueAccessor;
         private readonly List<string> _errors;
         private readonly Stack<Type> _stack = new();
 
-        public ArgumentValidator(ParameterInfo matchingParameter, List<string> errors) {
+        public ArgumentValidator(ParameterInfo matchingParameter, ValueAccessor valueAccessor, List<string> errors) {
             _stack.Push(matchingParameter.ParameterType);
+            _valueAccessor = valueAccessor;
             _errors = errors;
         }
 
@@ -280,8 +285,59 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             }
         }
 
+        protected override ValueTask VisitVariableAsync(GraphQLVariable variable, IGraphQLContext context) {
+            var jsonElement = _valueAccessor.GetVariable(variable.Name.StringValue);
+            if(jsonElement == null)
+                return ValueTask.CompletedTask;
+
+            var expectedType = _stack.Peek();
+            var variableValue = _valueAccessor.GetVariable(variable.Name.StringValue);
+
+            if(variableValue == null) {
+                if(Nullable.GetUnderlyingType(expectedType) == null)
+                    _errors.Add($"Value for variable with name \"{variable.Name.StringValue}\" must not be null");
+                return ValueTask.CompletedTask;
+            }
+
+            var valueType = variableValue.GetType();
+            if(IsNumber(expectedType)) {
+                if(!IsNumber(valueType))
+                    AddTypeError(variable, expectedType);
+            } else if(expectedType == typeof(string)) {
+                if(valueType != typeof(string))
+                    AddTypeError(variable, expectedType);
+            } else if(expectedType == typeof(bool)) {
+                if(valueType != typeof(bool))
+                    AddTypeError(variable, expectedType);
+            }
+
+            return ValueTask.CompletedTask;
+        }
+
+        private bool IsNumber(Type expectedType) {
+            var typeCode = Type.GetTypeCode(expectedType);
+            return typeCode switch {
+                TypeCode.SByte => true,
+                TypeCode.Byte => true,
+                TypeCode.Int16 => true,
+                TypeCode.UInt16 => true,
+                TypeCode.Int32 => true,
+                TypeCode.UInt32 => true,
+                TypeCode.Int64 => true,
+                TypeCode.UInt64 => true,
+                TypeCode.Single => true,
+                TypeCode.Double => true,
+                TypeCode.Decimal => true,
+                _ => false
+            };
+        }
+
         private void AddTypeError(GraphQLObjectField objectField, Type currentType, Type memberPropertyType) {
             _errors.Add($"Value for field with name \"{objectField.Name.StringValue}\" of type \"{currentType.Name}\" must be of type {memberPropertyType.GetPrimitiveGraphQLName()}");
+        }
+
+        private void AddTypeError(GraphQLVariable variable, Type memberPropertyType) {
+            _errors.Add($"Value for variable with name \"{variable.Name.StringValue}\" must be of type {memberPropertyType.GetPrimitiveGraphQLName()}");
         }
     }
 }
