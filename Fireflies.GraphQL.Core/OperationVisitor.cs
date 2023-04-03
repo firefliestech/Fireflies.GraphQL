@@ -1,9 +1,9 @@
 ﻿using System.Collections;
 using System.Reflection;
-using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Json;
 using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.IoC.Abstractions;
+using Fireflies.Utility.Reflection;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 
@@ -44,9 +44,11 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
             var operationDescriptor = GetHandler(graphQLField);
             var operations = _dependencyResolver.Resolve(operationDescriptor.Type);
 
-            var returnType = operationDescriptor.Method.DiscardTaskFromReturnType();
+            var returnType = ReflectionCache.GetReturnType(operationDescriptor.Method);
             var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _valueAccessor, _context, _dependencyResolver, new ResultContext().Push(returnType));
-            var asyncEnumerable = (IAsyncEnumerable<object?>)GetResultMethod.MakeGenericMethod(returnType).Invoke(this, new[] { operationDescriptor, operations, argumentBuilder, graphQLField })!;
+            var methodInvoker = ReflectionCache.GetGenericMethodInvoker(GetResultMethod, new [] { returnType }, typeof(OperationDescriptor), typeof(object), typeof(ArgumentBuilder), typeof(GraphQLField));
+            var asyncEnumerable = (IAsyncEnumerable<object?>)methodInvoker(this, operationDescriptor, operations, argumentBuilder, graphQLField);
+
             await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken).ConfigureAwait(false)) {
                 var writer = _writer ?? new DataJsonWriter(_scalarRegistry);
 
@@ -96,7 +98,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
     private async IAsyncEnumerable<object?> GetResult<T>(OperationDescriptor operationDescriptor, object query, ArgumentBuilder argumentBuilder, GraphQLField node) {
         var arguments = await argumentBuilder.Build(node).ConfigureAwait(false);
         if(_operationType is OperationType.Query or OperationType.Mutation) {
-            var resultTask = await operationDescriptor.Method.ExecuteMethod(query, arguments).ConfigureAwait(false);
+            var resultTask = await ReflectionCache.ExecuteMethod(operationDescriptor.Method, query, arguments).ConfigureAwait(false);
             yield return resultTask;
         } else {
             var asyncEnumerable = (IAsyncEnumerable<T>)operationDescriptor.Method.Invoke(query, arguments)!;

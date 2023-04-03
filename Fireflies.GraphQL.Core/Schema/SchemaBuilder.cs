@@ -2,8 +2,8 @@
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Schema;
 using Fireflies.GraphQL.Core.Extensions;
-using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Scalar;
+using Fireflies.Utility.Reflection;
 using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Schema;
@@ -96,7 +96,7 @@ internal class SchemaBuilder {
             return;
 
         if(startingObject.IsInterface) {
-            foreach(var impl in startingObject.GetAllClassesThatImplements())
+            foreach(var impl in ReflectionCache.GetAllClassesThatImplements(startingObject))
                 FindAllTypes(types, _wrapperRegistry.GetWrapperOfSelf(impl));
         } else {
             foreach(var interf in startingObject.GetInterfaces()) {
@@ -131,7 +131,7 @@ internal class SchemaBuilder {
         }
 
         if(startingObject.IsInterface) {
-            foreach(var implementingType in startingObject.GetAllClassesThatImplements()) {
+            foreach(var implementingType in ReflectionCache.GetAllClassesThatImplements(startingObject)) {
                 types.Add(_wrapperRegistry.GetWrapperOfSelf(implementingType));
             }
         }
@@ -145,7 +145,7 @@ internal class SchemaBuilder {
                 continue;
 
             fields.Add(new __Field(query) {
-                Type = CreateType(query.DiscardTaskFromReturnType(), true),
+                Type = CreateType(query.ReturnType.DiscardTask(), true),
                 Args = GetArguments(query).ToArray()
             });
         }
@@ -161,7 +161,7 @@ internal class SchemaBuilder {
             if(type.IsCollection(out _)) {
                 return new __Type(elementType) {
                     Kind = __TypeKind.LIST,
-                    OfType = WrapNullable(Nullable.GetUnderlyingType(elementType) != null, CreateType(elementType, true))
+                    OfType = WrapNonNullable(Nullable.GetUnderlyingType(elementType) != null, CreateType(elementType, true))
                 };
             }
 
@@ -174,7 +174,7 @@ internal class SchemaBuilder {
         if(type.IsCollection()) {
             return new __Type(elementType) {
                 Kind = __TypeKind.LIST,
-                OfType = WrapNullable(Nullable.GetUnderlyingType(elementType) != null, CreateType(elementType, true))
+                OfType = WrapNonNullable(Nullable.GetUnderlyingType(elementType) != null, CreateType(elementType, true))
             };
         }
 
@@ -229,7 +229,7 @@ internal class SchemaBuilder {
                     var underlyingType = Nullable.GetUnderlyingType(property.PropertyType);
                     propertyType = CreateType(underlyingType ?? property.PropertyType, true);
                 } else {
-                    propertyType = WrapNullable(false, CreateType(property.PropertyType, true));
+                    propertyType = WrapNonNullable(false, CreateType(property.PropertyType, true));
                 }
 
                 inputValues.Add(new __InputValue(property.GraphQLName(), property.GetDescription(), propertyType, null));
@@ -255,7 +255,7 @@ internal class SchemaBuilder {
             };
 
             if(!isTypeReference)
-                interfaceType.PossibleTypes = elementType.GetAllClassesThatImplements().Select(x => CreateType(_wrapperRegistry.GetWrapperOfSelf(x), true)).ToArray();
+                interfaceType.PossibleTypes = ReflectionCache.GetAllClassesThatImplements(elementType).Select(x => CreateType(_wrapperRegistry.GetWrapperOfSelf(x), true)).ToArray();
 
             return interfaceType;
         }
@@ -276,8 +276,18 @@ internal class SchemaBuilder {
         var fields = new List<__Field>();
 
         foreach(var method in baseType.GetAllGraphQLMethods()) {
+            var returnType = method.ReturnType.DiscardTask();
+            var isNullable = false;
+            var underlyingType = Nullable.GetUnderlyingType(returnType);
+            if(underlyingType != null) {
+                returnType = underlyingType;
+                isNullable = true;
+            } else if(method.GetCustomAttributesData().Any(x => x.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute")) {
+                isNullable = true;
+            }
+
             fields.Add(new __Field(method) {
-                Type = CreateType(method.DiscardTaskFromReturnType(), true),
+                Type = WrapNonNullable(isNullable, CreateType(returnType, true)),
                 Args = GetArguments(method).ToArray(),
             });
         }
@@ -291,7 +301,7 @@ internal class SchemaBuilder {
 
             fields.Add(new __Field(property) {
                 Name = property.GraphQLName(),
-                Type = WrapNullable(isNullable, CreateType(propertyType, true))
+                Type = WrapNonNullable(isNullable, CreateType(propertyType, true))
             });
         }
 
@@ -301,7 +311,7 @@ internal class SchemaBuilder {
     private List<__InputValue> GetArguments(MethodInfo method) {
         var args = new List<__InputValue>();
         foreach(var parameter in method.GetAllGraphQLParameters()) {
-            var propertyType = WrapNullable(NullabilityChecker.IsNullable(parameter), CreateType(parameter.ParameterType, true));
+            var propertyType = WrapNonNullable(NullabilityChecker.IsNullable(parameter), CreateType(parameter.ParameterType, true));
             args.Add(new __InputValue(parameter.GraphQLName(), parameter.GetDescription(), propertyType, GetDefaultValue(parameter)));
         }
 
@@ -320,7 +330,7 @@ internal class SchemaBuilder {
         return defaultValue.ToString();
     }
 
-    private __Type WrapNullable(bool nullable, __Type typeToBeWrapped) {
+    private __Type WrapNonNullable(bool nullable, __Type typeToBeWrapped) {
         if(nullable) {
             return typeToBeWrapped;
         }

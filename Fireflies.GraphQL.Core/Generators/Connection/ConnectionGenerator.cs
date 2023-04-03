@@ -4,6 +4,7 @@ using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Connection;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.Utility.Reflection;
 
 namespace Fireflies.GraphQL.Core.Generators.Connection;
 

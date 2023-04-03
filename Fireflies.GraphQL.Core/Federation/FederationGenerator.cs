@@ -1,7 +1,5 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
-using System.Reflection.PortableExecutable;
-using System.Security.AccessControl;
 using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Generator;

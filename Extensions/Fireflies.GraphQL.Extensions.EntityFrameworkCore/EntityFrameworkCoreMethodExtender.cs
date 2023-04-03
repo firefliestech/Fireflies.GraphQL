@@ -4,6 +4,7 @@ using Fireflies.GraphQL.Core;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Generators;
 using Fireflies.GraphQL.Core.Generators.Connection;
+using Fireflies.Utility.Reflection;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 using Microsoft.EntityFrameworkCore;
@@ -40,7 +41,6 @@ public class EntityFrameworkCoreMethodExtender : IMethodExtenderGenerator {
     }
 
     public static Task<IQueryable<TElement>?> ExtendTaskResult<TElement>(Task<IQueryable<TElement>?> resultTask, GraphQLField graphQLField, IGraphQLContext graphQLContext, ResultContext resultContext) {
-        var localStack = resultContext;
         return resultTask.ContinueWith(taskResult => {
             if(taskResult.Result == null)
                 return null;

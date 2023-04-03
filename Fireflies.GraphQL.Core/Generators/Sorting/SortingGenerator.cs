@@ -4,6 +4,7 @@ using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Abstractions.Sorting;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Scalar;
+using Fireflies.Utility.Reflection;
 using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Generators.Sorting;

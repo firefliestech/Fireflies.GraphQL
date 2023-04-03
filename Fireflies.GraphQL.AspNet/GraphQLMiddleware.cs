@@ -74,6 +74,7 @@ public class GraphQLMiddleware {
         var graphQLContext = new GraphQLContext(httpContext);
 
         var lifetimeScopeResolver = _options.DependencyResolver.BeginLifetimeScope(builder => {
+            builder.RegisterType<GraphQLEngine>();
             builder.RegisterInstance(_options.LoggerFactory);
             builder.RegisterInstance(httpContext);
             builder.RegisterInstance(graphQLContext);

@@ -2,12 +2,12 @@
 using GraphQLParser.Visitors;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.IoC.Abstractions;
+using Fireflies.Utility.Reflection;
 
 namespace Fireflies.GraphQL.Core;
 
@@ -86,7 +86,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
                 _errors.Add($"Unauthorized access to query field \"{field.Name}\" on type \"Query\"");
             }
 
-            var returnType = queryType.Method.DiscardTaskFromReturnType();
+            var returnType = queryType.Method.ReturnType.DiscardTask();
             returnType = returnType.GetGraphQLType();
             _fieldStack.Push(returnType);
 
@@ -157,7 +157,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         var pushed = false;
         if(inlineFragment.TypeCondition != null) {
             var currentType = _fieldStack.Peek();
-            var matching = currentType.GetAllClassesThatImplements().Select(x => _wrapperRegistry.GetWrapperOfSelf(x)).FirstOrDefault(x => x.Name == inlineFragment.TypeCondition.Type.Name.StringValue);
+            var matching = ReflectionCache.GetAllClassesThatImplements(currentType).Select(x => _wrapperRegistry.GetWrapperOfSelf(x)).FirstOrDefault(x => x.Name == inlineFragment.TypeCondition.Type.Name.StringValue);
             if(matching != null) {
                 _fieldStack.Push(matching);
                 pushed = true;

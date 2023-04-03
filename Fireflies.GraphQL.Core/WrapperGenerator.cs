@@ -4,6 +4,7 @@ using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Generators;
+using Fireflies.Utility.Reflection;
 
 namespace Fireflies.GraphQL.Core;
 
@@ -196,7 +197,7 @@ internal class WrapperGenerator {
         if(elementType.IsInterface) {
             var interfaceType = GenerateWrapper(elementType);
 
-            foreach(var impl in elementType.GetAllClassesThatImplements(false)) {
+            foreach(var impl in ReflectionCache.GetAllClassesThatImplements(elementType, false)) {
                 GenerateWrapper(impl, false);
             }
 

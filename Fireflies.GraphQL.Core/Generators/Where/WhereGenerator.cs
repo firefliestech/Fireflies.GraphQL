@@ -5,6 +5,7 @@ using System.Reflection.Emit;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Core.Scalar;
+using Fireflies.Utility.Reflection;
 using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Generators.Where;

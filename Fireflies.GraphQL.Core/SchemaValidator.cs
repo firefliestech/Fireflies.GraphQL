@@ -3,6 +3,7 @@ using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Scalar;
+using Fireflies.Utility.Reflection;
 
 namespace Fireflies.GraphQL.Core;
 
@@ -18,7 +19,7 @@ internal class SchemaValidator {
 
     public void Validate() {
         foreach(var operation in _operations) {
-            var returnType = operation.Method.DiscardTaskFromReturnType();
+            var returnType = operation.Method.ReturnType.DiscardTask();
             InspectType(returnType);
         }
     }

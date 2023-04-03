@@ -3,6 +3,8 @@ using System.Reflection;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Json;
 using Fireflies.IoC.Abstractions;
+using Fireflies.Utility.Reflection;
+using Fireflies.Utility.Reflection.Fasterflect;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 
@@ -32,7 +34,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, IGraphQLContext context) {
         if(inlineFragment.TypeCondition != null) {
             var currentType = _resultContext.Peek();
-            var matching = currentType.Data!.GetType().GetAllClassesThatImplements().Select(x => _wrapperRegistry.GetWrapperOfSelf(x)).FirstOrDefault(x => x.Name == inlineFragment.TypeCondition.Type.Name);
+            var matching = ReflectionCache.GetAllClassesThatImplements(currentType.Type).Select(x => _wrapperRegistry.GetWrapperOfSelf(x)).FirstOrDefault(x => x.Name == inlineFragment.TypeCondition.Type.Name);
             if(matching != null) {
                 await base.VisitInlineFragmentAsync(inlineFragment, context).ConfigureAwait(false);
             }
@@ -43,15 +45,14 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
 
     protected override async ValueTask VisitFieldAsync(GraphQLField field, IGraphQLContext context) {
         var parentLevel = _resultContext.Peek();
-        
+
         if(parentLevel.Data == null)
             return;
 
         if(await RunBuiltInDirectives(field).ConfigureAwait(false))
             return;
 
-        var type = parentLevel.Data.GetType();
-        var memberInfo = type.GetMember(field.Name.StringValue, BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy | BindingFlags.IgnoreCase).FirstOrDefault();
+        var memberInfo = ReflectionCache.GetMemberCache(parentLevel.Type, field.Name.StringValue);
 
         Type? fieldType;
         object? fieldValue;
@@ -59,17 +60,17 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
         switch(memberInfo) {
             case PropertyInfo propertyInfo: {
                 fieldType = propertyInfo.PropertyType;
-                fieldValue = propertyInfo.GetValue(parentLevel.Data, Array.Empty<object>());
+                fieldValue = Reflect.PropertyGetter(propertyInfo)(parentLevel.Data);
                 break;
             }
             case MethodInfo methodInfo:
-                fieldType = methodInfo.DiscardTaskFromReturnType();
+                fieldType = methodInfo.ReturnType.DiscardTask();
                 fieldValue = await InvokeMethod(field, methodInfo, parentLevel).ConfigureAwait(false);
                 break;
             default:
                 if(field.Name.StringValue == "__typename") {
                     fieldType = typeof(string);
-                    fieldValue = type.Name;
+                    fieldValue = parentLevel.Type.Name;
                 } else {
                     throw new NotImplementedException();
                 }
@@ -105,7 +106,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
                     _writer.WriteStartArray(fieldName);
                 else
                     _writer.WriteStartObject(fieldName);
-                
+
                 _resultContext.Push(fieldValue.GetType(), fieldValue);
 
                 if(isEnumerable) {
@@ -157,7 +158,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     private async Task<object?> InvokeMethod(GraphQLField graphQLField, MethodInfo methodInfo, ResultContext.Entry parentLevel) {
         var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, _valueAccessor, _context, _dependencyResolver, _resultContext);
         var arguments = await argumentBuilder.Build(graphQLField).ConfigureAwait(false);
-        return await methodInfo.ExecuteMethod(parentLevel.Data!, arguments).ConfigureAwait(false);
+        return await ReflectionCache.ExecuteMethod(methodInfo, parentLevel.Data!, arguments).ConfigureAwait(false);
     }
 
     protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, IGraphQLContext context) {

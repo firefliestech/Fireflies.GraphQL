@@ -1,6 +1,4 @@
-﻿using System.Globalization;
-using System.Reflection;
-using System.Text.Json;
+﻿using System.Text.Json;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Scalar;
 
@@ -32,7 +30,7 @@ public abstract class JsonWriter {
         var result = _stream.ToArray();
         await Writer.DisposeAsync();
         await _stream.DisposeAsync();
-
+        
         return result;
     }
 

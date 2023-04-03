@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.IoC.Abstractions;
+using Fireflies.Utility.Reflection;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 
@@ -32,7 +33,7 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
 
     public async Task<object?[]> Build<TASTNode>(TASTNode node) where TASTNode : ASTNode {
         await VisitAsync(_arguments, _context).ConfigureAwait(false);
-        return _methodInfo.GetParameters().Select(x => {
+        return ReflectionCache.GetParameters(_methodInfo).Select(x => {
             if(x.HasCustomAttribute<EnumeratorCancellationAttribute>() && x.HasDefaultValue)
                 return null;
 
@@ -48,11 +49,15 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
             if(x.ParameterType == typeof(ValueAccessor))
                 return _valueAccessor;
 
-            if (x.HasCustomAttribute<ResolvedAttribute>(out _))
+            if(x.HasCustomAttribute<ResolvedAttribute>(out _))
                 return _dependencyResolver.Resolve(x.ParameterType);
 
-            if(Values.TryGetValue(x.Name!, out var result))
+            if(Values.TryGetValue(x.Name!, out var result)) {
+                if(result != null && result.GetType().IsAssignableTo(x.ParameterType))
+                    return result;
+
                 return Convert.ChangeType(result, x.ParameterType);
+            }
 
             return NullabilityChecker.IsNullable(x) ? null : x.DefaultValue;
         }).ToArray();
@@ -72,7 +77,7 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
             throw new InvalidOperationException("Unmatched value");
         }
     }
-    
+
     protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IGraphQLContext context) {
         var parent = _stack.Peek()!;
         var propertyField = parent.GetType().GetGraphQLProperty(objectField.Name.StringValue);

@@ -1,6 +1,8 @@
 ﻿using System.Reflection;
 using Fireflies.GraphQL.Abstractions.Sorting;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.Utility.Reflection;
+using Fireflies.Utility.Reflection.Fasterflect;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 
@@ -88,10 +90,11 @@ public static class SortingHelper {
             };
 
             if(!currentValueMethod.ReturnType.IsTask(out var elementType)) {
-                return currentValueMethod.Invoke(element, null);
+                return Reflect.Method(currentValueMethod, Array.Empty<Type>())(element);
             }
 
-            var valueTask = (Task<object?>)WaitForMethod.MakeGenericMethod(elementType!).Invoke(this, new[] { currentValueMethod, element })!;
+            var waitMethodInvoker = Reflect.Method(WaitForMethod, new[] { elementType! }, typeof(MethodBase), typeof(object));
+            var valueTask = (Task<object?>)waitMethodInvoker.Invoke(this, currentValueMethod, element)!;
             return valueTask.ConfigureAwait(false).GetAwaiter().GetResult();
         }
 

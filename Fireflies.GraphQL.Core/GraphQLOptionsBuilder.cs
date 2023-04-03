@@ -122,7 +122,6 @@ public class GraphQLOptionsBuilder {
         options.DependencyResolver = _dependencyResolver.BeginLifetimeScope(builder => {
             builder.RegisterInstance(_moduleBuilder);
             builder.RegisterInstance(options);
-            builder.RegisterType<GraphQLEngine>();
             builder.RegisterType<__SchemaQuery>();
             builder.RegisterInstance(wrapperRegistry);
             builder.RegisterInstance(_scalarRegistry);

@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.Utility.Reflection.Fasterflect;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 
@@ -58,7 +59,7 @@ public static class FederationHelper {
             return default;
 
         if(typeof(T).IsCollection(out var elementType)) {
-            return (T)EnumerableMethod.MakeGenericMethod(elementType).Invoke(null, new object[] { token })!;
+            return (T)Reflect.Method(EnumerableMethod, new[] { elementType! }, typeof(JsonNode))(null!, token);
         }
 
         return CreateInstance<T>(token);
