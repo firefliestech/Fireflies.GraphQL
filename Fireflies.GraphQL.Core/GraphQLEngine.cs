@@ -1,6 +1,7 @@
 ﻿using Fireflies.GraphQL.Core.Json;
 using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.IoC.Abstractions;
+using Fireflies.Logging.Abstractions;
 using GraphQLParser;
 using GraphQLParser.AST;
 using GraphQLParser.Exceptions;
@@ -19,12 +20,14 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
     public IGraphQLContext Context { get; }
 
     private JsonWriter? _writer;
+    private IFirefliesLoggerFactory _loggerFactory;
 
-    public GraphQLEngine(GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry) {
+    public GraphQLEngine(GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry, IFirefliesLoggerFactory loggerFactory) {
         _options = options;
         _dependencyResolver = dependencyResolver;
         _wrapperRegistry = wrapperRegistry;
         _scalarRegistry = scalarRegistry;
+        _loggerFactory = loggerFactory;
         Context = context;
     }
 
@@ -87,7 +90,7 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
         if(operationDefinition.Operation is OperationType.Query or OperationType.Mutation)
             context.IncreaseExpectedOperations(operationDefinition.SelectionSet.Selections.Count);
 
-        var visitor = new OperationVisitor(_options, _dependencyResolver, _fragmentAccessor, _valueAccessor, _wrapperRegistry, operationDefinition.Operation, context, _scalarRegistry, _writer);
+        var visitor = new OperationVisitor(_options, _dependencyResolver, _fragmentAccessor, _valueAccessor, _wrapperRegistry, operationDefinition.Operation, context, _scalarRegistry, _writer, _loggerFactory);
         await visitor.VisitAsync(operationDefinition, context).ConfigureAwait(false);
     }
 }

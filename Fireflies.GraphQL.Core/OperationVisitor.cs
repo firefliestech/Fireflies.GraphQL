@@ -4,7 +4,7 @@ using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Json;
 using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.IoC.Abstractions;
-using Fireflies.Utility.Reflection;
+using Fireflies.Logging.Abstractions;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 
@@ -22,12 +22,13 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
     private readonly WrapperRegistry _wrapperRegistry;
 
     private static readonly MethodInfo GetResultMethod;
+    private readonly IFirefliesLogger _logger;
 
     static OperationVisitor() {
         GetResultMethod = typeof(OperationVisitor).GetMethod(nameof(GetResult), BindingFlags.NonPublic | BindingFlags.Instance)!;
     }
 
-    public OperationVisitor(GraphQLOptions options, IDependencyResolver dependencyResolver, FragmentAccessor fragmentAccessor, ValueAccessor valueAccessor, WrapperRegistry wrapperRegistry, OperationType operationType, IGraphQLContext context, ScalarRegistry scalarRegistry, JsonWriter? writer) {
+    public OperationVisitor(GraphQLOptions options, IDependencyResolver dependencyResolver, FragmentAccessor fragmentAccessor, ValueAccessor valueAccessor, WrapperRegistry wrapperRegistry, OperationType operationType, IGraphQLContext context, ScalarRegistry scalarRegistry, JsonWriter? writer, IFirefliesLoggerFactory loggerFactory) {
         _options = options;
         _dependencyResolver = dependencyResolver;
         _fragmentAccessor = fragmentAccessor;
@@ -38,6 +39,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
         _context = context;
         _scalarRegistry = scalarRegistry;
         _writer = writer;
+        _logger = loggerFactory.GetLogger<OperationVisitor>();
     }
 
     protected override async ValueTask VisitSelectionSetAsync(GraphQLSelectionSet selectionSet, IGraphQLContext context) {
@@ -76,16 +78,20 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                     context.PublishResult(writer);
                 }
             } catch(FederationExecutionException fex) {
-                //TODO: Add logging
-
                 var writer = _writer ?? new JsonWriter(_scalarRegistry);
                 foreach(var error in fex.Node) {
-                    writer.AddError(error["message"]!.GetValue<string>(), error["extensions"]!["code"].GetValue<string>());
+                    var message = error["message"]!.GetValue<string>();
+                    var code = error["extensions"]!["code"].GetValue<string>();
+                    
+                    if(code != "GRAPHQL_VALIDATION_FAILED")
+                        _logger.Error($"Error occured during federated request. Message: {message}. Code: {code}");
+
+                    writer.AddError(message, code);
                 }
 
                 context.PublishResult(writer);
             } catch(Exception ex) {
-                //TODO: Add logging
+                _logger.Error(ex, "Exception occured while processing request");
                 var writer = _writer ?? new JsonWriter(_scalarRegistry);
                 writer.AddError("Internal server error occurred", "GRAPHQL_EXECUTION_FAILED");
                 context.PublishResult(writer);
