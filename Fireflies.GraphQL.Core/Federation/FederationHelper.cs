@@ -25,13 +25,18 @@ public static class FederationHelper {
             request.Headers.TryAddWithoutValidation(item.Key, item.Value);
         request.Content = new StringContent(FederationQueryBuilder.BuildQuery(query, operation, "", valueAccessor.Variables));
 
-        var result = await HttpClient.SendAsync(request, context.CancellationToken).ConfigureAwait(false);
-        var stream = await result.Content.ReadAsStreamAsync().ConfigureAwait(false);
+        var response = await HttpClient.SendAsync(request, context.CancellationToken).ConfigureAwait(false);
+        var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
         var json = await JsonSerializer.DeserializeAsync<JsonObject>(stream).ConfigureAwait(false);
-        
+
         var field = (GraphQLField)astNode;
 
-        return GetResult<T>(json?["data"]?[field.Name.StringValue]);
+        var result = GetResult<T>(json?["data"]?[field.Name.StringValue]);
+        if(json?["errors"] != null) {
+            throw new FederationExecutionException<T>(json["errors"]!.AsArray(), result);
+        }
+
+        return result;
     }
 
     public static async IAsyncEnumerable<T> ExecuteSubscription<T>(ASTNode astNode, ValueAccessor valueAccessor, IGraphQLContext context, string url, OperationType operation, string operationName) {

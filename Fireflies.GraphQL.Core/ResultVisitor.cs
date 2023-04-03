@@ -11,7 +11,7 @@ using GraphQLParser.Visitors;
 namespace Fireflies.GraphQL.Core;
 
 internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
-    private readonly DataJsonWriter _writer;
+    private readonly JsonWriter _writer;
     private readonly FragmentAccessor _fragments;
     private readonly ValueAccessor _valueAccessor;
     private readonly IGraphQLContext _context;
@@ -21,7 +21,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     private readonly IDependencyResolver _dependencyResolver;
     private readonly WrapperRegistry _wrapperRegistry;
 
-    public ResultVisitor(object data, DataJsonWriter writer, FragmentAccessor fragments, ValueAccessor valueAccessor, IGraphQLContext context, IDependencyResolver dependencyResolver, WrapperRegistry wrapperRegistry) {
+    public ResultVisitor(object data, JsonWriter writer, FragmentAccessor fragments, ValueAccessor valueAccessor, IGraphQLContext context, IDependencyResolver dependencyResolver, WrapperRegistry wrapperRegistry) {
         _writer = writer;
         _fragments = fragments;
         _valueAccessor = valueAccessor;

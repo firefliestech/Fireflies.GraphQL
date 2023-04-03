@@ -4,67 +4,95 @@ using Fireflies.GraphQL.Core.Scalar;
 
 namespace Fireflies.GraphQL.Core.Json;
 
-public abstract class JsonWriter {
+public class JsonWriter {
     private readonly ScalarRegistry _scalarRegistry;
     private readonly MemoryStream _stream;
-    protected readonly Utf8JsonWriter Writer;
+    private readonly Utf8JsonWriter _writer;
+    private List<(string Message, string Code)>? _errors;
+    private bool _empty = true;
 
-    public byte[]? Result { get; set; }
-
-    protected JsonWriter(ScalarRegistry scalarRegistry) {
+    public JsonWriter(ScalarRegistry scalarRegistry) {
         _scalarRegistry = scalarRegistry;
         _stream = new MemoryStream();
-        Writer = new Utf8JsonWriter(_stream);
-        Writer.WriteStartObject(); // Root object
-        Start();
+        _writer = new Utf8JsonWriter(_stream);
+        _writer.WriteStartObject(); // Root object
+    }
+    
+    public void AddError(string message, string code) {
+        _errors ??= new();
+        _errors.Add((message, code));
     }
 
-    protected abstract void Start();
-    protected abstract void Stop();
-
     public async Task<byte[]> GetBuffer() {
-        Stop();
-        Writer.WriteEndObject();
-        await Writer.FlushAsync();
+        if(!_empty)
+            _writer.WriteEndObject();
+
+        if(_errors != null) {
+            _writer.WriteStartArray("errors");
+            foreach(var error in _errors) {
+                _writer.WriteStartObject();
+                _writer.WriteString("message", error.Message);
+
+                _writer.WriteStartObject("extensions");
+                _writer.WriteString("code", error.Code);
+                _writer.WriteEndObject();
+
+                _writer.WriteEndObject();
+            }
+
+            _writer.WriteEndArray();
+        }
+
+        _writer.WriteEndObject();
+        await _writer.FlushAsync();
 
         var result = _stream.ToArray();
-        await Writer.DisposeAsync();
+        await _writer.DisposeAsync();
         await _stream.DisposeAsync();
-        
+
         return result;
     }
 
-    public void WriteStartArray() {
-        Writer.WriteStartArray();
-    }
-
     public void WriteStartArray(string fieldName) {
-        Writer.WriteStartArray(fieldName);
+        EnsureData();
+        _writer.WriteStartArray(fieldName);
     }
 
     public void WriteStartObject() {
-        Writer.WriteStartObject();
+        EnsureData();
+
+        _writer.WriteStartObject();
     }
 
     public void WriteStartObject(string fieldName) {
-        Writer.WriteStartObject(fieldName);
+        EnsureData();
+
+        _writer.WriteStartObject(fieldName);
     }
 
     public void WriteEndObject() {
-        Writer.WriteEndObject();
+        EnsureData();
+
+        _writer.WriteEndObject();
     }
 
     public void WriteEndArray() {
-        Writer.WriteEndArray();
+        EnsureData();
+
+        _writer.WriteEndArray();
     }
 
     public void WriteNull(string fieldName) {
-        Writer.WriteNull(fieldName);
+        EnsureData();
+
+        _writer.WriteNull(fieldName);
     }
 
     public void WriteValue(object value, TypeCode typeCode, Type elementType) {
+        EnsureData();
+
         if(elementType.IsEnum) {
-            Writer.WriteStringValue(value.ToString());
+            _writer.WriteStringValue(value.ToString());
             return;
         }
 
@@ -77,27 +105,27 @@ public abstract class JsonWriter {
             case TypeCode.UInt64:
             case TypeCode.Byte:
             case TypeCode.SByte:
-                Writer.WriteNumberValue((int)Convert.ChangeType(value, TypeCode.Int32));
+                _writer.WriteNumberValue((int)Convert.ChangeType(value, TypeCode.Int32));
                 break;
 
             case TypeCode.Boolean:
-                Writer.WriteBooleanValue((bool)value);
+                _writer.WriteBooleanValue((bool)value);
                 break;
 
             case TypeCode.Char:
             case TypeCode.String:
-                Writer.WriteStringValue((string)value);
+                _writer.WriteStringValue((string)value);
                 break;
 
             case TypeCode.Single:
             case TypeCode.Double:
             case TypeCode.Decimal:
-                Writer.WriteNumberValue((decimal)Convert.ChangeType(value, TypeCode.Decimal));
+                _writer.WriteNumberValue((decimal)Convert.ChangeType(value, TypeCode.Decimal));
                 break;
 
             default:
                 if(_scalarRegistry.GetHandler(value.GetType(), out var handler)) {
-                    handler!.Serialize(Writer, value);
+                    handler!.Serialize(_writer, value);
                 }
 
                 throw new ArgumentOutOfRangeException(nameof(typeCode));
@@ -105,8 +133,10 @@ public abstract class JsonWriter {
     }
 
     public void WriteValue(string property, object value, TypeCode typeCode, Type elementType) {
+        EnsureData();
+
         if(elementType.IsEnum) {
-            Writer.WriteString(property, value.ToString());
+            _writer.WriteString(property, value.ToString());
             return;
         }
 
@@ -119,38 +149,45 @@ public abstract class JsonWriter {
             case TypeCode.UInt64:
             case TypeCode.Byte:
             case TypeCode.SByte:
-                Writer.WriteNumber(property, (int)Convert.ChangeType(value, TypeCode.Int32));
+                _writer.WriteNumber(property, (int)Convert.ChangeType(value, TypeCode.Int32));
                 break;
 
             case TypeCode.Boolean:
-                Writer.WriteBoolean(property, (bool)value);
+                _writer.WriteBoolean(property, (bool)value);
                 break;
 
             case TypeCode.Char:
             case TypeCode.String:
-                Writer.WriteString(property, (string)value);
+                _writer.WriteString(property, (string)value);
                 break;
 
             case TypeCode.Single:
             case TypeCode.Double:
             case TypeCode.Decimal:
-                Writer.WriteNumber(property, (decimal)Convert.ChangeType(value, TypeCode.Decimal));
+                _writer.WriteNumber(property, (decimal)Convert.ChangeType(value, TypeCode.Decimal));
                 break;
 
             default:
                 var memberInfo = value.GetType();
 
                 if(memberInfo.IsSubclassOf(typeof(GraphQLId))) {
-                    Writer.WriteString(property, value.ToString());
+                    _writer.WriteString(property, value.ToString());
                     break;
                 }
 
                 if(_scalarRegistry.GetHandler(memberInfo, out var handler)) {
-                    handler!.Serialize(Writer, property, value);
+                    handler!.Serialize(_writer, property, value);
                     break;
                 }
 
                 throw new ArgumentOutOfRangeException(nameof(typeCode));
+        }
+    }
+
+    private void EnsureData() {
+        if(_empty) {
+            _writer.WriteStartObject("data");
+            _empty = false;
         }
     }
 }
