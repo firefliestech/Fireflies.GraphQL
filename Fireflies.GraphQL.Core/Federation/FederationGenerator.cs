@@ -1,4 +1,6 @@
-﻿using System.Reflection;
+﻿using System.Data;
+using System.Diagnostics.Metrics;
+using System.Reflection;
 using System.Reflection.Emit;
 using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
@@ -79,10 +81,10 @@ public class FederationGenerator {
     private void GenerateOperation(OperationType operation, TypeBuilder typeBuilder, FederationField field) {
         var argTypes = field.Args.Select(argType => GetTypeFromSchemaType(argType.Type!)).ToList();
 
-        var returnType = GetTypeFromSchemaType(field.Type);
+        var (returnType, _) = GetTypeFromSchemaType(field.Type);
         var taskReturnType = operation == OperationType.Subscription ? typeof(IAsyncEnumerable<>).MakeGenericType(returnType) : typeof(Task<>).MakeGenericType(returnType);
 
-        var methodBuilder = typeBuilder.DefineMethod(field.Name, MethodAttributes.Public, taskReturnType, argTypes.Union(new[] { typeof(ASTNode), typeof(ValueAccessor) }).ToArray());
+        var methodBuilder = typeBuilder.DefineMethod(field.Name, MethodAttributes.Public, taskReturnType, argTypes.Select(x => x.Type).Union(new[] { typeof(ASTNode), typeof(ValueAccessor) }).ToArray());
         DefineParameters(argTypes, methodBuilder, field);
         methodBuilder.DefineAnonymousResolvedParameter(argTypes.Count + 1);
         methodBuilder.DefineAnonymousResolvedParameter(argTypes.Count + 2);
@@ -161,7 +163,7 @@ public class FederationGenerator {
         var isInterface = schemaType.Kind is __TypeKind.INTERFACE or __TypeKind.UNION;
         var isUnion = schemaType.Kind is __TypeKind.UNION;
 
-        var baseType = isInterface ? null : typeof(FederationEntity);
+        var baseType = GetBaseType(schemaType);
         var generatedType = _dynamicModule.DefineType(typeName, isInterface ? TypeAttributes.Interface | TypeAttributes.Abstract : TypeAttributes.Class, baseType);
         _nameLookup.Add(typeName, generatedType);
 
@@ -172,27 +174,52 @@ public class FederationGenerator {
         }
 
         if(!isInterface) {
-            var baseConstructor = baseType!.GetConstructors(BindingFlags.Public | BindingFlags.Instance).First();
-            var constructorBuilder = generatedType.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { typeof(JsonObject) });
-            var constructorGenerator = constructorBuilder.GetILGenerator();
-            constructorGenerator.Emit(OpCodes.Ldarg_0);
-            constructorGenerator.Emit(OpCodes.Ldarg_1);
-            constructorGenerator.Emit(OpCodes.Call, baseConstructor);
-            constructorGenerator.Emit(OpCodes.Ret);
+            if(schemaType.Kind == __TypeKind.INPUT_OBJECT) {
+                generatedType.DefineDefaultConstructor(MethodAttributes.Public);
+            } else {
+                var baseConstructor = baseType!.GetConstructors(BindingFlags.Public | BindingFlags.Instance).First();
+                var constructorBuilder = generatedType.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { typeof(JsonObject) });
+                var constructorGenerator = constructorBuilder.GetILGenerator();
+                constructorGenerator.Emit(OpCodes.Ldarg_0);
+                constructorGenerator.Emit(OpCodes.Ldarg_1);
+                constructorGenerator.Emit(OpCodes.Call, baseConstructor);
+                constructorGenerator.Emit(OpCodes.Ret);
+            }
         } else if(isUnion) {
             generatedType.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLUnionAttribute).GetConstructor(BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes)!, Array.Empty<object>()));
         }
 
-        foreach(var field in schemaType.Fields) {
-            var argTypes = new List<Type>();
-            foreach(var argType in field.Args) {
-                var argumentType = GetTypeFromSchemaType(argType.Type!);
-                argTypes.Add(argumentType);
-            }
+        foreach(var inputField in schemaType.InputFields) {
+            var (returnType, isNullable) = GetTypeFromSchemaType(inputField.Type);
 
-            var returnType = GetTypeFromSchemaType(field.Type);
+            var propertyBuilder = generatedType.DefineProperty(inputField.Name, PropertyAttributes.None, returnType, Type.EmptyTypes);
+            var field = generatedType.DefineField($"_{inputField.Name.LowerCaseFirstLetter()}", returnType, FieldAttributes.Private);
+
+            if(isNullable)
+                propertyBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLNullable).GetConstructors().First(), Array.Empty<object>()));
+
+            var getMethod = generatedType.DefineMethod($"get_{inputField.Name}", MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.Virtual, CallingConventions.Standard, returnType, Type.EmptyTypes);
+            propertyBuilder.SetGetMethod(getMethod);
+            var getILGenerator = getMethod.GetILGenerator();
+            getILGenerator.Emit(OpCodes.Ldarg_0);
+            getILGenerator.Emit(OpCodes.Ldfld, field);
+            getILGenerator.Emit(OpCodes.Ret);
+
+            var setMethod = generatedType.DefineMethod($"set_{inputField.Name}", MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.Virtual, CallingConventions.Standard, typeof(void), new[] { returnType });
+            var setILGenerator = setMethod.GetILGenerator();
+            setILGenerator.Emit(OpCodes.Ldarg_0);
+            setILGenerator.Emit(OpCodes.Ldarg_1);
+            setILGenerator.Emit(OpCodes.Stfld, field);
+            setILGenerator.Emit(OpCodes.Ret);
+            propertyBuilder.SetSetMethod(setMethod);
+        }
+
+        foreach(var field in schemaType.Fields) {
+            var argTypes = field.Args.Select(argType => GetTypeFromSchemaType(argType.Type!)).ToList();
+
+            var (returnType, _) = GetTypeFromSchemaType(field.Type);
             var methodAttributes = isInterface ? MethodAttributes.Virtual | MethodAttributes.Abstract | MethodAttributes.Public : MethodAttributes.Public | MethodAttributes.Virtual;
-            var fieldMethod = generatedType.DefineMethod(field.Name, methodAttributes, returnType, argTypes.ToArray());
+            var fieldMethod = generatedType.DefineMethod(field.Name, methodAttributes, returnType, argTypes.Select(x => x.Type).ToArray());
             if(interfaceType != null) {
                 var overridingMethod = interfaceType.GetMethod(field.Name, BindingFlags.Public | BindingFlags.Instance);
                 if(overridingMethod != null) {
@@ -228,20 +255,31 @@ public class FederationGenerator {
         return finalType;
     }
 
-    private static void AddAttributes(FederationField field, MethodBuilder fieldMethod) {
-        if(field.Description != null)
-            fieldMethod.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLDescriptionAttribute).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(string) })!, new object?[] { field.Description }));
-        if(field.IsDeprecated)
-            fieldMethod.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLDeprecatedAttribute).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(string) })!, new object?[] { field.DeprecationReason }));
+    private static Type? GetBaseType(FederationType type) {
+        var isInterface = type.Kind is __TypeKind.INTERFACE or __TypeKind.UNION;
+        if(isInterface)
+            return null;
+
+        return type.Kind == __TypeKind.INPUT_OBJECT ? typeof(object) : typeof(FederationEntity);
     }
 
-    private void DefineParameters(List<Type> argTypes, MethodBuilder fieldMethod, FederationField field) {
+    private static void AddAttributes(FederationFieldBase field, MethodBuilder fieldMethod) {
+        if(field.Description != null)
+            fieldMethod.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLDescriptionAttribute).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(string) })!, new object?[] { field.Description }));
+        if(field is FederationField { IsDeprecated: true } realField)
+            fieldMethod.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLDeprecatedAttribute).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(string) })!, new object?[] { realField.DeprecationReason }));
+    }
+
+    private void DefineParameters(List<(Type Type, bool IsNullable)> argTypes, MethodBuilder fieldMethod, FederationField field) {
         for(var i = 0; i < argTypes.Count; i++) {
             var parameterBuilder = fieldMethod.DefineParameter(i + 1, ParameterAttributes.None, field.Args[i].Name);
-            if(field.Args[i].DefaultValue != null)
-                parameterBuilder.SetConstant(Convert.ChangeType(field.Args[0].DefaultValue, argTypes[i]));
-            else if(IsNullable(field.Args[i].Type!))
+            if(argTypes[i].IsNullable) {
+                parameterBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLNullable).GetConstructors().First(), Array.Empty<object>()));
                 parameterBuilder.SetConstant(null);
+            }
+
+            if(field.Args[i].DefaultValue != null)
+                parameterBuilder.SetConstant(Convert.ChangeType(field.Args[0].DefaultValue, argTypes[i].Type));
         }
     }
 
@@ -261,44 +299,44 @@ public class FederationGenerator {
         }
     }
 
-    public Type GetTypeFromSchemaType(FederationType type) {
+    public (Type Type, bool IsNullable) GetTypeFromSchemaType(FederationType type) {
         if(type.Name == "Int" || type.OfType?.Name == "Int")
-            return typeof(int);
+            return (typeof(int), true);
 
         if(type.Name == "Float" || type.OfType?.Name == "Float")
-            return typeof(decimal);
+            return (typeof(decimal), true);
 
         if(type.Name == "String" || type.OfType?.Name == "String")
-            return typeof(string);
+            return (typeof(string), true);
 
         if(type.Name == "Boolean" || type.OfType?.Name == "Boolean")
-            return typeof(bool);
+            return (typeof(bool), true);
 
         if(type.Name == "ID" || type.OfType?.Name == "ID")
-            return typeof(GraphQLId<string>);
+            return (typeof(GraphQLId<string>), true);
 
         if(type.Kind == __TypeKind.SCALAR) {
             if(_scalarRegistry.NameToType(type.Name, out var existingScalarType))
-                return existingScalarType!;
+                return (existingScalarType!, true);
 
             var scalarType = GenerateScalarType(type);
             _scalarRegistry.AddScalar(scalarType, new FederatedScalarHandler());
-            return scalarType;
+            return (scalarType, true);
         }
 
         if(type.Kind == __TypeKind.NON_NULL)
-            return GetTypeFromSchemaType(type.OfType!);
+            return (GetTypeFromSchemaType(type.OfType!).Type, false);
 
         if(type.Kind == __TypeKind.LIST)
-            return typeof(IEnumerable<>).MakeGenericType(GetTypeFromSchemaType(type.OfType!));
+            return (typeof(IEnumerable<>).MakeGenericType(GetTypeFromSchemaType(type.OfType!).Type), true);
 
         var generateName = GenerateName(type);
         if(_nameLookup.TryGetValue(generateName, out var existingType)) {
-            return existingType;
+            return (existingType, true);
         }
 
         var rootType = _federationSchema.Types.First(x => x.Name == type.Name);
-        return GenerateType(rootType);
+        return (GenerateType(rootType), true);
     }
 
     private Type? GenerateScalarType(FederationType type) {
