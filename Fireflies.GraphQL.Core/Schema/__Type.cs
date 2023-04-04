@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.GraphQL.Core.Federation.Schema;
 
 namespace Fireflies.GraphQL.Core.Schema;
 
@@ -15,6 +16,27 @@ public class __Type {
         _enumValues = enumValues ?? Enumerable.Empty<__EnumValue>();
         InputFields = inputValues?.ToArray() ?? Array.Empty<__InputValue>();
         Description = baseType?.GetDescription();
+    }
+
+    private __Type(FederationType field) {
+        Kind = field.Kind;
+        Name = field.Name;
+        Description = field.Description;
+        SpecifiedByURL = field.SpecifiedByURL;
+
+        InputFields = field.InputFields.Select(__InputValue.FromFederation).ToArray();
+        Interfaces = field.Interfaces.Select(x => new __Type(x)).ToArray();
+        PossibleTypes = field.PossibleTypes.Select(x => new __Type(x)).ToArray();
+
+        if(field.OfType != null)
+            OfType = new __Type(field.OfType);
+
+        _fields = field.Fields.Select(x =>__Field.FromFederation(x)).ToArray();
+        _enumValues = field.EnumValues;
+    }
+
+    public static __Type FromFederation(FederationType field) {
+        return new __Type(field);
     }
 
     public __TypeKind Kind { get; set; }

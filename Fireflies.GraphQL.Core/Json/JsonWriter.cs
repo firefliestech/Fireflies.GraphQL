@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Scalar;
 
@@ -189,5 +190,10 @@ public class JsonWriter {
             _writer.WriteStartObject("data");
             _empty = false;
         }
+    }
+
+    public void WriteRaw(string fieldName, JsonNode jsonObject) {
+        _writer.WritePropertyName(fieldName);
+        jsonObject.WriteTo(_writer);
     }
 }

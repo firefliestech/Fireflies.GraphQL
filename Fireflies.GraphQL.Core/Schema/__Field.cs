@@ -2,6 +2,7 @@
 using System.Reflection;
 using Fireflies.GraphQL.Abstractions.Authorization;
 using Fireflies.GraphQL.Abstractions.Generator;
+using Fireflies.GraphQL.Core.Federation.Schema;
 
 namespace Fireflies.GraphQL.Core.Schema;
 
@@ -26,6 +27,17 @@ public class __Field {
         var deprecatedReason = memberInfo.GetDeprecatedReason();
         IsDeprecated = deprecatedReason != null;
         DeprecationReason = deprecatedReason;
+    }
+
+    public static __Field FromFederation(FederationField field) {
+        return new __Field() {
+            Args = field.Args.Select(__InputValue.FromFederation).ToArray(),
+            DeprecationReason = field.DeprecationReason,
+            Description = field.Description,
+            IsDeprecated = field.IsDeprecated,
+            Name = field.Name,
+            Type = __Type.FromFederation(field.Type)
+        };
     }
 
     private string? GetFieldDescription(MemberInfo memberInfo) {

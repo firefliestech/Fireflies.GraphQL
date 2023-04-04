@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.IoC.Abstractions;
 using Fireflies.Utility.Reflection;
@@ -74,6 +75,9 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
 
         if(_fieldStack.Count == 0) {
             var queryType = GetOperations().FirstOrDefault(x => x.Name.Equals(field.Name.StringValue, StringComparison.InvariantCultureIgnoreCase));
+            if(queryType.Method.HasCustomAttribute<GraphQLFederatedAttribute>())
+                return;
+
             if(queryType == null || queryType.Method.HasCustomAttribute<GraphQLInternalAttribute>()) {
                 _errors.Add($"Cannot query field \"{field.Name}\" on type \"{_operationType}\"");
                 return;

@@ -2,6 +2,8 @@
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Schema;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.GraphQL.Core.Federation;
+using Fireflies.GraphQL.Core.Federation.Schema;
 using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.Utility.Reflection;
 using GraphQLParser.AST;
@@ -12,27 +14,29 @@ internal class SchemaBuilder {
     private readonly GraphQLOptions _options;
     private readonly WrapperRegistry _wrapperRegistry;
     private readonly ScalarRegistry _scalarRegistry;
+    private readonly List<FederationSchema> _federationSchemas;
     private readonly HashSet<Type> _inputTypes = new();
     private readonly HashSet<Type> _ignore = new();
     private int _inputLevel;
 
     // ReSharper disable once UnusedMember.Global
-    public SchemaBuilder(GraphQLOptions options, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry) {
+    public SchemaBuilder(GraphQLOptions options, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry, List<FederationSchema> federationSchemas) {
         _options = options;
         _wrapperRegistry = wrapperRegistry;
         _scalarRegistry = scalarRegistry;
+        _federationSchemas = federationSchemas;
         _ignore.Add(typeof(CancellationToken));
         _ignore.Add(typeof(ASTNode));
     }
 
     public __Schema GenerateSchema() {
         var allTypes = new HashSet<Type>();
-        foreach(var type in _options.AllOperations)
+        foreach(var type in _options.AllOperations.Where(x => !x.Method.HasCustomAttribute<GraphQLFederatedAttribute>()))
             FindAllTypes(allTypes, type.Type, true);
 
         __Type? queryType = null;
         if(_options.QueryOperations.Any()) {
-            queryType = new __Type(null, CreateQueryFields(_options.QueryOperations.Where(qo => !qo.Name.StartsWith("__")))) {
+            queryType = new __Type(null, CreateOperationFields(_options.QueryOperations.Where(qo => !qo.Name.StartsWith("__")), s => s.QueryType?.Name)) {
                 Name = "Query",
                 Kind = __TypeKind.OBJECT
             };
@@ -40,7 +44,7 @@ internal class SchemaBuilder {
 
         __Type? mutationType = null;
         if(_options.MutationsOperations.Any()) {
-            mutationType = new __Type(null, CreateQueryFields(_options.MutationsOperations)) {
+            mutationType = new __Type(null, CreateOperationFields(_options.MutationsOperations, s => s.MutationType?.Name)) {
                 Name = "Mutation",
                 Kind = __TypeKind.OBJECT,
             };
@@ -48,19 +52,31 @@ internal class SchemaBuilder {
 
         __Type? subscriptionType = null;
         if(_options.SubscriptionOperations.Any()) {
-            subscriptionType = new __Type(null, CreateQueryFields(_options.SubscriptionOperations)) {
+            subscriptionType = new __Type(null, CreateOperationFields(_options.SubscriptionOperations, s => s.SubscriptionType?.Name)) {
                 Name = "Subscription",
                 Kind = __TypeKind.OBJECT
             };
         }
 
-        var allTypesIncludingRootTypes = allTypes.Select(t => CreateType(t, false));
+        var allTypesIncludingRootTypes = allTypes.Select(t => CreateType(t, false)).ToList();
         if(queryType != null)
-            allTypesIncludingRootTypes = allTypesIncludingRootTypes.Union(new[] { queryType });
+            allTypesIncludingRootTypes.Add(queryType);
         if(mutationType != null)
-            allTypesIncludingRootTypes = allTypesIncludingRootTypes.Union(new[] { mutationType });
+            allTypesIncludingRootTypes.Add(mutationType);
         if(subscriptionType != null)
-            allTypesIncludingRootTypes = allTypesIncludingRootTypes.Union(new[] { subscriptionType });
+            allTypesIncludingRootTypes.Add(subscriptionType);
+
+        foreach(var federationSchema in _federationSchemas) {
+            foreach(var federatedType in federationSchema.Types) {
+                if(federatedType.Name == federationSchema.QueryType?.Name || federatedType.Name == federationSchema.MutationType?.Name || federatedType.Name == federationSchema.SubscriptionType?.Name)
+                    continue;
+
+                if(allTypesIncludingRootTypes.Any(x => x.Name == federatedType.Name))
+                    continue;
+
+                allTypesIncludingRootTypes.Add(__Type.FromFederation(federatedType));
+            }
+        }
 
         var schema = new __Schema {
             Description = _options.SchemaDescription,
@@ -137,20 +153,21 @@ internal class SchemaBuilder {
         }
     }
 
-    private IEnumerable<__Field> CreateQueryFields(IEnumerable<OperationDescriptor> operations) {
-        var fields = new List<__Field>();
+    private IEnumerable<__Field> CreateOperationFields(IEnumerable<OperationDescriptor> operations, Func<FederationSchema, string?> typeNameSelector) {
+        var localOperations = operations.Select(x => x.Method).Where(x => !x.HasCustomAttribute<GraphQLInternalAttribute>() && !x.HasCustomAttribute<GraphQLFederatedAttribute>())
+            .Select(query => new __Field(query) { Type = CreateType(query.ReturnType.DiscardTask(), true), Args = GetArguments(query).ToArray() });
 
-        foreach(var query in operations.Select(x => x.Method)) {
-            if(query.HasCustomAttribute<GraphQLInternalAttribute>())
+        var federatedFields = new List<__Field>();
+        foreach(var schema in _federationSchemas) {
+            var operatorName = typeNameSelector(schema);
+            if(operatorName == null)
                 continue;
 
-            fields.Add(new __Field(query) {
-                Type = CreateType(query.ReturnType.DiscardTask(), true),
-                Args = GetArguments(query).ToArray()
-            });
+            var queryType = schema.Types.First(x => x.Name == operatorName);
+            federatedFields.AddRange(queryType.Fields.Select(__Field.FromFederation));
         }
 
-        return fields;
+        return localOperations.Union(federatedFields);
     }
 
     private __Type CreateType(Type type, bool isTypeReference) {
@@ -219,7 +236,7 @@ internal class SchemaBuilder {
                 Kind = __TypeKind.SCALAR
             };
         }
-        
+
         if(_inputTypes.Contains(elementType)) {
             var inputValues = new List<__InputValue>();
 

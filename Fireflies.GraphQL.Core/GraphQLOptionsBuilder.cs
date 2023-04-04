@@ -2,6 +2,7 @@
 using System.Reflection.Emit;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Federation;
+using Fireflies.GraphQL.Core.Federation.Schema;
 using Fireflies.GraphQL.Core.Generators;
 using Fireflies.GraphQL.Core.Generators.Connection;
 using Fireflies.GraphQL.Core.Generators.Sorting;
@@ -92,6 +93,7 @@ public class GraphQLOptionsBuilder {
 
         options.Extensions.BuildOptions();
 
+        var federatedSchemas = new List<FederationSchema>();
         foreach(var federation in _federations) {
             var attempt = 0;
             while(true) {
@@ -99,7 +101,8 @@ public class GraphQLOptionsBuilder {
                 try {
                     logger.Info($"Fetching federated schema for {federation.Name} from {federation.Url}");
                     var federationSchema = await new FederationClient(federation.Url).FetchSchema().ConfigureAwait(false);
-                    var generator = new FederationGenerator(federation, federationSchema, _scalarRegistry);
+                    federatedSchemas.Add(federationSchema);
+                    var generator = new FederationGenerator(federation, federationSchema);
                     var generatedType = generator.Generate();
                     _operationTypes.Add(generatedType);
                     break;
@@ -148,7 +151,7 @@ public class GraphQLOptionsBuilder {
                 }
             }
 
-            var schemaBuilder = new SchemaBuilder(options, wrapperRegistry, _scalarRegistry);
+            var schemaBuilder = new SchemaBuilder(options, wrapperRegistry, _scalarRegistry, federatedSchemas);
             var schema = schemaBuilder.GenerateSchema();
             builder.RegisterInstance(schema);
         });

@@ -5,7 +5,7 @@ using Fireflies.GraphQL.Core.Json;
 
 namespace Fireflies.GraphQL.Core.Federation;
 
-public class FederationWebsocket<T> {
+public class FederationWebsocket {
     private readonly string _query;
     private readonly string _url;
     private readonly IGraphQLContext _context;
@@ -35,7 +35,7 @@ public class FederationWebsocket<T> {
         }
     }
 
-    public async IAsyncEnumerable<T> Results() {
+    public async IAsyncEnumerable<JsonNode> Results() {
         try {
             await _client.ConnectAsync(new Uri(_url.Replace("http://", "ws://").Replace("https://", "wss://")), _context.CancellationToken).ConfigureAwait(false);
         } catch(Exception) {
@@ -57,9 +57,7 @@ public class FederationWebsocket<T> {
             if(data == null)
                 continue;
 
-            var result = FederationHelper.GetResult<T>(data);
-            if(result != null)
-                yield return result;
+            yield return json!;
         }
     }
 

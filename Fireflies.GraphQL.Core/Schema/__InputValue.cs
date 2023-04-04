@@ -1,4 +1,5 @@
 ﻿using Fireflies.GraphQL.Abstractions.Generator;
+using Fireflies.GraphQL.Core.Federation.Schema;
 
 namespace Fireflies.GraphQL.Core.Schema;
 
@@ -15,5 +16,9 @@ public class __InputValue {
         Description = description;
         Type = type;
         DefaultValue = defaultValue;
+    }
+
+    public static __InputValue FromFederation(FederationInputValue field) {
+        return new(field.Name, field.Description, __Type.FromFederation(field.Type), field.DefaultValue);
     }
 }

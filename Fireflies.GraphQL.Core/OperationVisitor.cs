@@ -1,10 +1,13 @@
 ﻿using System.Collections;
 using System.Reflection;
+using System.Text.Json.Nodes;
+using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Json;
 using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.IoC.Abstractions;
 using Fireflies.Logging.Abstractions;
+using Fireflies.Utility.Reflection;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 
@@ -54,24 +57,29 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                 var asyncEnumerable = (IAsyncEnumerable<object?>)methodInvoker(this, operationDescriptor, operations, argumentBuilder, graphQLField);
                 await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken).ConfigureAwait(false)) {
                     var writer = _writer ?? new JsonWriter(_scalarRegistry);
-
-                    var fieldName = graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue;
-                    if(result is IEnumerable enumerable) {
-                        writer.WriteStartArray(fieldName);
-                        foreach(var obj in enumerable) {
-                            writer.WriteStartObject();
-                            await WriteObject(context, writer, graphQLField, obj);
-                            writer.WriteEndObject();
-                        }
-
-                        writer.WriteEndArray();
+                    
+                    if(operationDescriptor.Method.HasCustomAttribute<GraphQLFederatedAttribute>()) {
+                        var fieldName = graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue;
+                        writer.WriteRaw(fieldName, (JsonNode)result);
                     } else {
-                        if(result != null) {
-                            writer.WriteStartObject(fieldName);
-                            await WriteObject(context, writer, graphQLField, result);
-                            writer.WriteEndObject();
+                        var fieldName = graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue;
+                        if(result is IEnumerable enumerable) {
+                            writer.WriteStartArray(fieldName);
+                            foreach(var obj in enumerable) {
+                                writer.WriteStartObject();
+                                await WriteObject(context, writer, graphQLField, obj);
+                                writer.WriteEndObject();
+                            }
+
+                            writer.WriteEndArray();
                         } else {
-                            writer.WriteNull(fieldName);
+                            if(result != null) {
+                                writer.WriteStartObject(fieldName);
+                                await WriteObject(context, writer, graphQLField, result);
+                                writer.WriteEndObject();
+                            } else {
+                                writer.WriteNull(fieldName);
+                            }
                         }
                     }
 
@@ -82,9 +90,9 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                 foreach(var error in fex.Node) {
                     var message = error["message"]!.GetValue<string>();
                     var code = error["extensions"]!["code"].GetValue<string>();
-                    
+
                     if(code != "GRAPHQL_VALIDATION_FAILED")
-                        _logger.Error($"Error occured during federated request. Message: {message}. Code: {code}");
+                        _logger.Error($"Error occurred during federated request. Message: {message}. Code: {code}");
 
                     writer.AddError(message, code);
                 }
