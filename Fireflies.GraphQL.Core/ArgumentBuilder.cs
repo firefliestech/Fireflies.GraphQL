@@ -59,7 +59,10 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
                 return Convert.ChangeType(result, x.ParameterType);
             }
 
-            return NullabilityChecker.IsNullable(x) ? null : x.DefaultValue;
+            if(x.HasDefaultValue)
+                return x.DefaultValue;
+
+            return NullabilityChecker.IsNullable(x) ? null : Activator.CreateInstance(x.ParameterType);
         }).ToArray();
     }
 
