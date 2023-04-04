@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using System.Collections;
+using System.Collections.Concurrent;
 using System.Reflection;
 using Fireflies.Utility.Reflection;
 using Fireflies.Utility.Reflection.Fasterflect;
@@ -27,6 +28,10 @@ public static class ReflectionCache {
                 .SelectMany(x => x.GetTypes())
                 .Where(x => x.IsClass && x.IsAssignableTo(baseType))
                 .ToArray());
+    }
+
+    public static IEnumerable<MemberInfo> GetMembers(Type type) {
+        return _memberCache.GetOrAdd(type, _ => new MemberCache(type));
     }
 
     public static MemberInfo? GetMemberCache(Type type, string memberName) {
@@ -76,7 +81,7 @@ public static class ReflectionCache {
         return methodInvoker.Invoke(instance, arguments);
     }
 
-    private class MemberCache {
+    private class MemberCache : IEnumerable<MemberInfo> {
         private readonly Dictionary<string, MemberInfo> _cache = new();
 
         public MemberCache(Type type) {
@@ -92,6 +97,14 @@ public static class ReflectionCache {
                 return value;
 
             return null;
+        }
+
+        public IEnumerator<MemberInfo> GetEnumerator() {
+            return _cache.Values.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() {
+            return GetEnumerator();
         }
     }
 }
