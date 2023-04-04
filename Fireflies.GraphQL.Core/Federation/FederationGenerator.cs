@@ -6,6 +6,7 @@ using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Abstractions.Schema;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Federation.Schema;
+using Fireflies.GraphQL.Core.Generators.Connection;
 using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.GraphQL.Core.Schema;
 using GraphQLParser.AST;
@@ -277,7 +278,7 @@ public class FederationGenerator {
             }
 
             if(field.Args[i].DefaultValue != null)
-                parameterBuilder.SetConstant(Convert.ChangeType(field.Args[0].DefaultValue, argTypes[i].Type));
+                parameterBuilder.SetConstant(Convert.ChangeType(field.Args[i].DefaultValue, argTypes[i].Type));
         }
     }
 
@@ -327,6 +328,9 @@ public class FederationGenerator {
 
         if(type.Kind == __TypeKind.LIST)
             return (typeof(IEnumerable<>).MakeGenericType(GetTypeFromSchemaType(type.OfType!).Type), true);
+
+        if(type.Kind == __TypeKind.OBJECT && type.Name == nameof(PageInfo))
+            return (typeof(PageInfo), false);
 
         var generateName = GenerateName(type);
         if(_nameLookup.TryGetValue(generateName, out var existingType)) {
