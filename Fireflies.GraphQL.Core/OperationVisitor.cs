@@ -60,7 +60,11 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                     
                     if(operationDescriptor.Method.HasCustomAttribute<GraphQLFederatedAttribute>()) {
                         var fieldName = graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue;
-                        writer.WriteRaw(fieldName, (JsonNode)result);
+                        if(result != null) {
+                            writer.WriteRaw(fieldName, (JsonNode)result);
+                        } else {
+                            writer.WriteNull(fieldName);
+                        }
                     } else {
                         var fieldName = graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue;
                         if(result is IEnumerable enumerable) {
@@ -126,7 +130,8 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
     }
 
     private async IAsyncEnumerable<object?> GetResult<T>(OperationDescriptor operationDescriptor, object query, ArgumentBuilder argumentBuilder, GraphQLField node) {
-        var arguments = await argumentBuilder.Build(node).ConfigureAwait(false);
+        var isFederated = operationDescriptor.Method.HasCustomAttribute<GraphQLFederatedAttribute>();
+        var arguments = await argumentBuilder.Build(node, !isFederated).ConfigureAwait(false);
         if(_operationType is OperationType.Query or OperationType.Mutation) {
             var resultTask = await ReflectionCache.ExecuteMethod(operationDescriptor.Method, query, arguments).ConfigureAwait(false);
             yield return resultTask;

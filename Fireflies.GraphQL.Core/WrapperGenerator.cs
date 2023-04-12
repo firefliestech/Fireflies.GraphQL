@@ -204,7 +204,7 @@ internal class WrapperGenerator {
             return CreateReturnType(methodInfo, interfaceType, elementType);
         }
 
-        if(memberInfo.HasCustomAttribute<GraphQLIdAttribute>()) {
+        if(memberInfo.HasCustomAttribute<GraphQLIdAttribute>(out var x) && !x!.KeepAsOriginalType) {
             var graphQlId = typeof(GraphQLId<>).MakeGenericType(elementType);
             return CreateReturnType(methodInfo, graphQlId, elementType);
         }

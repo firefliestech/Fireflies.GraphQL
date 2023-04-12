@@ -8,7 +8,7 @@ public class ValueAccessor {
     private readonly IGraphQLContext _context;
     private readonly ValueVisitor _visitor;
 
-    internal ValueAccessor(Dictionary<string, object>? variables, IGraphQLContext context) {
+    internal ValueAccessor(Dictionary<string, object?>? variables, IGraphQLContext context) {
         _context = context;
 
         _visitor = new ValueVisitor(variables);
@@ -45,8 +45,8 @@ public class ValueAccessor {
 
         public Dictionary<string, object?> Variables => _variables;
 
-        public ValueVisitor(Dictionary<string, object>? variables) {
-            _variables = variables?.Where(x => x.Value is JsonElement).Select(x => new { x.Key, Value = ConvertToValue((JsonElement)x.Value) }).ToDictionary(x => x.Key, x => x.Value) ?? new Dictionary<string, object?>();
+        public ValueVisitor(Dictionary<string, object?>? variables) {
+            _variables = variables?.Select(x => new { x.Key, Value = x.Value == null ? null : ConvertToValue((JsonElement)x.Value) }).ToDictionary(x => x.Key, x => x.Value) ?? new Dictionary<string, object?>();
         }
 
         private object? ConvertToValue(JsonElement value) {
@@ -57,8 +57,8 @@ public class ValueAccessor {
                 JsonValueKind.False => false,
                 JsonValueKind.Undefined => null,
                 JsonValueKind.Null => null,
-                JsonValueKind.Object => throw new NotImplementedException(),
-                JsonValueKind.Array => throw new NotImplementedException(),
+                JsonValueKind.Object => value,
+                JsonValueKind.Array => value,
                 _ => null
             };
         }

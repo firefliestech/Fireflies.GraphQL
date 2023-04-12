@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Nodes;
+using Fireflies.GraphQL.Core.Json;
 using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Federation;
@@ -9,7 +10,7 @@ public static class FederationQueryBuilder {
         JsonSerializer.Serialize(new JsonObject {
             { "query", JsonValue.Create($"{operationType.ToString().ToLower()} {name} {{ {query} }}") },
             { "variables", variables != null ? JsonValue.Create(variables) : null }
-        });
+        }, DefaultJsonSerializerSettings.DefaultSettings);
 
     public static string SchemaQuery =>
         @"__schema {

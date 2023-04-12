@@ -1,6 +1,8 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.GraphQL.Core.Json;
 using Fireflies.IoC.Abstractions;
 using Fireflies.Utility.Reflection;
 using GraphQLParser.AST;
@@ -31,8 +33,10 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
         _parameters = methodInfo.GetParameters().ToDictionary(x => x.Name!);
     }
 
-    public async Task<object?[]> Build<TASTNode>(TASTNode node) where TASTNode : ASTNode {
-        await VisitAsync(_arguments, _context).ConfigureAwait(false);
+    public async Task<object?[]> Build<TASTNode>(TASTNode node, bool addNodeArguments = true) where TASTNode : ASTNode {
+        if(addNodeArguments)
+            await VisitAsync(_arguments, _context).ConfigureAwait(false);
+
         return ReflectionCache.GetParameters(_methodInfo).Select(x => {
             if(x.HasCustomAttribute<EnumeratorCancellationAttribute>() && x.HasDefaultValue)
                 return null;
@@ -56,7 +60,11 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
                 if(result != null && result.GetType().IsAssignableTo(x.ParameterType))
                     return result;
 
-                return Convert.ChangeType(result, x.ParameterType);
+                if(result is JsonElement jsonElement) {
+                    return jsonElement.Deserialize(x.ParameterType, DefaultJsonSerializerSettings.DefaultSettings);
+                } else {
+                    return Convert.ChangeType(result, x.ParameterType);
+                }
             }
 
             if(x.HasDefaultValue)

@@ -193,6 +193,7 @@ public class JsonWriter {
     }
 
     public void WriteRaw(string fieldName, JsonNode jsonObject) {
+        EnsureData();
         _writer.WritePropertyName(fieldName);
         jsonObject.WriteTo(_writer);
     }
