@@ -10,11 +10,12 @@ using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core;
 
-internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
+internal class ArgumentBuilder : ASTVisitor<RequestContext> {
     private readonly GraphQLArguments? _arguments;
     private readonly MethodInfo _methodInfo;
     private readonly ValueAccessor _valueAccessor;
-    private readonly IGraphQLContext _context;
+    private readonly FragmentAccessor _fragmentAccessor;
+    private readonly RequestContext _requestContext;
     private readonly IDependencyResolver _dependencyResolver;
     private readonly ResultContext _resultContext;
     private readonly Dictionary<string, ParameterInfo> _parameters;
@@ -23,11 +24,12 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
 
     private readonly Stack<object?> _stack = new();
 
-    public ArgumentBuilder(GraphQLArguments? arguments, MethodInfo methodInfo, ValueAccessor valueAccessor, IGraphQLContext context, IDependencyResolver dependencyResolver, ResultContext resultContext) {
+    public ArgumentBuilder(GraphQLArguments? arguments, MethodInfo methodInfo, ValueAccessor valueAccessor, FragmentAccessor fragmentAccessor, RequestContext context, IDependencyResolver dependencyResolver, ResultContext resultContext) {
         _arguments = arguments;
         _methodInfo = methodInfo;
         _valueAccessor = valueAccessor;
-        _context = context;
+        _fragmentAccessor = fragmentAccessor;
+        _requestContext = context;
         _dependencyResolver = dependencyResolver;
         _resultContext = resultContext;
         _parameters = methodInfo.GetParameters().ToDictionary(x => x.Name!);
@@ -35,7 +37,7 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
 
     public async Task<object?[]> Build<TASTNode>(TASTNode node, bool addNodeArguments = true) where TASTNode : ASTNode {
         if(addNodeArguments)
-            await VisitAsync(_arguments, _context).ConfigureAwait(false);
+            await VisitAsync(_arguments, _requestContext).ConfigureAwait(false);
 
         return ReflectionCache.GetParameters(_methodInfo).Select(x => {
             if(x.HasCustomAttribute<EnumeratorCancellationAttribute>() && x.HasDefaultValue)
@@ -45,13 +47,19 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
                 return node;
 
             if(x.ParameterType == typeof(CancellationToken))
-                return !x.HasCustomAttribute<EnumeratorCancellationAttribute>() ? _context.CancellationToken : default;
+                return !x.HasCustomAttribute<EnumeratorCancellationAttribute>() ? _requestContext.CancellationToken : default;
 
             if(x.ParameterType == typeof(ResultContext))
                 return _resultContext;
 
+            if(x.ParameterType == typeof(RequestContext))
+                return _requestContext;
+
             if(x.ParameterType == typeof(ValueAccessor))
                 return _valueAccessor;
+
+            if(x.ParameterType == typeof(FragmentAccessor))
+                return _fragmentAccessor;
 
             if(x.HasCustomAttribute<ResolvedAttribute>(out _))
                 return _dependencyResolver.Resolve(x.ParameterType);
@@ -74,7 +82,7 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
         }).ToArray();
     }
 
-    protected override async ValueTask VisitArgumentAsync(GraphQLArgument argument, IGraphQLContext context) {
+    protected override async ValueTask VisitArgumentAsync(GraphQLArgument argument, RequestContext context) {
         if(_parameters.TryGetValue(argument.Name.StringValue, out var parameterInfo)) {
             if(argument.Value.Kind == ASTNodeKind.ObjectValue) {
                 var value = Activator.CreateInstance(parameterInfo.ParameterType)!;
@@ -89,7 +97,7 @@ internal class ArgumentBuilder : ASTVisitor<IGraphQLContext> {
         }
     }
 
-    protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IGraphQLContext context) {
+    protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, RequestContext context) {
         var parent = _stack.Peek()!;
         var propertyField = parent.GetType().GetGraphQLProperty(objectField.Name.StringValue);
         var underlyingType = Nullable.GetUnderlyingType(propertyField.PropertyType) ?? propertyField.PropertyType;

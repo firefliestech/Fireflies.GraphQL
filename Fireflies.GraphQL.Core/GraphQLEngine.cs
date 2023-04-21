@@ -9,54 +9,54 @@ using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core;
 
-public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
+public class GraphQLEngine : ASTVisitor<RequestContext> {
     private readonly GraphQLOptions _options;
     private readonly IDependencyResolver _dependencyResolver;
     private readonly WrapperRegistry _wrapperRegistry;
     private readonly ScalarRegistry _scalarRegistry;
+    private readonly IFirefliesLoggerFactory _loggerFactory;
     private FragmentAccessor _fragmentAccessor = null!;
     private ValueAccessor _valueAccessor = null!;
 
-    public IGraphQLContext Context { get; }
+    private IConnectionContext _connectionContext;
 
     private JsonWriter? _writer;
-    private IFirefliesLoggerFactory _loggerFactory;
 
-    public GraphQLEngine(GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry, IFirefliesLoggerFactory loggerFactory) {
+    public GraphQLEngine(GraphQLOptions options, IDependencyResolver dependencyResolver, IConnectionContext connectionContext, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry, IFirefliesLoggerFactory loggerFactory) {
         _options = options;
         _dependencyResolver = dependencyResolver;
         _wrapperRegistry = wrapperRegistry;
         _scalarRegistry = scalarRegistry;
         _loggerFactory = loggerFactory;
-        Context = context;
+        _connectionContext = connectionContext;
     }
 
-    public async Task Execute(GraphQLRequest? request) {
+    public async Task Execute(GraphQLRequest? request, RequestContext requestContext) {
         var (graphQLDocument, result) = Parse(request);
         if(result != null) {
-            Context.IncreaseExpectedOperations();
-            Context.PublishResult(result);
+            requestContext.IncreaseExpectedOperations();
+            await requestContext.PublishResult(result).ConfigureAwait(false);
             return;
         }
 
-        _fragmentAccessor = new FragmentAccessor(graphQLDocument!, Context);
-        _valueAccessor = new ValueAccessor(request!.Variables, Context);
+        _fragmentAccessor = new FragmentAccessor(graphQLDocument!, requestContext);
+        _valueAccessor = new ValueAccessor(request!.Variables, requestContext);
 
-        var validationErrors = await new RequestValidator(request, _fragmentAccessor, _options, _dependencyResolver, Context, _wrapperRegistry, _scalarRegistry, _valueAccessor).Validate(graphQLDocument!).ConfigureAwait(false);
+        var validationErrors = await new RequestValidator(request, _fragmentAccessor, _options, _dependencyResolver, requestContext, _wrapperRegistry, _scalarRegistry, _valueAccessor).Validate(graphQLDocument!).ConfigureAwait(false);
         if(validationErrors.Any()) {
-            Context.IncreaseExpectedOperations();
-            Context.PublishResult(GenerateValidationErrorResult(validationErrors));
+            requestContext.IncreaseExpectedOperations();
+            await requestContext.PublishResult(GenerateValidationErrorResult(validationErrors)).ConfigureAwait(false);
         } else {
-            _writer = !Context.IsWebSocket ? new JsonWriter(_scalarRegistry) : null;
-            await VisitAsync(graphQLDocument, Context).ConfigureAwait(false);
+            _writer = !requestContext.ConnectionContext.IsWebSocket ? new JsonWriter(_scalarRegistry) : null;
+            await VisitAsync(graphQLDocument, requestContext).ConfigureAwait(false);
         }
     }
 
-    public async IAsyncEnumerable<byte[]> Results() {
-        await foreach(var result in Context.WithCancellation(Context.CancellationToken).ConfigureAwait(false)) {
+    public async IAsyncEnumerable<(string Id, byte[] Result)> Results() {
+        await foreach(var result in _connectionContext.WithCancellation(_connectionContext.CancellationToken).ConfigureAwait(false)) {
             yield return result;
 
-            if(!Context.IsWebSocket)
+            if(!_connectionContext.IsWebSocket)
                 yield break;
         }
     }
@@ -86,9 +86,9 @@ public class GraphQLEngine : ASTVisitor<IGraphQLContext> {
         return errorWriter;
     }
     
-    protected override async ValueTask VisitOperationDefinitionAsync(GraphQLOperationDefinition operationDefinition, IGraphQLContext context) {
+    protected override async ValueTask VisitOperationDefinitionAsync(GraphQLOperationDefinition operationDefinition, RequestContext context) {
         if(operationDefinition.Operation is OperationType.Query or OperationType.Mutation)
-            context.IncreaseExpectedOperations(operationDefinition.SelectionSet.Selections.Count);
+            context.ConnectionContext.IncreaseExpectedOperations(operationDefinition.SelectionSet.Selections.Count);
 
         var visitor = new OperationVisitor(_options, _dependencyResolver, _fragmentAccessor, _valueAccessor, _wrapperRegistry, operationDefinition.Operation, context, _scalarRegistry, _writer, _loggerFactory);
         await visitor.VisitAsync(operationDefinition, context).ConfigureAwait(false);

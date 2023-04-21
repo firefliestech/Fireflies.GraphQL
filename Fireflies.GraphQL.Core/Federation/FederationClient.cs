@@ -16,7 +16,7 @@ internal class FederationClient {
     }
 
     public async Task<FederationSchema> FetchSchema() {
-        var stringContent = new StringContent(FederationQueryBuilder.BuildQuery(FederationQueryBuilder.SchemaQuery, OperationType.Query, "IntrospectionQuery", null));
+        var stringContent = new StringContent(FederationQueryBuilder.BuildQuery(FederationQueryBuilder.SchemaQuery, null, OperationType.Query, "IntrospectionQuery", null));
         var result = await _httpClient.PostAsync(_url, stringContent).ConfigureAwait(false);
         result.EnsureSuccessStatusCode();
 

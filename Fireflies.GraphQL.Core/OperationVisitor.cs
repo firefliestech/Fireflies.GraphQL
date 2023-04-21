@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Reflection;
 using System.Text.Json.Nodes;
-using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Json;
 using Fireflies.GraphQL.Core.Scalar;
@@ -13,13 +12,13 @@ using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core;
 
-internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
+internal class OperationVisitor : ASTVisitor<RequestContext> {
     private readonly GraphQLOptions _options;
     private readonly IDependencyResolver _dependencyResolver;
     private readonly FragmentAccessor _fragmentAccessor;
     private readonly ValueAccessor _valueAccessor;
     private readonly OperationType _operationType;
-    private readonly IGraphQLContext _context;
+    private readonly RequestContext _context;
     private readonly ScalarRegistry _scalarRegistry;
     private readonly JsonWriter? _writer;
     private readonly WrapperRegistry _wrapperRegistry;
@@ -31,7 +30,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
         GetResultMethod = typeof(OperationVisitor).GetMethod(nameof(GetResult), BindingFlags.NonPublic | BindingFlags.Instance)!;
     }
 
-    public OperationVisitor(GraphQLOptions options, IDependencyResolver dependencyResolver, FragmentAccessor fragmentAccessor, ValueAccessor valueAccessor, WrapperRegistry wrapperRegistry, OperationType operationType, IGraphQLContext context, ScalarRegistry scalarRegistry, JsonWriter? writer, IFirefliesLoggerFactory loggerFactory) {
+    public OperationVisitor(GraphQLOptions options, IDependencyResolver dependencyResolver, FragmentAccessor fragmentAccessor, ValueAccessor valueAccessor, WrapperRegistry wrapperRegistry, OperationType operationType, RequestContext context, ScalarRegistry scalarRegistry, JsonWriter? writer, IFirefliesLoggerFactory loggerFactory) {
         _options = options;
         _dependencyResolver = dependencyResolver;
         _fragmentAccessor = fragmentAccessor;
@@ -45,19 +44,19 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
         _logger = loggerFactory.GetLogger<OperationVisitor>();
     }
 
-    protected override async ValueTask VisitSelectionSetAsync(GraphQLSelectionSet selectionSet, IGraphQLContext context) {
+    protected override async ValueTask VisitSelectionSetAsync(GraphQLSelectionSet selectionSet, RequestContext context) {
         foreach(var graphQLField in selectionSet.Selections.OfType<GraphQLField>()) {
             var operationDescriptor = GetHandler(graphQLField);
             var operations = _dependencyResolver.Resolve(operationDescriptor.Type);
 
             var returnType = ReflectionCache.GetReturnType(operationDescriptor.Method);
-            var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _valueAccessor, _context, _dependencyResolver, new ResultContext().Push(returnType));
+            var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, _valueAccessor, _fragmentAccessor, _context, _dependencyResolver, new ResultContext().Push(returnType));
             var methodInvoker = ReflectionCache.GetGenericMethodInvoker(GetResultMethod, new[] { returnType }, typeof(OperationDescriptor), typeof(object), typeof(ArgumentBuilder), typeof(GraphQLField));
             try {
                 var asyncEnumerable = (IAsyncEnumerable<object?>)methodInvoker(this, operationDescriptor, operations, argumentBuilder, graphQLField);
                 await foreach(var result in asyncEnumerable.WithCancellation(context.CancellationToken).ConfigureAwait(false)) {
                     var writer = _writer ?? new JsonWriter(_scalarRegistry);
-                    
+
                     if(operationDescriptor.Method.HasCustomAttribute<GraphQLFederatedAttribute>()) {
                         var fieldName = graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue;
                         if(result != null) {
@@ -71,7 +70,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                             writer.WriteStartArray(fieldName);
                             foreach(var obj in enumerable) {
                                 writer.WriteStartObject();
-                                await WriteObject(context, writer, graphQLField, obj);
+                                await WriteObject(context, writer, graphQLField, obj).ConfigureAwait(false);
                                 writer.WriteEndObject();
                             }
 
@@ -79,7 +78,7 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                         } else {
                             if(result != null) {
                                 writer.WriteStartObject(fieldName);
-                                await WriteObject(context, writer, graphQLField, result);
+                                await WriteObject(context, writer, graphQLField, result).ConfigureAwait(false);
                                 writer.WriteEndObject();
                             } else {
                                 writer.WriteNull(fieldName);
@@ -87,8 +86,10 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                         }
                     }
 
-                    context.PublishResult(writer);
+                    await context.PublishResult(writer).ConfigureAwait(false);
                 }
+            } catch(OperationCanceledException) {
+                // Noop
             } catch(FederationExecutionException fex) {
                 var writer = _writer ?? new JsonWriter(_scalarRegistry);
                 foreach(var error in fex.Node) {
@@ -101,17 +102,17 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                     writer.AddError(message, code);
                 }
 
-                context.PublishResult(writer);
+                await context.PublishResult(writer).ConfigureAwait(false);
             } catch(Exception ex) {
                 _logger.Error(ex, "Exception occured while processing request");
                 var writer = _writer ?? new JsonWriter(_scalarRegistry);
                 writer.AddError("Internal server error occurred", "GRAPHQL_EXECUTION_FAILED");
-                context.PublishResult(writer);
+                await context.PublishResult(writer).ConfigureAwait(false);
             }
         }
     }
 
-    private async Task WriteObject(IGraphQLContext context, JsonWriter writer, GraphQLField graphQLField, object obj) {
+    private async Task WriteObject(RequestContext context, JsonWriter writer, GraphQLField graphQLField, object obj) {
         var resultVisitor = new ResultVisitor(obj, writer, _fragmentAccessor, _valueAccessor, _context, _dependencyResolver, _wrapperRegistry);
         await resultVisitor.VisitAsync(graphQLField.SelectionSet, context).ConfigureAwait(false);
     }
@@ -130,10 +131,9 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
     }
 
     private async IAsyncEnumerable<object?> GetResult<T>(OperationDescriptor operationDescriptor, object query, ArgumentBuilder argumentBuilder, GraphQLField node) {
-        var isFederated = operationDescriptor.Method.HasCustomAttribute<GraphQLFederatedAttribute>();
-        var arguments = await argumentBuilder.Build(node, !isFederated).ConfigureAwait(false);
+        var arguments = await BuildArguments<T>(operationDescriptor, argumentBuilder, node);
         if(_operationType is OperationType.Query or OperationType.Mutation) {
-            var resultTask = await ReflectionCache.ExecuteMethod(operationDescriptor.Method, query, arguments).ConfigureAwait(false);
+            var resultTask = await ExecuteMethod<T>(operationDescriptor, query, arguments).ConfigureAwait(false);
             yield return resultTask;
         } else {
             var asyncEnumerable = (IAsyncEnumerable<T>)operationDescriptor.Method.Invoke(query, arguments)!;
@@ -141,5 +141,15 @@ internal class OperationVisitor : ASTVisitor<IGraphQLContext> {
                 yield return obj;
             }
         }
+    }
+
+    private static async Task<object?> ExecuteMethod<T>(OperationDescriptor operationDescriptor, object query, object?[] arguments) {
+        return await ReflectionCache.ExecuteMethod(operationDescriptor.Method, query, arguments).ConfigureAwait(false);
+    }
+
+    private static async Task<object?[]> BuildArguments<T>(OperationDescriptor operationDescriptor, ArgumentBuilder argumentBuilder, GraphQLField node) {
+        var isFederated = operationDescriptor.Method.HasCustomAttribute<GraphQLFederatedAttribute>();
+        var arguments = await argumentBuilder.Build(node, !isFederated).ConfigureAwait(false);
+        return arguments;
     }
 }

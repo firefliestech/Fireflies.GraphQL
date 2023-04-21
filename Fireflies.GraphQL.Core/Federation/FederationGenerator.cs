@@ -27,9 +27,9 @@ public class FederationGenerator {
     public Type Generate() {
         var operationsTypeBuilder = _dynamicModule.DefineType($"{_federation.Name}Operations", TypeAttributes.Class | TypeAttributes.Public, typeof(FederationBase));
         operationsTypeBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLNoWrapperAttribute).GetConstructors().First(), Array.Empty<object>()));
-        var baseConstructor = typeof(FederationBase).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(IGraphQLContext) })!;
+        var baseConstructor = typeof(FederationBase).GetConstructor(BindingFlags.Public | BindingFlags.Instance, new[] { typeof(IConnectionContext) })!;
         var baseParameters = baseConstructor.GetParameters();
-        var constructorBuilder = operationsTypeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { typeof(IGraphQLContext) });
+        var constructorBuilder = operationsTypeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new[] { typeof(IConnectionContext) });
         constructorBuilder.DefineParameter(1, ParameterAttributes.None, baseParameters[0].Name);
 
         var constructorIlGenerator = constructorBuilder.GetILGenerator();
@@ -67,22 +67,22 @@ public class FederationGenerator {
     private void GenerateOperation(OperationType operation, TypeBuilder typeBuilder, FederationField field) {
         var taskReturnType = operation == OperationType.Subscription ? typeof(IAsyncEnumerable<JsonNode>) : typeof(Task<>).MakeGenericType(typeof(JsonNode));
 
-        var methodBuilder = typeBuilder.DefineMethod(field.Name, MethodAttributes.Public, taskReturnType, new[] { typeof(ASTNode), typeof(ValueAccessor) });
+        var methodBuilder = typeBuilder.DefineMethod(field.Name, MethodAttributes.Public, taskReturnType, new[] { typeof(ASTNode), typeof(ValueAccessor), typeof(FragmentAccessor), typeof(RequestContext) });
         methodBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLFederatedAttribute).GetConstructors().First(), Array.Empty<object>()));
 
         methodBuilder.DefineAnonymousResolvedParameter(1);
         methodBuilder.DefineAnonymousResolvedParameter(2);
+        methodBuilder.DefineAnonymousResolvedParameter(3);
+        methodBuilder.DefineAnonymousResolvedParameter(4);
 
         AddOperationAttribute(operation, methodBuilder);
 
         var methodILGenerator = methodBuilder.GetILGenerator();
 
-        var contextField = typeof(FederationBase).GetField("GraphQLContext", BindingFlags.NonPublic | BindingFlags.Instance)!;
-
         methodILGenerator.Emit(OpCodes.Ldarg_S, 1);
         methodILGenerator.Emit(OpCodes.Ldarg_S, 2);
-        methodILGenerator.Emit(OpCodes.Ldarg_0);
-        methodILGenerator.Emit(OpCodes.Ldfld, contextField);
+        methodILGenerator.Emit(OpCodes.Ldarg_S, 3);
+        methodILGenerator.Emit(OpCodes.Ldarg_S, 4);
         methodILGenerator.Emit(OpCodes.Ldstr, _federation.Url);
         methodILGenerator.Emit(OpCodes.Ldc_I4, (int)operation);
         if(operation != OperationType.Subscription) {

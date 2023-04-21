@@ -21,7 +21,7 @@ public class EntityFrameworkCoreMethodExtender : IMethodExtenderGenerator {
         var graphQLOptionsParameterIndex = ++parameterCount;
         var resultContext = ++parameterCount;
 
-        return new MethodExtenderDescriptor(new[] { typeof(GraphQLField), typeof(IGraphQLContext), typeof(ResultContext) },
+        return new MethodExtenderDescriptor(new[] { typeof(GraphQLField), typeof(RequestContext), typeof(ResultContext) },
             methodBuilder => {
                 methodBuilder.DefineAnonymousResolvedParameter(astNodeParameterIndex);
                 methodBuilder.DefineAnonymousResolvedParameter(graphQLOptionsParameterIndex);
@@ -40,46 +40,44 @@ public class EntityFrameworkCoreMethodExtender : IMethodExtenderGenerator {
             });
     }
 
-    public static Task<IQueryable<TElement>?> ExtendTaskResult<TElement>(Task<IQueryable<TElement>?> resultTask, GraphQLField graphQLField, IGraphQLContext graphQLContext, ResultContext resultContext) {
-        return resultTask.ContinueWith(taskResult => {
-            if(taskResult.Result == null)
-                return null;
+    public static async Task<IQueryable<TElement>?> ExtendTaskResult<TElement>(Task<IQueryable<TElement>?> resultTask, GraphQLField graphQLField, RequestContext graphQLContext, ResultContext resultContext) {
+        var taskResult = await resultTask.ConfigureAwait(false);
+        if(taskResult == null)
+            return null;
 
-            Console.WriteLine(resultContext);
-            var provider = taskResult.Result.Provider;
-            if(provider is not EntityQueryProvider)
-                return taskResult.Result;
+        var provider = taskResult.Provider;
+        if(provider is not EntityQueryProvider)
+            return taskResult;
 
-            var includeVisitor = (IncludeVisitor)Activator.CreateInstance(typeof(IncludeVisitor<>).MakeGenericType(typeof(TElement)), taskResult.Result, graphQLContext)!;
-            if(resultContext.Any(x => x.IsAssignableTo(typeof(ConnectionBase)))) {
-                var edgesField = graphQLField.SelectionSet?.Selections.OfType<GraphQLField>().FirstOrDefault(x => x.Name.StringValue == "edges");
-                var nodeField = edgesField?.SelectionSet?.Selections.OfType<GraphQLField>().FirstOrDefault(x => x.Name.StringValue == "node");
-                if(nodeField != null)
-                    return (IQueryable<TElement>?)includeVisitor.Execute(nodeField);
+        var includeVisitor = (IncludeVisitor)Activator.CreateInstance(typeof(IncludeVisitor<>).MakeGenericType(typeof(TElement)), taskResult, graphQLContext)!;
+        if(resultContext.Any(x => x.IsAssignableTo(typeof(ConnectionBase)))) {
+            var edgesField = graphQLField.SelectionSet?.Selections.OfType<GraphQLField>().FirstOrDefault(x => x.Name.StringValue == "edges");
+            var nodeField = edgesField?.SelectionSet?.Selections.OfType<GraphQLField>().FirstOrDefault(x => x.Name.StringValue == "node");
+            if(nodeField != null)
+                return (IQueryable<TElement>?)includeVisitor.Execute(nodeField);
 
-                return taskResult.Result;
-            }
+            return taskResult;
+        }
 
-            return (IQueryable<TElement>?)includeVisitor.Execute(graphQLField);
-        });
+        return (IQueryable<TElement>?)includeVisitor.Execute(graphQLField);
     }
 
-    public static IQueryable<TElement>? ExtendResult<TElement>(IQueryable<TElement>? result, GraphQLField graphQLField, IGraphQLContext graphQLContext, ResultContext resultContext) where TElement : class {
+    public static IQueryable<TElement>? ExtendResult<TElement>(IQueryable<TElement>? result, GraphQLField graphQLField, RequestContext graphQLContext, ResultContext resultContext) where TElement : class {
         return ExtendTaskResult(Task.FromResult(result), graphQLField, graphQLContext, resultContext).Result;
     }
 
-    private abstract class IncludeVisitor : ASTVisitor<IGraphQLContext> {
+    private abstract class IncludeVisitor : ASTVisitor<RequestContext> {
         public abstract object Execute(ASTNode startNode);
     }
 
     private class IncludeVisitor<TElement> : IncludeVisitor where TElement : class {
-        private readonly IGraphQLContext _context;
+        private readonly RequestContext _context;
         private readonly Stack<(string PropertyName, Type Type)> _path = new();
 
         private IQueryable<TElement> _result;
         private bool _isFirst = true;
 
-        public IncludeVisitor(IQueryable<TElement> queryable, IGraphQLContext context) {
+        public IncludeVisitor(IQueryable<TElement> queryable, RequestContext context) {
             _context = context;
             _result = queryable;
         }
@@ -89,13 +87,13 @@ public class EntityFrameworkCoreMethodExtender : IMethodExtenderGenerator {
             return _result;
         }
 
-        protected override async ValueTask VisitFieldAsync(GraphQLField field, IGraphQLContext context) {
+        protected override async ValueTask VisitFieldAsync(GraphQLField field, RequestContext context) {
             if(field.SelectionSet == null || field.SelectionSet.Selections.Count == 0)
                 return;
 
             if(_isFirst) {
                 _isFirst = false;
-                await base.VisitFieldAsync(field, context);
+                await base.VisitFieldAsync(field, context).ConfigureAwait(false);
             } else {
                 if(!_path.TryPeek(out var parent)) {
                     parent = ("", typeof(TElement));
@@ -104,7 +102,7 @@ public class EntityFrameworkCoreMethodExtender : IMethodExtenderGenerator {
                 var property = parent.Type.GetProperty(field.Name.StringValue, BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase);
                 _path.Push((property!.Name, property.PropertyType));
                 _result = _result.Include(string.Join(".", _path.Select(x => x.PropertyName).Reverse()));
-                await base.VisitFieldAsync(field, context);
+                await base.VisitFieldAsync(field, context).ConfigureAwait(false);
 
                 _path.Pop();
             }

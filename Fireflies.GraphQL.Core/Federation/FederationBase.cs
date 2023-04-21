@@ -1,9 +1,9 @@
 ﻿namespace Fireflies.GraphQL.Core.Federation;
 
 public class FederationBase {
-    protected readonly IGraphQLContext GraphQLContext;
+    protected readonly IConnectionContext ConnectionContext;
 
-    public FederationBase(IGraphQLContext context) {
-        GraphQLContext = context;
+    public FederationBase(IConnectionContext context) {
+        ConnectionContext = context;
     }
 }

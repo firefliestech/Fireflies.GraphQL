@@ -33,8 +33,7 @@ internal class WrapperGenerator {
             isInterface ? null : typeof(object));
         _wrapperRegistry.Add(baseType, typeBuilder);
 
-        foreach(var attribute in baseType.GetCustomAttributesData())
-            typeBuilder.SetCustomAttribute(attribute.ToAttributeBuilder());
+        baseType.CopyAttributes(a => typeBuilder.SetCustomAttribute(a));
 
         foreach(var interf in baseType.GetInterfaces()) {
             var wrappedInterfaceType = GenerateWrapper(interf);
@@ -68,6 +67,10 @@ internal class WrapperGenerator {
                 isInterface ? MethodAttributes.Abstract | MethodAttributes.Public | MethodAttributes.Virtual : MethodAttributes.Public | MethodAttributes.Virtual,
                 CallingConventions.Standard, wrappedReturnType, parameterTypes.ToArray());
             baseMethod.MemberInfo.CopyAttributes(ab => methodBuilder.SetCustomAttribute(ab));
+
+            if(NullabilityChecker.IsNullable(baseMethod.MethodInfo))
+                methodBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLNullable).GetConstructors().First(), Array.Empty<object>()));
+
             methodBuilder.DefineParameters(baseMethod.Parameters);
             methodBuilder.DefineAnonymousResolvedParameter(wrapperRegistryIndex);
 

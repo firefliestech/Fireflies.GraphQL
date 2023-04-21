@@ -10,7 +10,7 @@ public static class EnumerableExtensions {
         return type.IsQueryable(out _);
     }
 
-    public static bool IsCollection(this Type type, out Type? elementType) {
+    public static bool IsCollection(this Type type, out Type elementType) {
         var realType = type.DiscardTask();
         elementType = realType;
 

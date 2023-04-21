@@ -1,25 +1,25 @@
-﻿using System.Net.WebSockets;
+﻿using System.Net.Sockets;
+using System.Net.WebSockets;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Core.Json;
+using GraphQLParser;
 
 namespace Fireflies.GraphQL.Core.Federation;
 
 public class FederationWebsocket {
-    private readonly string _query;
     private readonly string _url;
-    private readonly IGraphQLContext _context;
+    private readonly RequestContext _requestContext;
     private readonly string _operationName;
     private readonly ClientWebSocket _client;
 
-    public FederationWebsocket(string query, string url, IGraphQLContext context, string operationName) {
-        _query = query;
+    public FederationWebsocket(string url, RequestContext requestContext, string operationName) {
         _url = url;
-        _context = context;
+        _requestContext = requestContext;
         _operationName = operationName;
         _client = new ClientWebSocket();
 
-        var headersToCopy = context.RequestHeaders.Where(x => ShouldCopyHeader(x.Key));
+        var headersToCopy = _requestContext.ConnectionContext.RequestHeaders.Where(x => ShouldCopyHeader(x.Key));
         foreach(var item in headersToCopy)
             _client.Options.SetRequestHeader(item.Key, string.Join(",", item));
     }
@@ -37,27 +37,41 @@ public class FederationWebsocket {
 
     public async IAsyncEnumerable<JsonNode> Results() {
         try {
-            await _client.ConnectAsync(new Uri(_url.Replace("http://", "ws://").Replace("https://", "wss://")), _context.CancellationToken).ConfigureAwait(false);
+            if(_requestContext.ConnectionContext.WebSocket!.SubProtocol != null)
+                _client.Options.AddSubProtocol(_requestContext.ConnectionContext.WebSocket!.SubProtocol);
+            await _client.ConnectAsync(new Uri(_url.Replace("http://", "ws://").Replace("https://", "wss://")), _requestContext.CancellationToken).ConfigureAwait(false);
         } catch(Exception) {
             //TODO: Add logging
             yield break;
         }
 
-        await _client.SendAsync(new ArraySegment<byte>(System.Text.Encoding.UTF8.GetBytes(_query)), WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage, _context.CancellationToken).ConfigureAwait(false);
+        await _client.SendAsync(new ArraySegment<byte>(_requestContext.RawRequest), WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage, _requestContext.CancellationToken).ConfigureAwait(false);
 
         while(_client is { State: WebSocketState.Open }) {
-            var (webSocketReceiveResult, bytes) = await ReceiveFullMessage().ConfigureAwait(false);
-            if(webSocketReceiveResult.MessageType == WebSocketMessageType.Close)
+            JsonNode? json;
+            try {
+                var (webSocketReceiveResult, bytes) = await ReceiveFullMessage().ConfigureAwait(false);
+                if(webSocketReceiveResult.MessageType == WebSocketMessageType.Close) {
+                    await _client.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "", _requestContext.CancellationToken);
+                    break;
+                }
+
+                json = _requestContext.ConnectionContext.WebSocket.HandleFederatedResponse(bytes, _operationName);
+            } catch(OperationCanceledException) {
                 break;
+            }
 
-            var content = System.Text.Encoding.UTF8.GetString(bytes);
-            var json = JsonSerializer.Deserialize<JsonObject>(content, DefaultJsonSerializerSettings.DefaultSettings);
+            yield return json;
+        }
 
-            var data = json?["data"]?[_operationName];
-            if(data == null)
-                continue;
+        try {
+            await _client.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+        } catch {
+        }
 
-            yield return json!;
+        try {
+            _client.Dispose();
+        } catch {
         }
     }
 
@@ -67,7 +81,7 @@ public class FederationWebsocket {
 
         var buffer = new byte[4096];
         do {
-            response = await _client.ReceiveAsync(new ArraySegment<byte>(buffer), _context.CancellationToken).ConfigureAwait(false);
+            response = await _client.ReceiveAsync(new ArraySegment<byte>(buffer), _requestContext.CancellationToken).ConfigureAwait(false);
             message.AddRange(new ArraySegment<byte>(buffer, 0, response.Count));
         } while(!response.EndOfMessage && response.MessageType != WebSocketMessageType.Close);
 

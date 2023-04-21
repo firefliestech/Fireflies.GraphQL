@@ -26,7 +26,7 @@ public static class ReflectionCache {
                 .GetAssemblies()
                 .Where(x => includeDynamic || !x.IsDynamic)
                 .SelectMany(x => x.GetTypes())
-                .Where(x => x.IsClass && x.IsAssignableTo(baseType))
+                .Where(x => x.IsClass && x.IsAssignableTo(baseType) && !x.IsAbstract)
                 .ToArray());
     }
 
@@ -65,15 +65,11 @@ public static class ReflectionCache {
     }
 
     private static async Task<object?> InternalExecuteMethod<T>(MethodInfo methodInfo, object instance, object[] arguments) {
-        if(methodInfo.ReturnType.IsGenericType) {
-            var genericTypeDefinition = methodInfo.ReturnType.GetGenericTypeDefinition();
-            if(genericTypeDefinition == typeof(Task<>) || genericTypeDefinition == typeof(ValueTask<>)) {
-                var invokeResult = (Task<T>)InternalInvoke(methodInfo, instance, arguments)!;
-                return await invokeResult.ConfigureAwait(false);
-            }
-        }
+        if(!methodInfo.ReturnType.IsTask())
+            return InternalInvoke(methodInfo, instance, arguments);
 
-        return InternalInvoke(methodInfo, instance, arguments);
+        var invokeResult = (Task<T>)InternalInvoke(methodInfo, instance, arguments)!;
+        return await invokeResult.ConfigureAwait(false);
     }
 
     private static object? InternalInvoke(MethodInfo methodInfo, object instance, object[] arguments) {

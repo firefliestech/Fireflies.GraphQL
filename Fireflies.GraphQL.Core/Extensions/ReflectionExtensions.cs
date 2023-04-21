@@ -105,7 +105,9 @@ public static class ReflectionExtensions {
             !x.HasCustomAttribute<ResolvedAttribute>() &&
             !x.HasCustomAttribute<EnumeratorCancellationAttribute>() &&
             !x.ParameterType.IsAssignableTo(typeof(ASTNode)) &&
-            !x.ParameterType.IsAssignableTo(typeof(IGraphQLContext)));
+            !x.ParameterType.IsAssignableTo(typeof(IConnectionContext)) &&
+            !x.ParameterType.IsAssignableTo(typeof(RequestContext))
+        );
     }
 
     public static string? GetDescription(this MemberInfo memberInfo) {

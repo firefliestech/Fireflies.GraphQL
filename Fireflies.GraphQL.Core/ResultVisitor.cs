@@ -10,18 +10,18 @@ using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core;
 
-internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
+internal class ResultVisitor : ASTVisitor<RequestContext> {
     private readonly JsonWriter _writer;
     private readonly FragmentAccessor _fragments;
     private readonly ValueAccessor _valueAccessor;
-    private readonly IGraphQLContext _context;
+    private readonly RequestContext _context;
 
     private readonly ResultContext _resultContext = new();
 
     private readonly IDependencyResolver _dependencyResolver;
     private readonly WrapperRegistry _wrapperRegistry;
 
-    public ResultVisitor(object data, JsonWriter writer, FragmentAccessor fragments, ValueAccessor valueAccessor, IGraphQLContext context, IDependencyResolver dependencyResolver, WrapperRegistry wrapperRegistry) {
+    public ResultVisitor(object data, JsonWriter writer, FragmentAccessor fragments, ValueAccessor valueAccessor, RequestContext context, IDependencyResolver dependencyResolver, WrapperRegistry wrapperRegistry) {
         _writer = writer;
         _fragments = fragments;
         _valueAccessor = valueAccessor;
@@ -31,7 +31,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
         _resultContext.Push(data.GetType(), data);
     }
 
-    protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, IGraphQLContext context) {
+    protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, RequestContext context) {
         if(inlineFragment.TypeCondition != null) {
             var currentType = _resultContext.Peek();
             var matching = ReflectionCache.GetAllClassesThatImplements(currentType.Type).Select(x => _wrapperRegistry.GetWrapperOfSelf(x)).FirstOrDefault(x => x.Name == inlineFragment.TypeCondition.Type.Name);
@@ -43,7 +43,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
         }
     }
 
-    protected override async ValueTask VisitFieldAsync(GraphQLField field, IGraphQLContext context) {
+    protected override async ValueTask VisitFieldAsync(GraphQLField field, RequestContext context) {
         var parentLevel = _resultContext.Peek();
 
         if(parentLevel.Data == null)
@@ -86,7 +86,7 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
 
         if(field.SelectionSet == null) {
             var isCollection = fieldType.IsCollection(out var elementType);
-            var elementTypeCode = Type.GetTypeCode(elementType);
+            var elementTypeCode = Type.GetTypeCode(Nullable.GetUnderlyingType(elementType) ?? elementType);
 
             if(fieldValue == null) {
                 _writer.WriteNull(fieldName);
@@ -156,16 +156,16 @@ internal class ResultVisitor : ASTVisitor<IGraphQLContext> {
     }
 
     private async Task<object?> InvokeMethod(GraphQLField graphQLField, MethodInfo methodInfo, ResultContext.Entry parentLevel) {
-        var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, _valueAccessor, _context, _dependencyResolver, _resultContext);
+        var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, _valueAccessor, _fragments, _context, _dependencyResolver, _resultContext);
         var arguments = await argumentBuilder.Build(graphQLField).ConfigureAwait(false);
         return await ReflectionCache.ExecuteMethod(methodInfo, parentLevel.Data!, arguments).ConfigureAwait(false);
     }
 
-    protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, IGraphQLContext context) {
+    protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, RequestContext context) {
         await VisitAsync(await _fragments.GetFragment(fragmentSpread.FragmentName), context).ConfigureAwait(false);
     }
 
-    protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, IGraphQLContext context) {
+    protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, RequestContext context) {
         foreach(var selection in fragmentDefinition.SelectionSet.Selections) {
             await VisitAsync(selection, context).ConfigureAwait(false);
         }

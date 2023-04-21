@@ -12,12 +12,12 @@ using Fireflies.Utility.Reflection;
 
 namespace Fireflies.GraphQL.Core;
 
-internal class RequestValidator : ASTVisitor<IGraphQLContext> {
+internal class RequestValidator : ASTVisitor<RequestContext> {
     private readonly GraphQLRequest _request;
     private readonly FragmentAccessor _fragments;
     private readonly GraphQLOptions _options;
     private readonly IDependencyResolver _dependencyResolver;
-    private readonly IGraphQLContext _context;
+    private readonly RequestContext _context;
     private readonly WrapperRegistry _wrapperRegistry;
     private readonly ScalarRegistry _scalarRegistry;
     private readonly ValueAccessor _valueAccessor;
@@ -26,7 +26,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
     private readonly Stack<Type> _fieldStack = new();
     private OperationType _operationType;
 
-    public RequestValidator(GraphQLRequest request, FragmentAccessor fragments, GraphQLOptions options, IDependencyResolver dependencyResolver, IGraphQLContext context, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry, ValueAccessor valueAccessor) {
+    public RequestValidator(GraphQLRequest request, FragmentAccessor fragments, GraphQLOptions options, IDependencyResolver dependencyResolver, RequestContext context, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry, ValueAccessor valueAccessor) {
         _request = request;
         _fragments = fragments;
         _options = options;
@@ -51,7 +51,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         }
     }
 
-    protected override ValueTask VisitVariableAsync(GraphQLVariable variable, IGraphQLContext context) {
+    protected override ValueTask VisitVariableAsync(GraphQLVariable variable, RequestContext context) {
         _usedVariables.Add(variable.Name.StringValue);
 
         if(!(_request.Variables?.ContainsKey(variable.Name.StringValue) ?? false))
@@ -60,17 +60,17 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         return ValueTask.CompletedTask;
     }
 
-    protected override ValueTask VisitOperationDefinitionAsync(GraphQLOperationDefinition operationDefinition, IGraphQLContext context) {
+    protected override ValueTask VisitOperationDefinitionAsync(GraphQLOperationDefinition operationDefinition, RequestContext context) {
         _operationType = operationDefinition.Operation;
 
-        if(operationDefinition.Operation == OperationType.Subscription && !context.IsWebSocket) {
+        if(operationDefinition.Operation == OperationType.Subscription && !context.ConnectionContext.IsWebSocket) {
             _errors.Add($"Operation type \"{_operationType}\" is only allowed if connected over websocket");
         }
 
         return base.VisitOperationDefinitionAsync(operationDefinition, context);
     }
 
-    protected override async ValueTask VisitFieldAsync(GraphQLField field, IGraphQLContext context) {
+    protected override async ValueTask VisitFieldAsync(GraphQLField field, RequestContext context) {
         var pushed = false;
 
         if(_fieldStack.Count == 0) {
@@ -157,7 +157,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         }
     }
 
-    protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, IGraphQLContext context) {
+    protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, RequestContext context) {
         var pushed = false;
         if(inlineFragment.TypeCondition != null) {
             var currentType = _fieldStack.Peek();
@@ -174,7 +174,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             _fieldStack.Pop();
     }
 
-    private async Task ValidateSelectionSets(GraphQLField field, IGraphQLContext context) {
+    private async Task ValidateSelectionSets(GraphQLField field, RequestContext context) {
         var selections = field.SelectionSet?.Selections ?? Enumerable.Empty<ASTNode>();
         var currentType = _fieldStack.Peek();
         var currentTypeName = currentType.GetGraphQLType().GraphQLName();
@@ -187,7 +187,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         }
     }
 
-    private async Task ValidateFieldAgainstActualParameters(GraphQLField field, IGraphQLContext context, IEnumerable<ParameterInfo> parameters) {
+    private async Task ValidateFieldAgainstActualParameters(GraphQLField field, RequestContext context, IEnumerable<ParameterInfo> parameters) {
         var remainingParameters = parameters.ToList();
 
         foreach(var arg in field.Arguments ?? Enumerable.Empty<GraphQLArgument>()) {
@@ -197,7 +197,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             } else {
                 remainingParameters.Remove(matchingParameter);
                 var argumentValidator = new ArgumentValidator(matchingParameter, _valueAccessor, _errors);
-                await argumentValidator.VisitAsync(arg.Value, context);
+                await argumentValidator.VisitAsync(arg.Value, context).ConfigureAwait(false);
                 await VisitAsync(arg, context).ConfigureAwait(false);
             }
         }
@@ -214,11 +214,11 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         }
     }
 
-    protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, IGraphQLContext context) {
+    protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, RequestContext context) {
         await VisitAsync(await _fragments.GetFragment(fragmentSpread.FragmentName), context).ConfigureAwait(false);
     }
 
-    protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, IGraphQLContext context) {
+    protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, RequestContext context) {
         if(_fieldStack.Count == 0)
             return;
 
@@ -227,7 +227,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
         }
     }
 
-    private class ArgumentValidator : ASTVisitor<IGraphQLContext> {
+    private class ArgumentValidator : ASTVisitor<RequestContext> {
         private readonly ValueAccessor _valueAccessor;
         private readonly List<string> _errors;
         private readonly Stack<Type> _stack = new();
@@ -238,7 +238,7 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
             _errors = errors;
         }
 
-        protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IGraphQLContext context) {
+        protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, RequestContext context) {
             var currentType = _stack.Peek();
             var member = currentType.GetProperty(objectField.Name.StringValue, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if(member == null) {
@@ -284,12 +284,12 @@ internal class RequestValidator : ASTVisitor<IGraphQLContext> {
                         break;
                 }
 
-                await VisitAsync(objectField.Value, context);
+                await VisitAsync(objectField.Value, context).ConfigureAwait(false);
                 _stack.Pop();
             }
         }
 
-        protected override ValueTask VisitVariableAsync(GraphQLVariable variable, IGraphQLContext context) {
+        protected override ValueTask VisitVariableAsync(GraphQLVariable variable, RequestContext context) {
             var jsonElement = _valueAccessor.GetVariable(variable.Name.StringValue);
             if(jsonElement == null)
                 return ValueTask.CompletedTask;

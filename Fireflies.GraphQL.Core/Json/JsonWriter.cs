@@ -45,11 +45,11 @@ public class JsonWriter {
         }
 
         _writer.WriteEndObject();
-        await _writer.FlushAsync();
+        await _writer.FlushAsync().ConfigureAwait(false);
 
         var result = _stream.ToArray();
-        await _writer.DisposeAsync();
-        await _stream.DisposeAsync();
+        await _writer.DisposeAsync().ConfigureAwait(false);
+        await _stream.DisposeAsync().ConfigureAwait(false);
 
         return result;
     }

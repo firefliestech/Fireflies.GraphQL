@@ -34,7 +34,7 @@ public class WhereGenerator : IMethodExtenderGenerator {
         var generatedWhereType = GenerateWhereType(elementType);
 
         return
-            new MethodExtenderDescriptor(new[] { generatedWhereType, typeof(GraphQLField), typeof(IGraphQLContext), typeof(ValueAccessor) },
+            new MethodExtenderDescriptor(new[] { generatedWhereType, typeof(GraphQLField), typeof(RequestContext), typeof(ValueAccessor) },
                 methodBuilder => {
                     var parameterBuilder = methodBuilder.DefineParameter(whereParameterIndex, ParameterAttributes.HasDefault | ParameterAttributes.Optional, "where");
                     parameterBuilder.SetConstant(null);

@@ -299,7 +299,7 @@ internal class SchemaBuilder {
             if(underlyingType != null) {
                 returnType = underlyingType;
                 isNullable = true;
-            } else if(method.GetCustomAttributesData().Any(x => x.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute")) {
+            } else if(NullabilityChecker.IsNullable(method)) {
                 isNullable = true;
             }
 

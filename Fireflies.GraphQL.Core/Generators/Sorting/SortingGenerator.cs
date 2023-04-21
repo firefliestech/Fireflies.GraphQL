@@ -32,7 +32,7 @@ public class SortingGenerator : IMethodExtenderGenerator {
 
         var generatedSortType = GenerateSortType(elementType, isQueryable);
         return
-            new MethodExtenderDescriptor(new[] { generatedSortType, typeof(GraphQLField), typeof(IGraphQLContext) },
+            new MethodExtenderDescriptor(new[] { generatedSortType, typeof(GraphQLField), typeof(RequestContext) },
                 methodBuilder => {
                     var parameterBuilder = methodBuilder.DefineParameter(sortParameterIndex, ParameterAttributes.HasDefault | ParameterAttributes.Optional, "sort");
                     parameterBuilder.SetConstant(null);

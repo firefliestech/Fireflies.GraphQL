@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 namespace Fireflies.GraphQL.Core;
 
@@ -10,24 +11,27 @@ public static class WrapperHelper {
     }
 
     // Project type to wrapper
-    public static Task<IQueryable<TWrapped?>?>? WrapQueryableTaskResult<TWrapped, TOriginal>(Task<IQueryable<TOriginal>?> result, WrapperRegistry wrapperRegistry) {
-        return result?.ContinueWith(task => WrapQueryableResult<TWrapped, TOriginal>(task.Result, wrapperRegistry));
+    public static async Task<IQueryable<TWrapped?>?>? WrapQueryableTaskResult<TWrapped, TOriginal>(Task<IQueryable<TOriginal>?> result, WrapperRegistry wrapperRegistry) {
+        var taskResult = await result.ConfigureAwait(false);
+        return WrapQueryableResult<TWrapped, TOriginal>(taskResult, wrapperRegistry);
     }
 
     public static IQueryable<TWrapped?>? WrapQueryableResult<TWrapped, TOriginal>(IQueryable<TOriginal>? result, WrapperRegistry wrapperRegistry) {
         return result?.Select(x => WrapResult<TWrapped, TOriginal>(x, wrapperRegistry));
     }
 
-    public static Task<IEnumerable<TWrapped?>?>? WrapEnumerableTaskResult<TWrapped, TOriginal>(Task<IEnumerable<TOriginal>?> result, WrapperRegistry wrapperRegistry) {
-        return result?.ContinueWith(task => WrapEnumerableResult<TWrapped, TOriginal>(task.Result, wrapperRegistry));
+    public static async Task<IEnumerable<TWrapped?>?>? WrapEnumerableTaskResult<TWrapped, TOriginal>(Task<IEnumerable<TOriginal>?> result, WrapperRegistry wrapperRegistry) {
+        var taskResult = await result.ConfigureAwait(false);
+        return WrapEnumerableResult<TWrapped, TOriginal>(taskResult, wrapperRegistry);
     }
 
     public static IEnumerable<TWrapped?>? WrapEnumerableResult<TWrapped, TOriginal>(IEnumerable<TOriginal>? result, WrapperRegistry wrapperRegistry) {
         return result?.Select(x => WrapResult<TWrapped, TOriginal>(x, wrapperRegistry));
     }
 
-    public static Task<TWrapped?> WrapTaskResult<TWrapped, TOriginal>(Task<TOriginal> result, WrapperRegistry wrapperRegistry) {
-        return result.ContinueWith(task => WrapResult<TWrapped, TOriginal>(task.Result, wrapperRegistry));
+    public static async Task<TWrapped?> WrapTaskResult<TWrapped, TOriginal>(Task<TOriginal> result, WrapperRegistry wrapperRegistry) {
+        var taskResult = await result.ConfigureAwait(false);
+        return WrapResult<TWrapped, TOriginal>(taskResult, wrapperRegistry);
     }
 
     public static TWrapped? WrapResult<TWrapped, TOriginal>(TOriginal? r, WrapperRegistry wrapperRegistry) {
@@ -47,8 +51,9 @@ public static class WrapperHelper {
     }
 
     // Connection
-    public static Task<TConnection> CreateEnumerableTaskConnection<TConnection, TEdge, TNode>(Task<IEnumerable<TNode>> nodesTask, int first, string after) {
-        return nodesTask.ContinueWith(r => CreateEnumerableConnection<TConnection, TEdge, TNode>(r.Result, first, after));
+    public static async Task<TConnection> CreateEnumerableTaskConnection<TConnection, TEdge, TNode>(Task<IEnumerable<TNode>> nodesTask, int first, string after) {
+        var taskResult = await nodesTask.ConfigureAwait(false);
+        return CreateEnumerableConnection<TConnection, TEdge, TNode>(taskResult, first, after);
     }
 
     public static TConnection CreateEnumerableConnection<TConnection, TEdge, TNode>(IEnumerable<TNode> nodes, int first, string after) {

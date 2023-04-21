@@ -6,9 +6,9 @@ using GraphQLParser.AST;
 namespace Fireflies.GraphQL.Core.Federation;
 
 public static class FederationQueryBuilder {
-    public static string BuildQuery(string query, OperationType operationType, string name, Dictionary<string, object?>? variables) =>
+    public static string BuildQuery(string query, string? fragments, OperationType operationType, string name, Dictionary<string, object?>? variables) =>
         JsonSerializer.Serialize(new JsonObject {
-            { "query", JsonValue.Create($"{operationType.ToString().ToLower()} {name} {{ {query} }}") },
+            { "query", JsonValue.Create($"{operationType.ToString().ToLower()} {name} {{ {query} }}\r\n{fragments}") },
             { "variables", variables != null ? JsonValue.Create(variables) : null }
         }, DefaultJsonSerializerSettings.DefaultSettings);
 

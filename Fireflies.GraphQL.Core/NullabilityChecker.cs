@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Collections.ObjectModel;
+using System.Reflection;
 using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.Utility.Reflection;
 
@@ -9,12 +10,18 @@ internal static class NullabilityChecker {
     private static readonly Dictionary<object, bool> _cache = new();
 
     public static bool IsNullable(ParameterInfo parameterInfo) {
-        if(parameterInfo.HasCustomAttribute<GraphQLNullable>())
-            return true;
-
         if(!_cache.TryGetValue(parameterInfo, out var value)) {
             lock(_cache) {
-                value = NullabilityContext.Create(parameterInfo).ReadState == NullabilityState.Nullable;
+                if(parameterInfo.HasCustomAttribute<GraphQLNullable>()) {
+                    value = true;
+                } else {
+                    var nullability = NullabilityContext.Create(parameterInfo);
+                    if(parameterInfo.ParameterType.IsTask()) {
+                        value = nullability.GenericTypeArguments[0].ReadState == NullabilityState.Nullable;
+                    } else {
+                        value = nullability.ReadState == NullabilityState.Nullable;
+                    }
+                }
                 _cache[parameterInfo] = value;
             }
         }
@@ -23,14 +30,23 @@ internal static class NullabilityChecker {
     }
 
     public static bool IsNullable(PropertyInfo propertyInfo) {
-        if (propertyInfo.HasCustomAttribute<GraphQLNullable>())
-            return true;
-
         if(!_cache.TryGetValue(propertyInfo, out var value)) {
             lock(_cache) {
-                value = NullabilityContext.Create(propertyInfo).ReadState == NullabilityState.Nullable;
+                value = propertyInfo.HasCustomAttribute<GraphQLNullable>() || NullabilityContext.Create(propertyInfo).ReadState == NullabilityState.Nullable;
                 _cache[propertyInfo] = value;
             }
+        }
+
+        return value;
+    }
+
+    public static bool IsNullable(MethodInfo methodInfo) {
+        if(_cache.TryGetValue(methodInfo, out var value))
+            return value;
+
+        lock(_cache) {
+            value = methodInfo.HasCustomAttribute<GraphQLNullable>() || IsNullable(methodInfo.ReturnParameter);
+            _cache[methodInfo] = value;
         }
 
         return value;
