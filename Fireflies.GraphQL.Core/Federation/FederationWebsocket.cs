@@ -1,9 +1,5 @@
-﻿using System.Net.Sockets;
-using System.Net.WebSockets;
-using System.Text.Json;
+﻿using System.Net.WebSockets;
 using System.Text.Json.Nodes;
-using Fireflies.GraphQL.Core.Json;
-using GraphQLParser;
 
 namespace Fireflies.GraphQL.Core.Federation;
 

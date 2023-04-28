@@ -1,5 +1,4 @@
 ﻿using System.Net.WebSockets;
-using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Core;
 using Fireflies.Logging.Abstractions;
 using Microsoft.AspNetCore.Http;

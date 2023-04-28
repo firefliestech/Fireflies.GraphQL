@@ -1,5 +1,4 @@
-﻿using System.Collections.ObjectModel;
-using System.Reflection;
+﻿using System.Reflection;
 using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.Utility.Reflection;
 

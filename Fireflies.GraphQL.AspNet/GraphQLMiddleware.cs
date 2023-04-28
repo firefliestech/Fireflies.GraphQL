@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using System.Net.Http;
 using System.Net.WebSockets;
 using System.Text.Json;
 using Fireflies.GraphQL.Core;

@@ -95,6 +95,7 @@ internal class SchemaBuilder {
             return;
 
         startingObject = _wrapperRegistry.GetWrapperOfSelf(startingObject);
+        startingObject = startingObject.GetGraphQLBaseType();
 
         if(startingObject.IsCollection(out var elementType)) {
             FindAllTypes(types, elementType);
