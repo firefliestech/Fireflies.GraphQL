@@ -32,6 +32,7 @@ public class ClientGenerator : ASTVisitor<GraphQLGeneratorContext> {
         typeBuilder.AppendLine("using System.Text;");
         typeBuilder.AppendLine("using System.Text.Json;");
         typeBuilder.AppendLine("using System.Text.Json.Nodes;");
+        typeBuilder.AppendLine("using System.Text.Json.Serialization;");
         typeBuilder.AppendLine();
 
         if(!string.IsNullOrWhiteSpace(_clientSettings.Namespace)) {

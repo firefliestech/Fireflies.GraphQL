@@ -3,8 +3,6 @@ using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Client.Generator.Builders;
 
-public record struct FieldMatch(bool IsSelected, ASTNode? SelectedByNode, GraphQLFragmentDefinition? DefinedByFragment, SchemaType? ConditionType, SchemaType? FoundOnType);
-
 public static class SchemaFieldExtensions {
     public static async Task<FieldMatch> IsSelected(this SchemaField field, SchemaType schemaType, SchemaType? parentType, ASTNode node, bool exactTypeConditionIsRequired, GraphQLGeneratorContext context) {
         if(node is GraphQLField graphQLFieldNode) {

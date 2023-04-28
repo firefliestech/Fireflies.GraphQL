@@ -25,12 +25,8 @@ public static class SchemaHelper {
         return InternalGetDotnetType(field.Type);
     }
 
-    public static string GetNetType(this SchemaField field, string typeName) {
-        return InternalGetDotnetType(field.Type, typeName);
-    }
-
-    public static string GetDotnetType(this SchemaType fieldType) {
-        return InternalGetDotnetType(fieldType);
+    public static string GetNetType(this SchemaType type) {
+        return InternalGetDotnetType(type);
     }
 
     internal static string InternalGetDotnetType(SchemaType fieldType, bool nullable = true) {
