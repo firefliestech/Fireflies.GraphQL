@@ -32,7 +32,12 @@ public abstract class ResultTypeBuilderBase {
             var propertyName = field.Name.Capitalize();
 
             if(fieldType.Kind is SchemaTypeKind.ENUM or SchemaTypeKind.SCALAR) {
-                TypeBuilder.AddProperty($"{field.GetNetType()}", propertyName, field, match);
+                if(match.DefinedByFragment != null && match.DefinedByFragment != _astNode) {
+                    var fragmentBuilder = new FragmentTypeBuilder(match.DefinedByFragment, Context);
+                    await fragmentBuilder.Build();
+                }
+
+                TypeBuilder.AddProperty($"{fieldType.GetNetType()}", propertyName, field, match);
             } else {
                 await AddObjectProperty(propertyName, fieldType, match, field);
             }
@@ -47,8 +52,10 @@ public abstract class ResultTypeBuilderBase {
         var subClassName = $"{_typeName}_{propertyName}";
         var subInterfaceName = $"I{subClassName}";
 
-        if(fieldMatch.DefinedByFragment != null) {
-            var fragmentTypeName = fieldMatch.DefinedByFragment.FragmentName.Name.StringValue;
+        if(fieldMatch.DefinedByFragment != null && fieldMatch.DefinedByFragment != _astNode) {
+            var fragmentBuilder = new FragmentTypeBuilder(fieldMatch.DefinedByFragment, Context);
+            var fragmentTypeName = await fragmentBuilder.Build();
+
             if(fieldMatch.ConditionType != null)
                 fragmentTypeName = $"{fragmentTypeName}_{fieldMatch.ConditionType!.Name!.Capitalize()}";
             fragmentTypeName = $"{fragmentTypeName}_{propertyName}";

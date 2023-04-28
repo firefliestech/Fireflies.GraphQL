@@ -1,4 +1,6 @@
 ﻿using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Client.Generator.Schema;
 using GraphQLParser.AST;
 
@@ -58,7 +60,8 @@ public class TypeBuilder : ITypeBuilder {
 
         _properties.Add(new PropertyDescriptor(propertyName, typeName, schemaField, includeInInterface));
         if(fieldMatch.DefinedByFragment != null && fieldMatch.DefinedByFragment != _node) {
-            _implementedInterfaces.Add($"I{fieldMatch.DefinedByFragment.FragmentName.Name}{(fieldMatch.ConditionType != null ? $"_{fieldMatch.ConditionType}" : null)}");
+            var interfaceName = $"I{fieldMatch.DefinedByFragment.FragmentName.Name}{(fieldMatch.ConditionType != null ? $"_{fieldMatch.ConditionType}" : null)}";
+            _implementedInterfaces.Add(interfaceName);
         }
     }
 
@@ -130,10 +133,17 @@ public class TypeBuilder : ITypeBuilder {
             var schemaType = property.SchemaField.GetOfType(_context);
             var kind = schemaType.Kind;
             if(kind is SchemaTypeKind.SCALAR or SchemaTypeKind.ENUM) {
-                string? defaultAdd = null;
-                if(!property.SchemaField.IsNullable())
-                    defaultAdd = $" ?? default({property.TypeName})!";
-                _stringBuilder.AppendLine($"\t\t{property.PropertyName} = data{(dataMayBeNull ? "?" : null)}[\"{property.SchemaField.Name}\"]?.GetValue<{property.TypeName}>(){defaultAdd};");
+                if(property.SchemaField.IsEnumerable()) {
+                    string? defaultAdd = null;
+                    if(!property.SchemaField.IsNullable())
+                        defaultAdd = $" ?? Enumerable.Empty<{property.TypeName}>()";
+                    _stringBuilder.AppendLine($"\t\t{property.PropertyName} = data{(dataMayBeNull ? "?" : null)}[\"{property.SchemaField.Name}\"]?.AsArray().Select(x => x?.GetValue<{property.TypeName}>()){defaultAdd};");
+                } else {
+                    string? defaultAdd = null;
+                    if(!property.SchemaField.IsNullable())
+                        defaultAdd = $" ?? default({property.TypeName})!";
+                    _stringBuilder.AppendLine($"\t\t{property.PropertyName} = data{(dataMayBeNull ? "?" : null)}[\"{property.SchemaField.Name}\"]?.GetValue<{property.TypeName}>(){defaultAdd};");
+                }
             } else {
                 GeneratePropertySetter(property.SchemaField.Name, property.PropertyName, property.SchemaField.IsEnumerable(), property.TypeName, dataMayBeNull);
             }
@@ -163,7 +173,7 @@ public class TypeBuilder : ITypeBuilder {
         if(isEnumerable) {
             _stringBuilder.AppendLine($"\t\t{propertyName} = ({nullableData} != null ? {data}!.AsArray().Select(x => Create{propertyName}(x)).ToArray() : null)!;");
         } else {
-            _stringBuilder.AppendLine($"\t\t{propertyName} = Create{typeName}({nullableData});");
+            _stringBuilder.AppendLine($"\t\t{propertyName} = Create{propertyName}({nullableData});");
         }
     }
 

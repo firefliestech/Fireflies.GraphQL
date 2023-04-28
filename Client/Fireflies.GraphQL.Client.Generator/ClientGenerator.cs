@@ -54,23 +54,6 @@ public class ClientGenerator : ASTVisitor<GraphQLGeneratorContext> {
         foreach(var graphqlDocument in _graphQLDocuments) {
             var context = new GraphQLGeneratorContext(_rootContext, graphqlDocument, new FragmentAccessor(graphqlDocument));
 
-            foreach(var fragmentDefinition in graphqlDocument.Definitions.OfType<GraphQLFragmentDefinition>()) {
-                var schemaType = context.GetSchemaType(fragmentDefinition.TypeCondition.Type);
-                var fragmentName = fragmentDefinition.FragmentName.Name.StringValue;
-                var subResultTypeBuilder = new SubResultTypeBuilder(fragmentName, fragmentDefinition, null, schemaType, context);
-                subResultTypeBuilder.OnlyInterface();
-                await subResultTypeBuilder.Build();
-
-                foreach(var subSchemaType in schemaType.PossibleTypes.Select(x => x.GetOfType(context))) {
-                    var subTypeName = $"{fragmentName}_{subSchemaType.Name.Capitalize()}";
-                    var subFragmentBuilder = new SubResultTypeBuilder(subTypeName, fragmentDefinition, schemaType, subSchemaType, context);
-                    subFragmentBuilder.AddInterfaceImplementation($"I{fragmentName}");
-                    subFragmentBuilder.OnlyInterface();
-                    subFragmentBuilder.ExactTypeConditionRequired();
-                    await subFragmentBuilder.Build();
-                }
-            }
-
             foreach(var operationDefinition in graphqlDocument.Definitions.OfType<GraphQLOperationDefinition>()) {
                 await clientBuilder.AddOperation(operationDefinition, context);
             }
