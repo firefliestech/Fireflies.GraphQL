@@ -22,12 +22,17 @@ public class ClientBuilder : ITypeBuilder {
         _stringBuilder.AppendLine($"\tpublic {className}(Uri uri) {{");
         _stringBuilder.AppendLine($"\t\t_uri = uri;");
         _stringBuilder.AppendLine("\t}");
+
         _stringBuilder.AppendLine();
-        _stringBuilder.AppendLine("\tprivate async Task<JsonNode> Execute(JsonObject request) {");
-        _stringBuilder.AppendLine("\t\tvar content = new StringContent(request.ToJsonString(), Encoding.UTF8, \"text/text\");");
-        _stringBuilder.AppendLine("\t\tvar result = await Client.PostAsync(_uri, content);");
-        _stringBuilder.AppendLine("\t\tresult.EnsureSuccessStatusCode();");
-        _stringBuilder.AppendLine("\t\treturn (await JsonSerializer.DeserializeAsync<JsonNode>(await result.Content.ReadAsStreamAsync().ConfigureAwait(false)))!;");
+
+        _stringBuilder.AppendLine("\tpublic void AddDefaultRequestHeader(string name, string? value) {");
+        _stringBuilder.AppendLine("\t\tClient.DefaultRequestHeaders.Add(name, value);");
+        _stringBuilder.AppendLine("\t}");
+
+        _stringBuilder.AppendLine();
+
+        _stringBuilder.AppendLine("\tpublic void AddDefaultRequestHeader(string name, IEnumerable<string?> value) {");
+        _stringBuilder.AppendLine("\t\tClient.DefaultRequestHeaders.Add(name, value);");
         _stringBuilder.AppendLine("\t}");
     }
 
@@ -97,6 +102,14 @@ public class ClientBuilder : ITypeBuilder {
     }
 
     public Task Build() {
+        _stringBuilder.AppendLine();
+        _stringBuilder.AppendLine("\tprivate async Task<JsonNode> Execute(JsonObject request) {");
+        _stringBuilder.AppendLine("\t\tvar content = new StringContent(request.ToJsonString(), Encoding.UTF8, \"text/text\");");
+        _stringBuilder.AppendLine("\t\tvar result = await Client.PostAsync(_uri, content);");
+        _stringBuilder.AppendLine("\t\tresult.EnsureSuccessStatusCode();");
+        _stringBuilder.AppendLine("\t\treturn (await JsonSerializer.DeserializeAsync<JsonNode>(await result.Content.ReadAsStreamAsync().ConfigureAwait(false)))!;");
+        _stringBuilder.AppendLine("\t}");
+
         _stringBuilder.AppendLine("}");
 
         return Task.CompletedTask;
