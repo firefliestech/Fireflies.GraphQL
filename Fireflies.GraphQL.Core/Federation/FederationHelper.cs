@@ -11,7 +11,7 @@ public static class FederationHelper {
     public static async Task<JsonNode?> ExecuteRequest(ASTNode astNode, ValueAccessor valueAccessor, FragmentAccessor fragmentAccessor, RequestContext requestContext, string url, OperationType operation) {
         var (query, fragments, includedVariables) = await CreateFederationQuery(astNode, requestContext, valueAccessor, fragmentAccessor).ConfigureAwait(false);
 
-        var request = new HttpRequestMessage(HttpMethod.Post, url);
+        var request = new HttpRequestMessage(HttpMethod.Post, url + requestContext.ConnectionContext.QueryString);
         foreach(var item in requestContext.ConnectionContext.RequestHeaders)
             request.Headers.TryAddWithoutValidation(item.Key, item.Value);
         var buildQuery = FederationQueryBuilder.BuildQuery(query, fragments, operation, "", includedVariables);
