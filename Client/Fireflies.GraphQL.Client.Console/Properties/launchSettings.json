@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Fireflies.GraphQL.Client.Console": {
+      "commandName": "Project",
+      "commandLineArgs": "generate --path C:\\Projects\\Fireflies\\Fireflies.GraphQL\\Demos\\Fireflies.GraphQL.ClientDemo\\ --force"
+    }
+  }
+}

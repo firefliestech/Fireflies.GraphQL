@@ -1,0 +1,29 @@
+﻿query MyBasicQuery($bookId: Int!, $otherId: String) {
+	books(filter: {}) {
+		bookId
+		iSBN
+		...TitleFragment
+	}
+	#getBook(bookId: $bookId) {
+	#	...TitleFragment
+	#}
+}
+
+fragment TitleFragment on IBook {
+	title
+	
+	... on InventoryBook {
+		
+		calculatePrice
+		editions {
+			name
+			released
+		}
+	}
+	... TestFragment
+}
+
+fragment TestFragment on RemoteBook {
+	test
+}
+
