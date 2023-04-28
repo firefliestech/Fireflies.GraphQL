@@ -126,60 +126,43 @@ public class TypeBuilder : ITypeBuilder {
             _stringBuilder.AppendLine($"\tpublic {_typeName}(JsonNode? errors, JsonNode? data, JsonSerializerOptions serializerOptions) {{");
             _stringBuilder.AppendLine("\t\tErrors = errors?.Deserialize<IEnumerable<ClientError>>(serializerOptions)?.ToArray() ?? new IClientError[0];");
         } else {
-            _stringBuilder.AppendLine($"\tpublic {_typeName}(JsonNode data) {{");
+            _stringBuilder.AppendLine($"\tpublic {_typeName}(JsonNode data, JsonSerializerOptions serializerOptions) {{");
         }
 
-        foreach(var property in _properties) {
-            var schemaType = property.SchemaField.GetOfType(_context);
-            var kind = schemaType.Kind;
-            if(kind is SchemaTypeKind.SCALAR or SchemaTypeKind.ENUM) {
-                if(property.SchemaField.IsEnumerable()) {
-                    string? defaultAdd = null;
-                    if(!property.SchemaField.IsNullable())
-                        defaultAdd = $" ?? Enumerable.Empty<{property.TypeName}>()";
-                    _stringBuilder.AppendLine($"\t\t{property.PropertyName} = data{(dataMayBeNull ? "?" : null)}[\"{property.SchemaField.Name}\"]?.AsArray().Select(x => x?.GetValue<{property.TypeName}>()){defaultAdd};");
-                } else {
-                    string? defaultAdd = null;
-                    if(!property.SchemaField.IsNullable())
-                        defaultAdd = $" ?? default({property.TypeName})!";
-                    _stringBuilder.AppendLine($"\t\t{property.PropertyName} = data{(dataMayBeNull ? "?" : null)}[\"{property.SchemaField.Name}\"]?.GetValue<{property.TypeName}>(){defaultAdd};");
-                }
-            } else {
-                GeneratePropertySetter(property.SchemaField.Name, property.PropertyName, property.SchemaField.IsEnumerable(), property.TypeName, dataMayBeNull);
-            }
-        }
-
-        foreach(var property in _polymorphicProperties.Keys) {
-            GeneratePropertySetter(property.SchemaField.Name, property.PropertyName, property.SchemaField.IsEnumerable(), property.TypeName, dataMayBeNull);
-        }
+        GeneratePropertySetters(dataMayBeNull);
 
         _stringBuilder.AppendLine("\t}");
 
-        foreach(var property in _properties) {
+        foreach(var property in _properties)
             GeneratePropertyFactory(property);
-        }
 
-        foreach(var property in _polymorphicProperties) {
+        foreach(var property in _polymorphicProperties)
             GeneratePolymorphicPropertyFactory(property.Key, property.Value);
-        }
 
         _stringBuilder.AppendLine("}");
     }
 
+    private void GeneratePropertySetters(bool dataMayBeNull) {
+        foreach(var property in _properties)
+            GeneratePropertySetter(property.SchemaField.Name, property.PropertyName, property.SchemaField.IsEnumerable(), dataMayBeNull);
+        
+        foreach(var property in _polymorphicProperties.Keys)
+            GeneratePropertySetter(property.SchemaField.Name, property.PropertyName, property.SchemaField.IsEnumerable(), dataMayBeNull);
+    }
 
-    private void GeneratePropertySetter(string fieldName, string propertyName, bool isEnumerable, string typeName, bool dataMayBeNull) {
+    private void GeneratePropertySetter(string fieldName, string propertyName, bool isEnumerable, bool dataMayBeNull) {
         var nullableData = $"data{(dataMayBeNull ? "?" : null)}[\"{fieldName}\"]";
         var data = $"data[\"{fieldName}\"]";
         if(isEnumerable) {
-            _stringBuilder.AppendLine($"\t\t{propertyName} = ({nullableData} != null ? {data}!.AsArray().Select(x => Create{propertyName}(x)).ToArray() : null)!;");
+            _stringBuilder.AppendLine($"\t\t{propertyName} = ({nullableData} != null ? {data}!.AsArray().Select(x => Create{propertyName}(x, serializerOptions)).ToArray() : null)!;");
         } else {
-            _stringBuilder.AppendLine($"\t\t{propertyName} = Create{propertyName}({nullableData});");
+            _stringBuilder.AppendLine($"\t\t{propertyName} = Create{propertyName}({nullableData}, serializerOptions);");
         }
     }
 
     private void GeneratePolymorphicPropertyFactory(PolymorphicPropertyKey property, List<PolymorphicProperty> implementations) {
         _stringBuilder.AppendLine();
-        _stringBuilder.AppendLine($"\tprivate {property.TypeName}? Create{property.PropertyName}(JsonNode? data) {{");
+        _stringBuilder.AppendLine($"\tprivate {property.TypeName}? Create{property.PropertyName}(JsonNode? data, JsonSerializerOptions serializerOptions) {{");
         
         _stringBuilder.AppendLine("\t\tif(data == null) {");
         _stringBuilder.AppendLine("\t\t\treturn null;");
@@ -191,7 +174,7 @@ public class TypeBuilder : ITypeBuilder {
         _stringBuilder.AppendLine("\t\treturn typeName switch {");
 
         foreach(var possibleType in implementations) {
-            _stringBuilder.AppendLine($"\t\t\t\"{possibleType.SchemaType.Name}\" => ({possibleType.InterfaceName})new {possibleType.ClassName}(data),");
+            _stringBuilder.AppendLine($"\t\t\t\"{possibleType.SchemaType.Name}\" => ({possibleType.InterfaceName})new {possibleType.ClassName}(data, serializerOptions),");
         }
 
         _stringBuilder.AppendLine("\t\t\t_ => throw new ArgumentException($\"Cant find implementation for {typeName}\")");
@@ -202,20 +185,17 @@ public class TypeBuilder : ITypeBuilder {
 
     private void GeneratePropertyFactory(PropertyDescriptor property) {
         var schemaType = property.SchemaField.GetOfType(_context);
-        var kind = schemaType.Kind;
-        if(kind is SchemaTypeKind.SCALAR or SchemaTypeKind.ENUM)
-            return;
+        var isScalarOrEnum = schemaType.Kind is SchemaTypeKind.SCALAR or SchemaTypeKind.ENUM;
 
         _stringBuilder.AppendLine();
-        _stringBuilder.AppendLine($"\tprivate I{property.TypeName}? Create{property.PropertyName}(JsonNode? data) {{");
-
-        _stringBuilder.AppendLine("\t\tif(data == null) {");
-        _stringBuilder.AppendLine("\t\t\treturn null;");
-        _stringBuilder.AppendLine("\t\t}");
-
-        _stringBuilder.AppendLine();
-
-        _stringBuilder.AppendLine($"\t\treturn new {property.TypeName}(data!);");
+        _stringBuilder.AppendLine($"\tprivate {(isScalarOrEnum ? null : "I")}{property.TypeName}{(isScalarOrEnum ? null : "?")} Create{property.PropertyName}(JsonNode? data, JsonSerializerOptions serializerOptions) {{");
+        if(isScalarOrEnum) {
+            _stringBuilder.AppendLine($"\t\treturn data?.Deserialize<{property.TypeName}>(serializerOptions);");
+        } else {
+            _stringBuilder.AppendLine("\t\tif(data == null)");
+            _stringBuilder.AppendLine("\t\t\treturn null;");
+            _stringBuilder.AppendLine($"\t\treturn new {property.TypeName}(data!, serializerOptions);");
+        }
 
         _stringBuilder.AppendLine("\t}");
     }
