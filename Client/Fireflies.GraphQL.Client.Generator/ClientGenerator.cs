@@ -100,10 +100,10 @@ public class ClientGenerator : ASTVisitor<GraphQLGeneratorContext> {
         var typeBuilder = _rootContext.GetRawTypeBuilder();
         typeBuilder.AppendLine($"public class {className} {{");
 
-        foreach(var field in schemaType.InputFields) {
+        foreach(var field in schemaType.InputFields.Select(x => new { x.Type, x.Name}).Union(schemaType.Fields.Select(x => new { Type = x.Type, x.Name }))) {
             var fieldType = field.Type.GetOfType(_rootContext);
             if(fieldType.Kind is SchemaTypeKind.SCALAR or SchemaTypeKind.ENUM) {
-                typeBuilder.AppendLine($"\tpublic {field.GetNetType()} {field.Name.Capitalize()} {{ get; set; }}");
+                typeBuilder.AppendLine($"\tpublic {field.Type.GetNetType()} {field.Name.Capitalize()} {{ get; set; }}");
             } else {
                 var subType = GenerateInputObject(schemaType);
                 typeBuilder.AppendLine($"\tpublic {subType} {field.Name.Capitalize()} {{ get; set; }}");
