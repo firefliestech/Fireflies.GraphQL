@@ -97,7 +97,7 @@ public static class ReflectionExtensions {
     }
 
     private static IEnumerable<MethodInfo> GetAllAccessibleMethods(Type type) {
-        return type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy).Where(p => p.DeclaringType != typeof(object) && !p.IsSpecialName);
+        return type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy).Where(p => p.DeclaringType != typeof(object) && !p.IsSpecialName && p.Name != nameof(ToString));
     }
 
     public static IEnumerable<ParameterInfo> GetAllGraphQLParameters(this MethodInfo methodInfo) {
