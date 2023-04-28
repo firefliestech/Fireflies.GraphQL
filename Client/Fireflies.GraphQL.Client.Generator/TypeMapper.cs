@@ -5,7 +5,7 @@ public static class TypeMapper {
         switch(name) {
             case "Int":
                 return "int";
-            case "Bool":
+            case "Boolean":
                 return "bool";
             case "ID":
             case "String":
