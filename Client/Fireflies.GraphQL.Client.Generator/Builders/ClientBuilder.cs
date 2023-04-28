@@ -1,4 +1,7 @@
 ﻿using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Client.Generator.Builders;
@@ -12,6 +15,8 @@ public class ClientBuilder : ITypeBuilder {
         _stringBuilder.AppendLine($"public class {className} {{");
 
         _stringBuilder.AppendLine("\tprivate Uri _uri;");
+        _stringBuilder.AppendLine("\tprivate JsonSerializerOptions _serializerSettings = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } };");
+        _stringBuilder.AppendLine();
         _stringBuilder.AppendLine("\tprivate static readonly HttpClient Client = new();");
         _stringBuilder.AppendLine();
         _stringBuilder.AppendLine($"\tpublic {className}(Uri uri) {{");
@@ -22,7 +27,7 @@ public class ClientBuilder : ITypeBuilder {
         _stringBuilder.AppendLine("\t\tvar content = new StringContent(request.ToJsonString(), Encoding.UTF8, \"text/text\");");
         _stringBuilder.AppendLine("\t\tvar result = await Client.PostAsync(_uri, content);");
         _stringBuilder.AppendLine("\t\tresult.EnsureSuccessStatusCode();");
-        _stringBuilder.AppendLine("\t\treturn JsonNode.Parse(await result.Content.ReadAsStreamAsync().ConfigureAwait(false))!;");
+        _stringBuilder.AppendLine("\t\treturn (await JsonSerializer.DeserializeAsync<JsonNode>(await result.Content.ReadAsStreamAsync().ConfigureAwait(false)))!;");
         _stringBuilder.AppendLine("\t}");
     }
 
@@ -32,7 +37,7 @@ public class ClientBuilder : ITypeBuilder {
         var className = $"{operationDefinition.Name}Result";
         _stringBuilder.Append($"\tpublic async Task<I{className}> {operationDefinition.Name}(");
         GenerateParameters(operationDefinition);
-        _stringBuilder.AppendLine("\t) {");
+        _stringBuilder.AppendLine(") {");
 
         var visitor = new QueryCreator(context.Document);
         await visitor.Execute(operationDefinition, context);
@@ -45,14 +50,14 @@ public class ClientBuilder : ITypeBuilder {
             _stringBuilder.AppendLine($"\t\tvar variables = new JsonObject();");
             _stringBuilder.AppendLine($"\t\trequest[\"variables\"] = variables;");
             foreach(var variableDefinition in operationDefinition.Variables) {
-                _stringBuilder.AppendLine($"\t\tvariables[\"{variableDefinition.Variable.Name.StringValue}\"] = {TypeMapper.FromGraphQL(variableDefinition.Variable.Name.StringValue)};");
+                _stringBuilder.AppendLine($"\t\tvariables[\"{variableDefinition.Variable.Name.StringValue}\"] = JsonSerializer.SerializeToNode({TypeMapper.FromGraphQL(variableDefinition.Variable.Name.StringValue)}, _serializerSettings);");
             }
 
             _stringBuilder.AppendLine();
         }
 
         _stringBuilder.AppendLine($"\t\tvar json = await Execute(request);");
-        _stringBuilder.AppendLine($"\t\treturn new {className}(json[\"errors\"], json[\"data\"]);");
+        _stringBuilder.AppendLine($"\t\treturn new {className}(json[\"errors\"], json[\"data\"], _serializerSettings);");
 
         _stringBuilder.AppendLine("\t}");
 
