@@ -1,8 +1,8 @@
 ﻿public class ClientError : IClientError {
-    public string Message { get; }
-    public string? Code { get; }
-    public IReadOnlyList<object>? Path { get; }
-    public IReadOnlyList<Location>? Locations { get; }
-    public Exception? Exception { get; }
-    public IReadOnlyDictionary<string, object?>? Extensions { get; }
+    public string Message { get; set; }
+    public string? Code { get; set; }
+    public IReadOnlyList<object>? Path { get; set; }
+    public IReadOnlyList<Location>? Locations { get; set; }
+    public Exception? Exception { get; set; }
+    public IReadOnlyDictionary<string, object?>? Extensions { get; set; }
 }
