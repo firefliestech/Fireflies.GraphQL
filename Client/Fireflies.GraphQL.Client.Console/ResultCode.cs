@@ -1,4 +1,6 @@
-﻿public enum ResultCode {
+﻿namespace Fireflies.GraphQL.Client.Console; 
+
+public enum ResultCode {
     Success,
     GenerationFailed,
     PathDoesNotExist,
