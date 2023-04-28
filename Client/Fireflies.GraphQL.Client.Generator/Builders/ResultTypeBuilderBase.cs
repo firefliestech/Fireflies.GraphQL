@@ -54,25 +54,41 @@ public abstract class ResultTypeBuilderBase {
 
         if(fieldMatch.DefinedByFragment != null && fieldMatch.DefinedByFragment != _astNode) {
             var fragmentBuilder = new FragmentTypeBuilder(fieldMatch.DefinedByFragment, Context);
-            var fragmentTypeName = await fragmentBuilder.Build();
+            var fragmentClassName = await fragmentBuilder.Build();
 
             if(fieldMatch.ConditionType != null)
-                fragmentTypeName = $"{fragmentTypeName}_{fieldMatch.ConditionType!.Name!.Capitalize()}";
-            fragmentTypeName = $"{fragmentTypeName}_{propertyName}";
+                fragmentClassName = $"{fragmentClassName}_{fieldMatch.ConditionType!.Name!.Capitalize()}";
+            fragmentClassName = $"{fragmentClassName}_{propertyName}";
 
-            TypeBuilder.AddProperty(fragmentTypeName, propertyName, field, fieldMatch);
+            if(fieldType.Kind is SchemaTypeKind.INTERFACE or SchemaTypeKind.UNION) {
+                foreach(var possibleType in field.Type.GetOfType(Context).PossibleTypes.Select(x => x.GetOfType(Context))) {
+                    TypeBuilder.AddPolymorphicProperty(typeName: $"I{fragmentClassName}",
+                        propertyName: propertyName,
+                        className: $"{fragmentClassName}_{possibleType.Name.Capitalize()}",
+                        interfaceName: $"I{fragmentClassName}",
+                        schemaField: field,
+                        schemaType: possibleType);
+                }
+            } else {
+                TypeBuilder.AddProperty(fragmentClassName, propertyName, field, fieldMatch);
+            }
         } else if(fieldType.Kind is SchemaTypeKind.INTERFACE or SchemaTypeKind.UNION) {
             var subInterfaceBuilder = new SubResultTypeBuilder(subClassName, fieldMatch.SelectedByNode, null, fieldType, Context);
             subInterfaceBuilder.OnlyInterface();
             await subInterfaceBuilder.Build();
 
             foreach(var possibleType in field.Type.GetOfType(Context).PossibleTypes.Select(x => x.GetOfType(Context))) {
-                var subType = $"{subClassName}_{possibleType.Name.Capitalize()}";
-                var subResultTypeBuilder = new SubResultTypeBuilder(subType, fieldMatch.SelectedByNode, fieldType, possibleType, Context);
-                subResultTypeBuilder.AddInterfaceImplementation(subInterfaceName);
-                await subResultTypeBuilder.Build();
+                var className = $"{subClassName}_{possibleType.Name.Capitalize()}";
+                var possibleTypeBuilder = new SubResultTypeBuilder(className, fieldMatch.SelectedByNode, fieldType, possibleType, Context);
+                possibleTypeBuilder.AddInterfaceImplementation(subInterfaceName);
+                await possibleTypeBuilder.Build();
 
-                TypeBuilder.AddPolymorphicProperty($"I{subClassName}", propertyName, subType, $"I{subType}", field, possibleType);
+                TypeBuilder.AddPolymorphicProperty(typeName: $"I{subClassName}",
+                    propertyName: propertyName,
+                    className: className,
+                    interfaceName: $"I{className}",
+                    schemaField: field,
+                    schemaType: possibleType);
             }
         } else {
             var subResultTypeBuilder = new SubResultTypeBuilder(subClassName, fieldMatch.SelectedByNode, null, fieldType, Context);
