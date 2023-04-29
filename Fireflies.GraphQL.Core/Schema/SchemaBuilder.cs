@@ -27,6 +27,7 @@ internal class SchemaBuilder {
         _federationSchemas = federationSchemas;
         _ignore.Add(typeof(CancellationToken));
         _ignore.Add(typeof(ASTNode));
+        _ignore.Add(typeof(__Schema));
     }
 
     public __Schema GenerateSchema() {
