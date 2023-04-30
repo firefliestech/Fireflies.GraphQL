@@ -8,43 +8,15 @@ namespace Fireflies.GraphQL.Core.Json;
 public class JsonWriter {
     private readonly ScalarRegistry _scalarRegistry;
     private readonly MemoryStream _stream;
-    private readonly Utf8JsonWriter _writer;
-    private List<(string Message, string Code)>? _errors;
-    private bool _empty = true;
+    protected readonly Utf8JsonWriter _writer;
 
     public JsonWriter(ScalarRegistry scalarRegistry) {
         _scalarRegistry = scalarRegistry;
         _stream = new MemoryStream();
-        _writer = new Utf8JsonWriter(_stream);
-        _writer.WriteStartObject(); // Root object
-    }
-    
-    public void AddError(string message, string code) {
-        _errors ??= new();
-        _errors.Add((message, code));
+        _writer = new Utf8JsonWriter(_stream, new JsonWriterOptions() { SkipValidation = true });
     }
 
-    public async Task<byte[]> GetBuffer() {
-        if(!_empty)
-            _writer.WriteEndObject();
-
-        if(_errors != null) {
-            _writer.WriteStartArray("errors");
-            foreach(var error in _errors) {
-                _writer.WriteStartObject();
-                _writer.WriteString("message", error.Message);
-
-                _writer.WriteStartObject("extensions");
-                _writer.WriteString("code", error.Code);
-                _writer.WriteEndObject();
-
-                _writer.WriteEndObject();
-            }
-
-            _writer.WriteEndArray();
-        }
-
-        _writer.WriteEndObject();
+    public virtual async Task<byte[]> GetBuffer() {
         await _writer.FlushAsync().ConfigureAwait(false);
 
         var result = _stream.ToArray();
@@ -54,44 +26,31 @@ public class JsonWriter {
         return result;
     }
 
-    public void WriteStartArray(string fieldName) {
-        EnsureData();
+    public virtual void WriteStartArray(string fieldName) {
         _writer.WriteStartArray(fieldName);
     }
 
-    public void WriteStartObject() {
-        EnsureData();
-
+    public virtual void WriteStartObject() {
         _writer.WriteStartObject();
     }
 
-    public void WriteStartObject(string fieldName) {
-        EnsureData();
-
+    public virtual void WriteStartObject(string fieldName) {
         _writer.WriteStartObject(fieldName);
     }
 
-    public void WriteEndObject() {
-        EnsureData();
-
+    public virtual void WriteEndObject() {
         _writer.WriteEndObject();
     }
 
-    public void WriteEndArray() {
-        EnsureData();
-
+    public virtual void WriteEndArray() {
         _writer.WriteEndArray();
     }
 
-    public void WriteNull(string fieldName) {
-        EnsureData();
-
+    public virtual void WriteNull(string fieldName) {
         _writer.WriteNull(fieldName);
     }
 
-    public void WriteValue(object value, TypeCode typeCode, Type elementType) {
-        EnsureData();
-
+    public virtual void WriteValue(object value, TypeCode typeCode, Type elementType) {
         if(elementType.IsEnum) {
             _writer.WriteStringValue(value.ToString());
             return;
@@ -133,9 +92,7 @@ public class JsonWriter {
         }
     }
 
-    public void WriteValue(string property, object value, TypeCode typeCode, Type elementType) {
-        EnsureData();
-
+    public virtual void WriteValue(string property, object value, TypeCode typeCode, Type elementType) {
         if(elementType.IsEnum) {
             _writer.WriteString(property, value.ToString());
             return;
@@ -185,16 +142,13 @@ public class JsonWriter {
         }
     }
 
-    private void EnsureData() {
-        if(_empty) {
-            _writer.WriteStartObject("data");
-            _empty = false;
-        }
-    }
-
-    public void WriteRaw(string fieldName, JsonNode jsonObject) {
-        EnsureData();
+    public virtual void WriteRaw(string fieldName, JsonNode jsonObject) {
         _writer.WritePropertyName(fieldName);
         jsonObject.WriteTo(_writer);
+    }
+
+
+    public async Task WriteRaw(JsonWriter otherWriter) {
+        _writer.WriteRawValue(await otherWriter.GetBuffer());
     }
 }

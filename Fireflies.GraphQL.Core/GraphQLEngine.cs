@@ -20,7 +20,7 @@ public class GraphQLEngine : ASTVisitor<RequestContext> {
 
     private IConnectionContext _connectionContext;
 
-    private JsonWriter? _writer;
+    private ResultJsonWriter? _writer;
 
     public GraphQLEngine(GraphQLOptions options, IDependencyResolver dependencyResolver, IConnectionContext connectionContext, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry, IFirefliesLoggerFactory loggerFactory) {
         _options = options;
@@ -47,7 +47,7 @@ public class GraphQLEngine : ASTVisitor<RequestContext> {
             requestContext.IncreaseExpectedOperations();
             await requestContext.PublishResult(GenerateValidationErrorResult(validationErrors)).ConfigureAwait(false);
         } else {
-            _writer = !requestContext.ConnectionContext.IsWebSocket ? new JsonWriter(_scalarRegistry) : null;
+            _writer = !requestContext.ConnectionContext.IsWebSocket ? new ResultJsonWriter(_scalarRegistry) : null;
             await VisitAsync(graphQLDocument, requestContext).ConfigureAwait(false);
         }
     }
@@ -74,14 +74,14 @@ public class GraphQLEngine : ASTVisitor<RequestContext> {
     }
 
     private JsonWriter GenerateValidationErrorResult(List<string> errors) {
-        var errorWriter = new JsonWriter(_scalarRegistry);
+        var errorWriter = new ResultJsonWriter(_scalarRegistry);
         foreach(var error in errors)
             errorWriter.AddError(error, "GRAPHQL_VALIDATION_FAILED");
         return errorWriter;
     }
 
     private JsonWriter GenerateErrorResult(string exceptionMessage, string code) {
-        var errorWriter = new JsonWriter(_scalarRegistry);
+        var errorWriter = new ResultJsonWriter(_scalarRegistry);
         errorWriter.AddError(exceptionMessage, code);
         return errorWriter;
     }

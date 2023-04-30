@@ -50,7 +50,7 @@ public class EntityFrameworkCoreMethodExtender : IMethodExtenderGenerator {
             return taskResult;
 
         var includeVisitor = (IncludeVisitor)Activator.CreateInstance(typeof(IncludeVisitor<>).MakeGenericType(typeof(TElement)), taskResult, graphQLContext)!;
-        if(resultContext.Any(x => x.IsAssignableTo(typeof(ConnectionBase)))) {
+        if(resultContext.Any(typeof(ConnectionBase))) {
             var edgesField = graphQLField.SelectionSet?.Selections.OfType<GraphQLField>().FirstOrDefault(x => x.Name.StringValue == "edges");
             var nodeField = edgesField?.SelectionSet?.Selections.OfType<GraphQLField>().FirstOrDefault(x => x.Name.StringValue == "node");
             if(nodeField != null)
