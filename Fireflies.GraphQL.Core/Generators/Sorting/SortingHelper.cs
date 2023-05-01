@@ -9,7 +9,7 @@ using GraphQLParser.Visitors;
 namespace Fireflies.GraphQL.Core.Generators.Sorting;
 
 public static class SortingHelper {
-    public static async Task<IEnumerable<TElement>?> SortEnumerableTaskResult<TElement, TSort>(Task<IEnumerable<TElement>?> resultTask, TSort sortType, GraphQLField rootField, RequestContext graphQLContext) {
+    public static async Task<IEnumerable<TElement>?> SortEnumerableTaskResult<TElement, TSort>(Task<IEnumerable<TElement>?> resultTask, TSort sortType, GraphQLField rootField, IRequestContext graphQLContext) {
         var taskResult = await resultTask.ConfigureAwait(false);
         if(taskResult == null)
             return null;
@@ -23,11 +23,11 @@ public static class SortingHelper {
         return sorter.Result;
     }
 
-    public static IEnumerable<TElement>? SortEnumerableResult<TElement, TSort>(IEnumerable<TElement>? result, TSort sortType, GraphQLField graphQLField, RequestContext graphQLContext) {
+    public static IEnumerable<TElement>? SortEnumerableResult<TElement, TSort>(IEnumerable<TElement>? result, TSort sortType, GraphQLField graphQLField, IRequestContext graphQLContext) {
         return SortEnumerableTaskResult(Task.FromResult(result), sortType, graphQLField, graphQLContext).Result;
     }
 
-    public static async Task<IQueryable<TElement>?> SortQueryableTaskResult<TElement, TSort>(Task<IQueryable<TElement>?> resultTask, TSort sortType, GraphQLField rootField, RequestContext graphQLContext) {
+    public static async Task<IQueryable<TElement>?> SortQueryableTaskResult<TElement, TSort>(Task<IQueryable<TElement>?> resultTask, TSort sortType, GraphQLField rootField, IRequestContext graphQLContext) {
         var taskResult = await resultTask.ConfigureAwait(false);
 
         if(taskResult == null)
@@ -42,11 +42,11 @@ public static class SortingHelper {
         return sorter.Result;
     }
 
-    public static IQueryable<TElement>? SortQueryableResult<TElement, TSort>(IQueryable<TElement>? result, TSort sortType, GraphQLField graphQLField, RequestContext graphQLContext) {
+    public static IQueryable<TElement>? SortQueryableResult<TElement, TSort>(IQueryable<TElement>? result, TSort sortType, GraphQLField graphQLField, IRequestContext graphQLContext) {
         return SortQueryableTaskResult(Task.FromResult(result), sortType, graphQLField, graphQLContext).Result;
     }
 
-    private class EnumerableSortingBuilder<TElement> : ASTVisitor<RequestContext> {
+    private class EnumerableSortingBuilder<TElement> : ASTVisitor<IRequestContext> {
         // ReSharper disable once StaticMemberInGenericType
         private static readonly MethodInfo WaitForMethod;
         private bool _firstSort;
@@ -62,7 +62,7 @@ public static class SortingHelper {
             _firstSort = true;
         }
 
-        protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, RequestContext context) {
+        protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IRequestContext context) {
             if(objectField.Value is GraphQLEnumValue enumValue) {
                 var desc = enumValue.Name.StringValue == nameof(SortOrder.DESC);
                 if(!_firstSort) {
@@ -103,7 +103,7 @@ public static class SortingHelper {
         }
     }
 
-    private class QueryableSortingBuilder<TElement> : ASTVisitor<RequestContext> {
+    private class QueryableSortingBuilder<TElement> : ASTVisitor<IRequestContext> {
         // ReSharper disable once StaticMemberInGenericType
         private bool _firstSort;
 
@@ -114,7 +114,7 @@ public static class SortingHelper {
             _firstSort = true;
         }
 
-        protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, RequestContext context) {
+        protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IRequestContext context) {
             if(objectField.Value is GraphQLEnumValue enumValue) {
                 var desc = enumValue.Name.StringValue == nameof(SortOrder.DESC);
                 if(!_firstSort) {

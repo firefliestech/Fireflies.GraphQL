@@ -1,6 +1,4 @@
 ﻿using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Client.Generator.Schema;
 using GraphQLParser.AST;
 

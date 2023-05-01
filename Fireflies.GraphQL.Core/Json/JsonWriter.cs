@@ -147,7 +147,6 @@ public class JsonWriter {
         jsonObject.WriteTo(_writer);
     }
 
-
     public async Task WriteRaw(JsonWriter otherWriter) {
         _writer.WriteRawValue(await otherWriter.GetBuffer());
     }

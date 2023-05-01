@@ -2,7 +2,6 @@
 using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core;
-
 public record ResultContext : IASTVisitorContext {
     private readonly HashSet<string> _addedFields = new();
 
@@ -10,15 +9,18 @@ public record ResultContext : IASTVisitorContext {
     public object? Data { get; }
     public ResultContext? ParentContext { get; }
     public CancellationToken CancellationToken => RequestContext.CancellationToken;
-    public RequestContext RequestContext { get; }
+    public IRequestContext RequestContext { get; }
     public JsonWriter Writer { get; set; } = null!;
 
-    public ResultContext(Type type, RequestContext requestContext) {
+    public FragmentAccessor FragmentAccessor => RequestContext.FragmentAccessor!;
+    public ValueAccessor ValueAccessor => RequestContext.ValueAccessor!;
+
+    public ResultContext(Type type, IRequestContext requestContext) {
         Type = type;
         RequestContext = requestContext;
     }
 
-    public ResultContext(object data, RequestContext requestContext, JsonWriter writer) {
+    public ResultContext(object data, IRequestContext requestContext, JsonWriter writer) {
         RequestContext = requestContext;
         Writer = writer;
 

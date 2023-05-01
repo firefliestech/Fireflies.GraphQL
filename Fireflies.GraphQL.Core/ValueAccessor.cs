@@ -5,10 +5,10 @@ using GraphQLParser.Visitors;
 namespace Fireflies.GraphQL.Core;
 
 public class ValueAccessor {
-    private readonly RequestContext _context;
+    private readonly IRequestContext _context;
     private readonly ValueVisitor _visitor;
 
-    internal ValueAccessor(Dictionary<string, object?>? variables, RequestContext context) {
+    internal ValueAccessor(Dictionary<string, object?>? variables, IRequestContext context) {
         _context = context;
 
         _visitor = new ValueVisitor(variables);
@@ -99,13 +99,13 @@ public class ValueAccessor {
     }
 
     private class ValueVisitorContext : IASTVisitorContext {
-        private readonly RequestContext _context;
+        private readonly IRequestContext _context;
 
         public object? Result { get; set; }
         public CancellationToken CancellationToken => _context.CancellationToken;
         public Type ReturnType { get; }
 
-        public ValueVisitorContext(RequestContext context, Type returnType) {
+        public ValueVisitorContext(IRequestContext context, Type returnType) {
             ReturnType = returnType;
             _context = context;
         }

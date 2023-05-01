@@ -38,13 +38,13 @@ public class GraphQLMiddleware {
 
         try {
             if(httpContext.WebSockets.IsWebSocketRequest) {
-                var protocolHandler = GetSubProtocolHandler(httpContext, engine, connectionContext, loggerFactory);
+                var protocolHandler = GetSubProtocolHandler(httpContext, engine, connectionContext, loggerFactory, requestLifetimeScope);
                 await protocolHandler.Accept();
                 connectionContext.WebSocket = protocolHandler;
                 connectionContext.WebSocket.Process();
             } else {
                 var request = await JsonSerializer.DeserializeAsync<GraphQLRequest>(httpContext.Request.Body, DefaultJsonSerializerSettings.DefaultSettings).ConfigureAwait(false);
-                await engine.Execute(request, new RequestContext(connectionContext, null, null)).ConfigureAwait(false);
+                await engine.Execute(request, new RequestContext(connectionContext, requestLifetimeScope, null, null)).ConfigureAwait(false);
             }
 
             await foreach(var subResult in engine.Results().WithCancellation(connectionContext.CancellationToken).ConfigureAwait(false)) {
@@ -72,15 +72,15 @@ public class GraphQLMiddleware {
         }
     }
 
-    private IWsProtocolHandler GetSubProtocolHandler(HttpContext httpContext, GraphQLEngine engine, IConnectionContext connectionContext, IFirefliesLoggerFactory loggerFactory) {
+    private IWsProtocolHandler GetSubProtocolHandler(HttpContext httpContext, GraphQLEngine engine, IConnectionContext connectionContext, IFirefliesLoggerFactory loggerFactory, IDependencyResolver requestLifetimeScope) {
         if(httpContext.WebSockets.WebSocketRequestedProtocols.Any(protocol => protocol == "graphql-ws")) {
-            return new GraphQLWsProtocolHandler(httpContext, engine, connectionContext, loggerFactory.GetLogger<GraphQLWsProtocolHandler>());
+            return new GraphQLWsProtocolHandler(httpContext, engine, connectionContext, requestLifetimeScope, loggerFactory.GetLogger<GraphQLWsProtocolHandler>());
         }
 
         if(httpContext.WebSockets.WebSocketRequestedProtocols.Any())
             throw new ArgumentOutOfRangeException(nameof(httpContext.WebSockets.WebSocketRequestedProtocols), $"Unknown sub-protocol ({string.Join(",", httpContext.WebSockets.WebSocketRequestedProtocols)})");
 
-        return new DefaultWsProtocolHandler(httpContext, engine, connectionContext, loggerFactory.GetLogger<DefaultWsProtocolHandler>());
+        return new DefaultWsProtocolHandler(httpContext, engine, connectionContext, requestLifetimeScope, loggerFactory.GetLogger<DefaultWsProtocolHandler>());
     }
 
     private IDependencyResolver CreateRequestLifetimeScope(HttpContext httpContext) {

@@ -7,34 +7,27 @@ using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Scalar;
-using Fireflies.IoC.Abstractions;
 using Fireflies.Utility.Reflection;
 
 namespace Fireflies.GraphQL.Core;
 
-internal class RequestValidator : ASTVisitor<RequestContext> {
+internal class RequestValidator : ASTVisitor<IRequestContext> {
     private readonly GraphQLRequest _request;
-    private readonly FragmentAccessor _fragments;
     private readonly GraphQLOptions _options;
-    private readonly IDependencyResolver _dependencyResolver;
-    private readonly RequestContext _context;
+    private readonly IRequestContext _context;
     private readonly WrapperRegistry _wrapperRegistry;
     private readonly ScalarRegistry _scalarRegistry;
-    private readonly ValueAccessor _valueAccessor;
     private readonly List<string> _errors = new();
     private readonly HashSet<string> _usedVariables = new();
     private readonly Stack<Type> _fieldStack = new();
     private OperationType _operationType;
 
-    public RequestValidator(GraphQLRequest request, FragmentAccessor fragments, GraphQLOptions options, IDependencyResolver dependencyResolver, RequestContext context, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry, ValueAccessor valueAccessor) {
+    public RequestValidator(GraphQLRequest request, GraphQLOptions options, IRequestContext context, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry) {
         _request = request;
-        _fragments = fragments;
         _options = options;
-        _dependencyResolver = dependencyResolver;
         _context = context;
         _wrapperRegistry = wrapperRegistry;
         _scalarRegistry = scalarRegistry;
-        _valueAccessor = valueAccessor;
     }
 
     public async Task<List<string>> Validate(ASTNode startNode) {
@@ -51,7 +44,7 @@ internal class RequestValidator : ASTVisitor<RequestContext> {
         }
     }
 
-    protected override ValueTask VisitVariableAsync(GraphQLVariable variable, RequestContext context) {
+    protected override ValueTask VisitVariableAsync(GraphQLVariable variable, IRequestContext context) {
         _usedVariables.Add(variable.Name.StringValue);
 
         if(!(_request.Variables?.ContainsKey(variable.Name.StringValue) ?? false))
@@ -60,7 +53,7 @@ internal class RequestValidator : ASTVisitor<RequestContext> {
         return ValueTask.CompletedTask;
     }
 
-    protected override ValueTask VisitOperationDefinitionAsync(GraphQLOperationDefinition operationDefinition, RequestContext context) {
+    protected override ValueTask VisitOperationDefinitionAsync(GraphQLOperationDefinition operationDefinition, IRequestContext context) {
         _operationType = operationDefinition.Operation;
 
         if(operationDefinition.Operation == OperationType.Subscription && !context.ConnectionContext.IsWebSocket) {
@@ -70,7 +63,7 @@ internal class RequestValidator : ASTVisitor<RequestContext> {
         return base.VisitOperationDefinitionAsync(operationDefinition, context);
     }
 
-    protected override async ValueTask VisitFieldAsync(GraphQLField field, RequestContext context) {
+    protected override async ValueTask VisitFieldAsync(GraphQLField field, IRequestContext context) {
         var pushed = false;
 
         if(_fieldStack.Count == 0) {
@@ -84,8 +77,8 @@ internal class RequestValidator : ASTVisitor<RequestContext> {
             }
 
             try {
-                await AuthorizationHelper.Authorize(_dependencyResolver, queryType.Type).ConfigureAwait(false);
-                await AuthorizationHelper.Authorize(_dependencyResolver, queryType.Method).ConfigureAwait(false);
+                await AuthorizationHelper.Authorize(context.DependencyResolver, queryType.Type).ConfigureAwait(false);
+                await AuthorizationHelper.Authorize(context.DependencyResolver, queryType.Method).ConfigureAwait(false);
             } catch(GraphQLUnauthorizedException) {
                 _errors.Add($"Unauthorized access to query field \"{field.Name}\" on type \"Query\"");
             }
@@ -110,7 +103,7 @@ internal class RequestValidator : ASTVisitor<RequestContext> {
             }
 
             try {
-                await AuthorizationHelper.Authorize(_dependencyResolver, member).ConfigureAwait(false);
+                await AuthorizationHelper.Authorize(context.DependencyResolver, member).ConfigureAwait(false);
             } catch(GraphQLUnauthorizedException) {
                 _errors.Add($"Unauthorized access to query field \"{field.Name}\" on type \"{currentTypeName}\"");
             }
@@ -157,7 +150,7 @@ internal class RequestValidator : ASTVisitor<RequestContext> {
         }
     }
 
-    protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, RequestContext context) {
+    protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, IRequestContext context) {
         var pushed = false;
         if(inlineFragment.TypeCondition != null) {
             var currentType = _fieldStack.Peek();
@@ -174,7 +167,7 @@ internal class RequestValidator : ASTVisitor<RequestContext> {
             _fieldStack.Pop();
     }
 
-    private async Task ValidateSelectionSets(GraphQLField field, RequestContext context) {
+    private async Task ValidateSelectionSets(GraphQLField field, IRequestContext context) {
         var selections = field.SelectionSet?.Selections ?? Enumerable.Empty<ASTNode>();
         var currentType = _fieldStack.Peek();
         var currentTypeName = currentType.GetGraphQLType().GraphQLName();
@@ -187,7 +180,7 @@ internal class RequestValidator : ASTVisitor<RequestContext> {
         }
     }
 
-    private async Task ValidateFieldAgainstActualParameters(GraphQLField field, RequestContext context, IEnumerable<ParameterInfo> parameters) {
+    private async Task ValidateFieldAgainstActualParameters(GraphQLField field, IRequestContext context, IEnumerable<ParameterInfo> parameters) {
         var remainingParameters = parameters.ToList();
 
         foreach(var arg in field.Arguments ?? Enumerable.Empty<GraphQLArgument>()) {
@@ -196,7 +189,7 @@ internal class RequestValidator : ASTVisitor<RequestContext> {
                 _errors.Add($"Unknown argument \"{arg.Name}\" on field \"{field.Name.StringValue}\".");
             } else {
                 remainingParameters.Remove(matchingParameter);
-                var argumentValidator = new ArgumentValidator(matchingParameter, _valueAccessor, _errors);
+                var argumentValidator = new ArgumentValidator(matchingParameter, context.ValueAccessor, _errors);
                 await argumentValidator.VisitAsync(arg.Value, context).ConfigureAwait(false);
                 await VisitAsync(arg, context).ConfigureAwait(false);
             }
@@ -214,11 +207,11 @@ internal class RequestValidator : ASTVisitor<RequestContext> {
         }
     }
 
-    protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, RequestContext context) {
-        await VisitAsync(await _fragments.GetFragment(fragmentSpread.FragmentName), context).ConfigureAwait(false);
+    protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, IRequestContext context) {
+        await VisitAsync(await context.FragmentAccessor.GetFragment(fragmentSpread.FragmentName), context).ConfigureAwait(false);
     }
 
-    protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, RequestContext context) {
+    protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, IRequestContext context) {
         if(_fieldStack.Count == 0)
             return;
 
@@ -227,7 +220,7 @@ internal class RequestValidator : ASTVisitor<RequestContext> {
         }
     }
 
-    private class ArgumentValidator : ASTVisitor<RequestContext> {
+    private class ArgumentValidator : ASTVisitor<IRequestContext> {
         private readonly ValueAccessor _valueAccessor;
         private readonly List<string> _errors;
         private readonly Stack<Type> _stack = new();
@@ -238,7 +231,7 @@ internal class RequestValidator : ASTVisitor<RequestContext> {
             _errors = errors;
         }
 
-        protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, RequestContext context) {
+        protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IRequestContext context) {
             var currentType = _stack.Peek();
             var member = currentType.GetProperty(objectField.Name.StringValue, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if(member == null) {
@@ -289,7 +282,7 @@ internal class RequestValidator : ASTVisitor<RequestContext> {
             }
         }
 
-        protected override ValueTask VisitVariableAsync(GraphQLVariable variable, RequestContext context) {
+        protected override ValueTask VisitVariableAsync(GraphQLVariable variable, IRequestContext context) {
             var jsonElement = _valueAccessor.GetVariable(variable.Name.StringValue);
             if(jsonElement == null)
                 return ValueTask.CompletedTask;

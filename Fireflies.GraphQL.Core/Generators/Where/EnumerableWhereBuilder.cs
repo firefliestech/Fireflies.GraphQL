@@ -3,7 +3,7 @@ using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core.Generators.Where;
 
-public class EnumerableWhereBuilder<TElement> : ASTVisitor<RequestContext> {
+public class EnumerableWhereBuilder<TElement> : ASTVisitor<IRequestContext> {
     private readonly ValueAccessor _valueAccessor;
     public IEnumerable<TElement> Result { get; private set; }
 
@@ -13,7 +13,7 @@ public class EnumerableWhereBuilder<TElement> : ASTVisitor<RequestContext> {
     }
 
 
-    protected override ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, RequestContext context) {
+    protected override ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IRequestContext context) {
         var whereExpressionBuilder = new WhereExpressionBuilder<TElement>(objectField, _valueAccessor);
         whereExpressionBuilder.VisitAsync(objectField.Value, context).GetAwaiter().GetResult();
         if(whereExpressionBuilder.Result != null)

@@ -106,7 +106,7 @@ public static class ReflectionExtensions {
             !x.HasCustomAttribute<EnumeratorCancellationAttribute>() &&
             !x.ParameterType.IsAssignableTo(typeof(ASTNode)) &&
             !x.ParameterType.IsAssignableTo(typeof(IConnectionContext)) &&
-            !x.ParameterType.IsAssignableTo(typeof(RequestContext))
+            !x.ParameterType.IsAssignableTo(typeof(IRequestContext))
         );
     }
 

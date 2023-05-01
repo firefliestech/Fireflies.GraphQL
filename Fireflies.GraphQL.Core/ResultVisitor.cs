@@ -1,12 +1,10 @@
 ﻿using System.Collections;
 using System.Collections.Concurrent;
-using System.Formats.Asn1;
 using System.Reflection;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Json;
 using Fireflies.GraphQL.Core.Scalar;
-using Fireflies.IoC.Abstractions;
 using Fireflies.Utility.Reflection;
 using Fireflies.Utility.Reflection.Fasterflect;
 using GraphQLParser.AST;
@@ -14,18 +12,11 @@ using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core;
 
-internal class ResultVisitor : ASTVisitor<ResultContext> {
-    private readonly FragmentAccessor _fragments;
-    private readonly ValueAccessor _valueAccessor;
-
-    private readonly IDependencyResolver _dependencyResolver;
+public class ResultVisitor : ASTVisitor<ResultContext> {
     private readonly WrapperRegistry _wrapperRegistry;
     private readonly ScalarRegistry _scalarRegistry;
 
-    public ResultVisitor(FragmentAccessor fragments, ValueAccessor valueAccessor, IDependencyResolver dependencyResolver, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry) {
-        _fragments = fragments;
-        _valueAccessor = valueAccessor;
-        _dependencyResolver = dependencyResolver;
+    public ResultVisitor(WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry) {
         _wrapperRegistry = wrapperRegistry;
         _scalarRegistry = scalarRegistry;
     }
@@ -45,7 +36,7 @@ internal class ResultVisitor : ASTVisitor<ResultContext> {
         if(context.Data == null)
             return;
 
-        if(await RunBuiltInDirectives(field).ConfigureAwait(false))
+        if(await RunBuiltInDirectives(field, context).ConfigureAwait(false))
             return;
 
         var memberInfo = ReflectionCache.GetMemberCache(context.Type, field.Name.StringValue);
@@ -162,14 +153,14 @@ internal class ResultVisitor : ASTVisitor<ResultContext> {
         }
     }
 
-    private async Task<bool> RunBuiltInDirectives(GraphQLField field) {
+    private async Task<bool> RunBuiltInDirectives(GraphQLField field, ResultContext resultContext) {
         foreach(var directive in field.Directives ?? Enumerable.Empty<GraphQLDirective>()) {
             if(directive.Name == "skip" && directive.Arguments?[0].Name == "if") {
-                var result = await _valueAccessor.GetValue<bool>(directive.Arguments[0].Value).ConfigureAwait(false);
+                var result = await resultContext.ValueAccessor.GetValue<bool>(directive.Arguments[0].Value).ConfigureAwait(false);
                 if(result)
                     return true;
             } else if(directive.Name == "include" && directive.Arguments?[0].Name == "if") {
-                var result = await _valueAccessor.GetValue<bool>(directive.Arguments[0].Value).ConfigureAwait(false);
+                var result = await resultContext.ValueAccessor.GetValue<bool>(directive.Arguments[0].Value).ConfigureAwait(false);
                 if(!result)
                     return true;
             } else {
@@ -181,13 +172,13 @@ internal class ResultVisitor : ASTVisitor<ResultContext> {
     }
 
     private async Task<object?> InvokeMethod(GraphQLField graphQLField, MethodInfo methodInfo, ResultContext parentLevel) {
-        var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, _valueAccessor, _fragments, parentLevel.RequestContext, _dependencyResolver, parentLevel);
+        var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, parentLevel.RequestContext, parentLevel.RequestContext.DependencyResolver, parentLevel);
         var arguments = await argumentBuilder.Build(graphQLField).ConfigureAwait(false);
         return await ReflectionCache.ExecuteMethod(methodInfo, parentLevel.Data!, arguments).ConfigureAwait(false);
     }
 
     protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, ResultContext context) {
-        await VisitAsync(await _fragments.GetFragment(fragmentSpread.FragmentName), context).ConfigureAwait(false);
+        await VisitAsync(await context.FragmentAccessor.GetFragment(fragmentSpread.FragmentName), context).ConfigureAwait(false);
     }
 
     protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, ResultContext context) {

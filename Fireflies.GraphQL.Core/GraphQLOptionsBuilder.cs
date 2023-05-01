@@ -7,6 +7,7 @@ using Fireflies.GraphQL.Core.Generators;
 using Fireflies.GraphQL.Core.Generators.Connection;
 using Fireflies.GraphQL.Core.Generators.Sorting;
 using Fireflies.GraphQL.Core.Generators.Where;
+using Fireflies.GraphQL.Core.Json;
 using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.GraphQL.Core.Schema;
 using Fireflies.IoC.Abstractions;
@@ -128,6 +129,11 @@ public class GraphQLOptionsBuilder {
             builder.RegisterType<__SchemaQuery>();
             builder.RegisterInstance(wrapperRegistry);
             builder.RegisterInstance(_scalarRegistry);
+            builder.RegisterTypeAsSingleInstance<ResultVisitor>();
+            builder.RegisterTypeAsSingleInstance<OperationVisitor>();
+            builder.RegisterInstance(_loggerFactory);
+
+            builder.RegisterType<JsonWriterFactory>();
 
             options.Extensions.BuildGraphQLLifetimeScope(builder);
 

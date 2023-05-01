@@ -67,7 +67,7 @@ public class FederationGenerator {
     private void GenerateOperation(OperationType operation, TypeBuilder typeBuilder, FederationField field) {
         var taskReturnType = operation == OperationType.Subscription ? typeof(IAsyncEnumerable<JsonNode>) : typeof(Task<>).MakeGenericType(typeof(JsonNode));
 
-        var methodBuilder = typeBuilder.DefineMethod(field.Name, MethodAttributes.Public, taskReturnType, new[] { typeof(ASTNode), typeof(ValueAccessor), typeof(FragmentAccessor), typeof(RequestContext) });
+        var methodBuilder = typeBuilder.DefineMethod(field.Name, MethodAttributes.Public, taskReturnType, new[] { typeof(ASTNode), typeof(ValueAccessor), typeof(FragmentAccessor), typeof(IRequestContext) });
         methodBuilder.SetCustomAttribute(new CustomAttributeBuilder(typeof(GraphQLFederatedAttribute).GetConstructors().First(), Array.Empty<object>()));
 
         methodBuilder.DefineAnonymousResolvedParameter(1);

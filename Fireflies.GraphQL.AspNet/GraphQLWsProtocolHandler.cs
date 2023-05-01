@@ -5,6 +5,7 @@ using Fireflies.Logging.Abstractions;
 using Microsoft.AspNetCore.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Fireflies.IoC.Abstractions;
 
 namespace Fireflies.GraphQL.AspNet;
 
@@ -12,14 +13,16 @@ internal class GraphQLWsProtocolHandler : WsProtocolHandlerBase, IWsProtocolHand
     private readonly HttpContext _httpContext;
     private readonly GraphQLEngine _engine;
     private readonly IConnectionContext _connectionContext;
+    private readonly IDependencyResolver _requestLifetimeScope;
     private readonly IFirefliesLogger _logger;
 
-    private readonly Dictionary<string, RequestContext> _subscriptions = new();
+    private readonly Dictionary<string, IRequestContext> _subscriptions = new();
 
-    public GraphQLWsProtocolHandler(HttpContext httpContext, GraphQLEngine engine, IConnectionContext connectionContext, IFirefliesLogger logger) : base(httpContext, engine, connectionContext, logger) {
+    public GraphQLWsProtocolHandler(HttpContext httpContext, GraphQLEngine engine, IConnectionContext connectionContext, IDependencyResolver requestLifetimeScope, IFirefliesLogger logger) : base(httpContext, engine, connectionContext, logger) {
         _httpContext = httpContext;
         _engine = engine;
         _connectionContext = connectionContext;
+        _requestLifetimeScope = requestLifetimeScope;
         _logger = logger;
     }
 
@@ -76,7 +79,7 @@ internal class GraphQLWsProtocolHandler : WsProtocolHandlerBase, IWsProtocolHand
     private async Task ProcessStart(JsonNode request, byte[] rawRequest) {
         var id = request["id"].GetValue<string>();
         var payload = request["payload"].Deserialize<GraphQLRequest>(DefaultJsonSerializerSettings.DefaultSettings);
-        var requestContext = new RequestContext(_connectionContext, id, rawRequest);
+        var requestContext = new RequestContext(_connectionContext, _requestLifetimeScope, id, rawRequest);
 
         _subscriptions[id] = requestContext;
 

@@ -3,7 +3,6 @@ using Fireflies.GraphQL.Client.Generator.Schema;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 using System.Reflection;
-using Fireflies.GraphQL.Client.Generator.Builders;
 
 namespace Fireflies.GraphQL.Client.Generator;
 

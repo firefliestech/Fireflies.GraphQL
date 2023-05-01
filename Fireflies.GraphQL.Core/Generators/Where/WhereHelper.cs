@@ -3,7 +3,7 @@
 namespace Fireflies.GraphQL.Core.Generators.Where;
 
 public static class WhereHelper {
-    public static async Task<IEnumerable<TElement>?> WhereEnumerableTaskResult<TElement>(Task<IEnumerable<TElement>?> resultTask, GraphQLField rootField, RequestContext graphQLContext, ValueAccessor valueAccessor) {
+    public static async Task<IEnumerable<TElement>?> WhereEnumerableTaskResult<TElement>(Task<IEnumerable<TElement>?> resultTask, GraphQLField rootField, IRequestContext graphQLContext, ValueAccessor valueAccessor) {
         var taskResult = await resultTask.ConfigureAwait(false);
 
         if(taskResult == null)
@@ -19,11 +19,11 @@ public static class WhereHelper {
         return whereBuilder.Result;
     }
 
-    public static IEnumerable<TElement>? WhereEnumerableResult<TElement>(IEnumerable<TElement>? result, GraphQLField graphQLField, RequestContext graphQLContext, ValueAccessor valueAccessor) {
+    public static IEnumerable<TElement>? WhereEnumerableResult<TElement>(IEnumerable<TElement>? result, GraphQLField graphQLField, IRequestContext graphQLContext, ValueAccessor valueAccessor) {
         return WhereEnumerableTaskResult(Task.FromResult(result), graphQLField, graphQLContext, valueAccessor).Result;
     }
 
-    public static async Task<IQueryable<TElement>?> WhereQueryableTaskResult<TElement>(Task<IQueryable<TElement>?> resultTask, GraphQLField rootField, RequestContext graphQLContext, ValueAccessor valueAccessor) {
+    public static async Task<IQueryable<TElement>?> WhereQueryableTaskResult<TElement>(Task<IQueryable<TElement>?> resultTask, GraphQLField rootField, IRequestContext graphQLContext, ValueAccessor valueAccessor) {
         var taskResult = await resultTask.ConfigureAwait(false);
         if(taskResult == null)
             return null;
@@ -37,7 +37,7 @@ public static class WhereHelper {
         return whereBuilder.Result;
     }
 
-    public static IQueryable<TElement>? WhereQueryableResult<TElement>(IQueryable<TElement>? result, GraphQLField graphQLField, RequestContext graphQLContext, ValueAccessor valueAccessor) {
+    public static IQueryable<TElement>? WhereQueryableResult<TElement>(IQueryable<TElement>? result, GraphQLField graphQLField, IRequestContext graphQLContext, ValueAccessor valueAccessor) {
         return WhereQueryableTaskResult(Task.FromResult(result), graphQLField, graphQLContext, valueAccessor).Result;
     }
 }

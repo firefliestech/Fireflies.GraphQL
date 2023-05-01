@@ -6,7 +6,7 @@ using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core.Generators.Where;
 
-internal class WhereExpressionBuilder<TElement> : ASTVisitor<RequestContext> {
+internal class WhereExpressionBuilder<TElement> : ASTVisitor<IRequestContext> {
     private readonly GraphQLObjectField _parentField;
     private readonly ValueAccessor _valueAccessor;
 
@@ -17,7 +17,7 @@ internal class WhereExpressionBuilder<TElement> : ASTVisitor<RequestContext> {
         _valueAccessor = valueAccessor;
     }
 
-    protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, RequestContext context) {
+    protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IRequestContext context) {
         // Where
         if(objectField.Name.StringValue.Equals(nameof(Where<int>.Equal), StringComparison.InvariantCultureIgnoreCase)) {
             await CreateOperationExpression(objectField, false, Expression.Equal).ConfigureAwait(false);

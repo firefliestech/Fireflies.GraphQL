@@ -8,7 +8,7 @@ namespace Fireflies.GraphQL.Core.Federation;
 public static class FederationHelper {
     private static readonly HttpClient HttpClient = new();
 
-    public static async Task<JsonNode?> ExecuteRequest(ASTNode astNode, ValueAccessor valueAccessor, FragmentAccessor fragmentAccessor, RequestContext requestContext, string url, OperationType operation) {
+    public static async Task<JsonNode?> ExecuteRequest(ASTNode astNode, ValueAccessor valueAccessor, FragmentAccessor fragmentAccessor, IRequestContext requestContext, string url, OperationType operation) {
         var (query, fragments, includedVariables) = await CreateFederationQuery(astNode, requestContext, valueAccessor, fragmentAccessor).ConfigureAwait(false);
 
         var request = new HttpRequestMessage(HttpMethod.Post, url + requestContext.ConnectionContext.QueryString);
@@ -30,13 +30,13 @@ public static class FederationHelper {
         return result;
     }
 
-    public static async IAsyncEnumerable<JsonNode> ExecuteSubscription(ASTNode astNode, ValueAccessor valueAccessor, FragmentAccessor fragmentAccessor, RequestContext requestContext, string url, OperationType operation, string operationName) {
+    public static async IAsyncEnumerable<JsonNode> ExecuteSubscription(ASTNode astNode, ValueAccessor valueAccessor, FragmentAccessor fragmentAccessor, IRequestContext requestContext, string url, OperationType operation, string operationName) {
         var client = new FederationWebsocket(url + requestContext.ConnectionContext.QueryString, requestContext, operationName);
         await foreach(var value in client.Results().ConfigureAwait(false).WithCancellation(requestContext.CancellationToken))
             yield return value;
     }
 
-    private static async Task<(string, string, Dictionary<string, object?>)> CreateFederationQuery(ASTNode astNode, RequestContext requestContext, ValueAccessor valueAccessor, FragmentAccessor fragmentAccessor) {
+    private static async Task<(string, string, Dictionary<string, object?>)> CreateFederationQuery(ASTNode astNode, IRequestContext requestContext, ValueAccessor valueAccessor, FragmentAccessor fragmentAccessor) {
         await using var query = new StringWriter();
         var queryWriter = new QueryWriter(valueAccessor);
         await queryWriter.PrintAsync(

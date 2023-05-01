@@ -10,12 +10,10 @@ using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core;
 
-internal class ArgumentBuilder : ASTVisitor<RequestContext> {
+internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
     private readonly GraphQLArguments? _arguments;
     private readonly MethodInfo _methodInfo;
-    private readonly ValueAccessor _valueAccessor;
-    private readonly FragmentAccessor _fragmentAccessor;
-    private readonly RequestContext _requestContext;
+    private readonly IRequestContext _requestContext;
     private readonly IDependencyResolver _dependencyResolver;
     private readonly ResultContext _resultContext;
     private readonly Dictionary<string, ParameterInfo> _parameters;
@@ -24,11 +22,9 @@ internal class ArgumentBuilder : ASTVisitor<RequestContext> {
 
     private readonly Stack<object?> _stack = new();
 
-    public ArgumentBuilder(GraphQLArguments? arguments, MethodInfo methodInfo, ValueAccessor valueAccessor, FragmentAccessor fragmentAccessor, RequestContext context, IDependencyResolver dependencyResolver, ResultContext resultContext) {
+    public ArgumentBuilder(GraphQLArguments? arguments, MethodInfo methodInfo, IRequestContext context, IDependencyResolver dependencyResolver, ResultContext resultContext) {
         _arguments = arguments;
         _methodInfo = methodInfo;
-        _valueAccessor = valueAccessor;
-        _fragmentAccessor = fragmentAccessor;
         _requestContext = context;
         _dependencyResolver = dependencyResolver;
         _resultContext = resultContext;
@@ -52,14 +48,14 @@ internal class ArgumentBuilder : ASTVisitor<RequestContext> {
             if(x.ParameterType == typeof(ResultContext))
                 return _resultContext;
 
-            if(x.ParameterType == typeof(RequestContext))
+            if(x.ParameterType == typeof(IRequestContext))
                 return _requestContext;
 
             if(x.ParameterType == typeof(ValueAccessor))
-                return _valueAccessor;
+                return _requestContext.ValueAccessor;
 
             if(x.ParameterType == typeof(FragmentAccessor))
-                return _fragmentAccessor;
+                return _requestContext.FragmentAccessor;
 
             if(x.HasCustomAttribute<ResolvedAttribute>(out _))
                 return _dependencyResolver.Resolve(x.ParameterType);
@@ -82,7 +78,7 @@ internal class ArgumentBuilder : ASTVisitor<RequestContext> {
         }).ToArray();
     }
 
-    protected override async ValueTask VisitArgumentAsync(GraphQLArgument argument, RequestContext context) {
+    protected override async ValueTask VisitArgumentAsync(GraphQLArgument argument, IRequestContext context) {
         if(_parameters.TryGetValue(argument.Name.StringValue, out var parameterInfo)) {
             if(argument.Value.Kind == ASTNodeKind.ObjectValue) {
                 var value = Activator.CreateInstance(parameterInfo.ParameterType)!;
@@ -90,14 +86,14 @@ internal class ArgumentBuilder : ASTVisitor<RequestContext> {
                 await VisitAsync(argument.Value, context).ConfigureAwait(false);
                 Values[parameterInfo.Name!] = _stack.Pop();
             } else {
-                Values[parameterInfo.Name!] = await _valueAccessor.GetValue(argument.Value).ConfigureAwait(false);
+                Values[parameterInfo.Name!] = await context.ValueAccessor.GetValue(argument.Value).ConfigureAwait(false);
             }
         } else {
             throw new InvalidOperationException("Unmatched value");
         }
     }
 
-    protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, RequestContext context) {
+    protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IRequestContext context) {
         var parent = _stack.Peek()!;
         var propertyField = parent.GetType().GetGraphQLProperty(objectField.Name.StringValue);
         var underlyingType = Nullable.GetUnderlyingType(propertyField.PropertyType) ?? propertyField.PropertyType;
@@ -108,7 +104,7 @@ internal class ArgumentBuilder : ASTVisitor<RequestContext> {
             await VisitAsync(objectField.Value, context).ConfigureAwait(false);
             propertyField.SetValue(parent, _stack.Pop());
         } else {
-            var value = await _valueAccessor.GetValue(underlyingType, objectField.Value).ConfigureAwait(false);
+            var value = await context.ValueAccessor.GetValue(underlyingType, objectField.Value).ConfigureAwait(false);
             propertyField.SetValue(parent, value);
         }
     }

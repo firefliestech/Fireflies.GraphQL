@@ -5,11 +5,11 @@ namespace Fireflies.GraphQL.Core.Federation;
 
 public class FederationWebsocket {
     private readonly string _url;
-    private readonly RequestContext _requestContext;
+    private readonly IRequestContext _requestContext;
     private readonly string _operationName;
     private readonly ClientWebSocket _client;
 
-    public FederationWebsocket(string url, RequestContext requestContext, string operationName) {
+    public FederationWebsocket(string url, IRequestContext requestContext, string operationName) {
         _url = url;
         _requestContext = requestContext;
         _operationName = operationName;
