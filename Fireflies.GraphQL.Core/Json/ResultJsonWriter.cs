@@ -1,4 +1,5 @@
-﻿using Fireflies.GraphQL.Core.Scalar;
+﻿using System.Text.Json.Nodes;
+using Fireflies.GraphQL.Core.Scalar;
 
 namespace Fireflies.GraphQL.Core.Json;
 
@@ -45,45 +46,44 @@ public class ResultJsonWriter : JsonWriter {
         base.WriteStartArray(fieldName);
     }
 
-    public void WriteStartObject() {
+    public override void WriteStartObject() {
         EnsureData();
-
         base.WriteStartObject();
     }
 
-    public void WriteStartObject(string fieldName) {
+    public override void WriteStartObject(string fieldName) {
         EnsureData();
-
         base.WriteStartObject(fieldName);
     }
 
-    public void WriteEndObject() {
+    public override void WriteEndObject() {
         EnsureData();
-
         base.WriteEndObject();
     }
 
-    public void WriteEndArray() {
+    public override void WriteEndArray() {
         EnsureData();
-
         base.WriteEndArray();
     }
 
-    public void WriteNull(string fieldName) {
+    public override void WriteNull(string fieldName) {
         EnsureData();
-
         base.WriteNull(fieldName);
     }
 
-    public void WriteValue(object value, TypeCode typeCode, Type elementType) {
+    public override void WriteValue(object value, TypeCode typeCode, Type elementType) {
         EnsureData();
-
         base.WriteValue(value, typeCode, elementType);
     }
 
-    public void WriteValue(string property, object value, TypeCode typeCode, Type elementType) {
+    public override void WriteValue(string property, object value, TypeCode typeCode, Type elementType) {
         EnsureData();
         base.WriteValue(property, value, typeCode, elementType);
+    }
+
+    public override void WriteRaw(string fieldName, JsonNode jsonObject) {
+        EnsureData();
+        base.WriteRaw(fieldName, jsonObject);
     }
 
     private void EnsureData() {
