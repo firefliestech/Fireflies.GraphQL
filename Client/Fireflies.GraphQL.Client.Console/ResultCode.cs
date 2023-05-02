@@ -8,5 +8,7 @@ public enum ResultCode {
     ClientAlreadyExists,
     FailedToDownloadSchema,
     GraphQLDirectoryNotFound,
-    ClientDirectoryNotFound
+    ClientDirectoryNotFound,
+    NotNeeded,
+    AlreadyInitialized
 }

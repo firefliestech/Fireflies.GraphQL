@@ -12,12 +12,14 @@ public class ClientBuilder : ITypeBuilder {
         _stringBuilder.AppendLine($"public class {className} {{");
 
         _stringBuilder.AppendLine("\tprivate Uri _uri;");
+        _stringBuilder.AppendLine("\tprivate GraphQLWsClient _wsClient;");
         _stringBuilder.AppendLine("\tprivate JsonSerializerOptions _serializerSettings = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } };");
         _stringBuilder.AppendLine();
         _stringBuilder.AppendLine("\tprivate static readonly HttpClient Client = new();");
         _stringBuilder.AppendLine();
-        _stringBuilder.AppendLine($"\tpublic {className}(Uri uri) {{");
+        _stringBuilder.AppendLine($"\tpublic {className}(Uri uri, Uri subscriptionUri) {{");
         _stringBuilder.AppendLine($"\t\t_uri = uri;");
+        _stringBuilder.AppendLine($"\t\t_wsClient = new GraphQLWsClient(subscriptionUri);");
         _stringBuilder.AppendLine("\t}");
 
         _stringBuilder.AppendLine();
@@ -36,11 +38,46 @@ public class ClientBuilder : ITypeBuilder {
     public async Task AddOperation(GraphQLOperationDefinition operationDefinition, GraphQLGeneratorContext context) {
         _stringBuilder.AppendLine();
 
+        if(operationDefinition.Operation is OperationType.Query or OperationType.Mutation)
+            await GenerateRequestOperation(operationDefinition, context);
+        else
+            await GenerateSubscriptionOperation(operationDefinition, context);
+    }
+
+    private async Task GenerateSubscriptionOperation(GraphQLOperationDefinition operationDefinition, GraphQLGeneratorContext context) {
+        var className = $"{operationDefinition.Name}Result";
+        _stringBuilder.Append($"\tpublic GraphQLSubscriber<I{className}> {operationDefinition.Name}(");
+        GenerateParameters(operationDefinition);
+        _stringBuilder.AppendLine(") {");
+
+        await GenerateRequest(operationDefinition, context);
+
+        _stringBuilder.AppendLine($"\t\treturn _wsClient.CreateSubscriber<I{className}>(request, payload => new {className}(payload[\"errors\"], payload[\"data\"], _serializerSettings));");
+
+        _stringBuilder.AppendLine("\t}");
+
+        var resultTypeBuilder = context.RootContext.GetOperationResultTypeBuilder(className, operationDefinition, context);
+        await resultTypeBuilder.Build();
+    }
+
+    private async Task GenerateRequestOperation(GraphQLOperationDefinition operationDefinition, GraphQLGeneratorContext context) {
         var className = $"{operationDefinition.Name}Result";
         _stringBuilder.Append($"\tpublic async Task<I{className}> {operationDefinition.Name}(");
         GenerateParameters(operationDefinition);
         _stringBuilder.AppendLine(") {");
 
+        await GenerateRequest(operationDefinition, context);
+
+        _stringBuilder.AppendLine($"\t\tvar json = await Execute(request);");
+        _stringBuilder.AppendLine($"\t\treturn new {className}(json[\"errors\"], json[\"data\"], _serializerSettings);");
+
+        _stringBuilder.AppendLine("\t}");
+
+        var resultTypeBuilder = context.RootContext.GetOperationResultTypeBuilder(className, operationDefinition, context);
+        await resultTypeBuilder.Build();
+    }
+
+    private async Task GenerateRequest(GraphQLOperationDefinition operationDefinition, GraphQLGeneratorContext context) {
         var visitor = new QueryCreator(context.Document);
         await visitor.Execute(operationDefinition, context);
 
@@ -57,14 +94,6 @@ public class ClientBuilder : ITypeBuilder {
 
             _stringBuilder.AppendLine();
         }
-
-        _stringBuilder.AppendLine($"\t\tvar json = await Execute(request);");
-        _stringBuilder.AppendLine($"\t\treturn new {className}(json[\"errors\"], json[\"data\"], _serializerSettings);");
-
-        _stringBuilder.AppendLine("\t}");
-
-        var resultTypeBuilder = context.RootContext.GetOperationResultTypeBuilder(className, operationDefinition, context);
-        await resultTypeBuilder.Build();
     }
 
     private void GenerateParameters(GraphQLOperationDefinition operationDefinition) {

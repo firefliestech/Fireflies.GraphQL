@@ -4,15 +4,15 @@ using System.Text.Json.Nodes;
 namespace Fireflies.GraphQL.Client.Console.Schema;
 
 public class SchemaHandler {
-    public async Task<ResultCode> Init(InitOptions options) {
-        ConsoleLogger.WriteInfo($"Initializing {options.Name}\r\n- Namespace. {options.Namespace}\r\n- Path: {options.Path}\r\n- Uri: {options.Uri}\r\n");
+    public async Task<ResultCode> Init(ClientInitOptions options) {
+        ConsoleLogger.WriteInfo($"Initializing {options.Name}\r\n- Path: {options.Path}\r\n- Uri: {options.Uri}\r\n");
 
         if(!VerifyPath(options, out var returnCode))
             return returnCode;
 
         var rootPath = Path.Combine(options.Path, "GraphQL");
         if(!Directory.Exists(rootPath)) {
-            Directory.CreateDirectory(rootPath);
+            ConsoleLogger.WriteError($"Project is not initialized. Use project-init command first");
         }
 
         var clientDirectory = Path.Combine(rootPath, options.Name);
@@ -25,17 +25,16 @@ public class SchemaHandler {
             Directory.CreateDirectory(clientDirectory);
         }
 
-        var settingsFile = Path.Combine(clientDirectory, "Settings.json");
-        var settings = new JsonObject {
-            ["namespace"] = options.Namespace,
+        var clientSettingsFile = Path.Combine(clientDirectory, "Settings.json");
+        var clientSettings = new JsonObject {
             ["uri"] = options.Uri
         };
-        await File.WriteAllTextAsync(settingsFile, settings.ToJsonString());
+        await File.WriteAllTextAsync(clientSettingsFile, clientSettings.ToJsonString());
 
         return await InternalDownload(options.Uri, clientDirectory);
     }
 
-    public async Task<ResultCode> Update(UpdateOptions options) {
+    public async Task<ResultCode> Update(ClientUpdateOptions options) {
         ConsoleLogger.WriteInfo($"Updating {options.Name}\r\n- Path: {options.Path}\r\n");
 
         if(!VerifyPath(options, out var returnCode))

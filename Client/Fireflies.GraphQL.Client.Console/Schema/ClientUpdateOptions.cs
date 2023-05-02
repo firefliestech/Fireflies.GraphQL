@@ -2,8 +2,8 @@
 
 namespace Fireflies.GraphQL.Client.Console.Schema;
 
-[Verb("update", HelpText = "Updates the schema")]
-public class UpdateOptions : ISchemaOptions {
+[Verb("client-update", HelpText = "Updates the schema")]
+public class ClientUpdateOptions : ISchemaOptions {
     [Option('n', "name", Required = true, HelpText = "Client name")]
     public string Name { get; set; }
 

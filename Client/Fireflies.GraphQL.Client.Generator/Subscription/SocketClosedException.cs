@@ -1,0 +1,2 @@
+﻿public class SocketClosedException : SubscriptionException {
+}

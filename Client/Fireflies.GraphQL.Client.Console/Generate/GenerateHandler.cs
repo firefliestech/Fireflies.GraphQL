@@ -4,47 +4,68 @@ using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Client.Generator;
 using GraphQLParser.AST;
 
-namespace Fireflies.GraphQL.Client.Console.Generate; 
+namespace Fireflies.GraphQL.Client.Console.Generate;
 
 public class GenerateHandler {
     public async Task<ResultCode> Generate(GenerateOptions options) {
-        var rootPath = Path.Combine(options.Path, "GraphQL");
+        var rootPath = new DirectoryInfo(Path.Combine(options.Path, "GraphQL"));
+
+        var sharedFile = new FileInfo(Path.Combine(rootPath.FullName, "GraphQLShared.g.cs"));
+        if(!await NeedsGeneration(sharedFile, options.Force)) {
+            ConsoleLogger.WriteWarning("No files changed. Use --force option to generate anyway");
+            return ResultCode.NotNeeded;
+        }
+
+        ConsoleLogger.WriteInfo($"Generating shared types...");
+        var generatorSettings = await GetGeneratorSettings(rootPath);
+        var sharedGenerator = new SharedGenerator(rootPath, generatorSettings);
+        await sharedGenerator.GenerateSharedFiles();
+        ConsoleLogger.WriteSuccess($"Generated shared types!");
 
         ConsoleLogger.WriteInfo("Generating clients...\r\n");
-        var success = true;
 
-        foreach(var clientDirectory in Directory.GetDirectories(rootPath).Select(x => new DirectoryInfo(x))) {
-            var clientName = clientDirectory.Name;
+        foreach(var clientDirectory in rootPath.GetDirectories()) {
+            await GenerateClient(clientDirectory, generatorSettings);
+        }
 
-            ConsoleLogger.WriteInfo($"Generating {clientName}...");
-            
-            var settings = await GetSettings(clientDirectory);
-            var graphQLDocuments = GetGraphQLDocuments(clientDirectory);
-            var schema = await GetSchema(clientDirectory);
+        return ResultCode.Success;
+    }
 
-            var clientFile = new FileInfo(Path.Combine(clientDirectory.FullName, $"{clientName}Client.g.cs"));
-            if(clientFile.Exists && !options.Force) {
-                var lastChange = clientDirectory.GetFileSystemInfos().Where(x => !x.Name.EndsWith(".g.cs")).Max(x => x.LastWriteTimeUtc);
-                var lastGenerated = await GetGeneratedTimestamp(clientFile);
+    private static async Task GenerateClient(DirectoryInfo clientDirectory, GeneratorSettings generatorSettings) {
+        var clientName = clientDirectory.Name;
 
-                if(lastGenerated > lastChange) {
-                    ConsoleLogger.WriteWarning("No files changed. Use --force option to generate anyway");
-                    continue;
-                }
-            }
+        ConsoleLogger.WriteInfo($"Generating {clientName}...");
 
-            var generator = new ClientGenerator(clientName, schema, settings ?? new ClientSettings(), graphQLDocuments);
-            try {
-                await generator.Generate();
-                await File.WriteAllTextAsync(clientFile.FullName, generator.Source);
-                ConsoleLogger.WriteSuccess($"Generated {clientName}!");
-            } catch(Exception ex) {
-                ConsoleLogger.WriteError(ex, $"Failed to generate {clientName}!");
-                throw;
+        var fileToCheck = Path.Combine(clientDirectory.FullName, $"{clientName}Client.g.cs");
+        var clientFile = new FileInfo(fileToCheck);
+
+        var clientSettings = await GetClientSettings(clientDirectory);
+        var graphQLDocuments = GetGraphQLDocuments(clientDirectory);
+        var schema = await GetSchema(clientDirectory);
+
+        var generator = new ClientGenerator(clientName, schema, generatorSettings, graphQLDocuments);
+
+        try {
+            await generator.Generate();
+            await File.WriteAllTextAsync(clientFile.FullName, generator.Source);
+            ConsoleLogger.WriteSuccess($"Generated {clientName}!");
+        } catch(Exception ex) {
+            ConsoleLogger.WriteError(ex, $"Failed to generate {clientName}!");
+            throw;
+        }
+    }
+
+    private static async Task<bool> NeedsGeneration(FileInfo fileToCheck, bool force) {
+        if(fileToCheck.Exists && !force) {
+            var lastChange = fileToCheck.Directory.GetFileSystemInfos("*", SearchOption.AllDirectories).Where(x => !x.Name.EndsWith(".g.cs")).Max(x => x.LastWriteTimeUtc);
+            var lastGenerated = await GetGeneratedTimestamp(fileToCheck);
+
+            if(lastGenerated > lastChange) {
+                return false;
             }
         }
 
-        return success ? ResultCode.Success : ResultCode.GenerationFailed;
+        return true;
     }
 
     private static IEnumerable<GraphQLDocument> GetGraphQLDocuments(DirectoryInfo clientDirectory) {
@@ -67,15 +88,24 @@ public class GenerateHandler {
         return schema;
     }
 
-    private static async Task<ClientSettings?> GetSettings(DirectoryInfo clientDirectory) {
+    private static async Task<GeneratorSettings> GetGeneratorSettings(DirectoryInfo rootDirectory) {
+        var settingsFile = new FileInfo(Path.Combine(rootDirectory.FullName, "Settings.json"));
+        if(!settingsFile.Exists)
+            throw new GraphQLGeneratorException($"Settings.json file does not exist. Path: {settingsFile.FullName}");
+
+        var settings = JsonNode.Parse(await File.ReadAllTextAsync(settingsFile.FullName)).Deserialize<GeneratorSettings>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        if(string.IsNullOrWhiteSpace(settings.Namespace))
+            throw new GraphQLGeneratorException($"Settings.json is not valid. Namespace is required");
+
+        return settings;
+    }
+
+    private static async Task<ClientSettings?> GetClientSettings(DirectoryInfo clientDirectory) {
         var settingsFile = new FileInfo(Path.Combine(clientDirectory.FullName, "Settings.json"));
         if(!settingsFile.Exists)
             throw new GraphQLGeneratorException($"Settings.json file does not exist. Path: {settingsFile.FullName}");
 
         var settings = JsonNode.Parse(await File.ReadAllTextAsync(settingsFile.FullName)).Deserialize<ClientSettings>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        if(string.IsNullOrWhiteSpace(settings.Namespace))
-            throw new GraphQLGeneratorException($"Settings.json is not valid. Namespace is required");
-
         return settings;
     }
 

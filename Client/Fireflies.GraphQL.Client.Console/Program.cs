@@ -2,18 +2,26 @@
 using Fireflies.GraphQL.Client.Console.Generate;
 using Fireflies.GraphQL.Client.Console.Schema;
 
-Parser.Default.ParseArguments<GenerateOptions, InitOptions, UpdateOptions>(args)
-    .MapResult((GenerateOptions o) => RunGenerate(o),
-        (InitOptions o) => RunInit(o),
-        (UpdateOptions o) => RunUpdate(o),
+Parser.Default.ParseArguments<ProjectInitOptions, GenerateOptions, ClientInitOptions, ClientUpdateOptions>(args)
+    .MapResult(
+        (ProjectInitOptions o) => RunProjectInit(o),
+        (ClientInitOptions o) => RunClientInit(o),
+        (ClientUpdateOptions o) => RunClientUpdate(o),
+        (GenerateOptions o) => RunGenerate(o),
         errs => 1);
 
-int RunUpdate(UpdateOptions options) {
+
+int RunProjectInit(ProjectInitOptions options) {
+    var handler = new ProjectHandler();
+    return (int)handler.Init(options).GetAwaiter().GetResult();
+}
+
+int RunClientUpdate(ClientUpdateOptions options) {
     var handler = new SchemaHandler();
     return (int)handler.Update(options).GetAwaiter().GetResult();
 }
 
-int RunInit(InitOptions options) {
+int RunClientInit(ClientInitOptions options) {
     var handler = new SchemaHandler();
     return (int)handler.Init(options).GetAwaiter().GetResult();
 }
