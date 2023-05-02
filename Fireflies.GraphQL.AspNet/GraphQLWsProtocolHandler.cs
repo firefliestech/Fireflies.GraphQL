@@ -95,7 +95,7 @@ internal class GraphQLWsProtocolHandler : WsProtocolHandlerBase, IWsProtocolHand
     }
 
     private async Task ProcessConnectionInit(JsonNode request) {
-        var jsonObject = new JsonObject() {
+        var jsonObject = new JsonObject {
             ["type"] = "connection_ack",
             ["payload"] = null
         };
@@ -104,7 +104,7 @@ internal class GraphQLWsProtocolHandler : WsProtocolHandlerBase, IWsProtocolHand
     }
 
     private async Task ProcessPing() {
-        var jsonObject = new JsonObject() {
+        var jsonObject = new JsonObject {
             ["type"] = "pong",
             ["payload"] = null
         };
