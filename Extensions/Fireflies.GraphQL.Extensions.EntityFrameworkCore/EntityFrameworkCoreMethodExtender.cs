@@ -21,7 +21,7 @@ public class EntityFrameworkCoreMethodExtender : IMethodExtenderGenerator {
         var graphQLOptionsParameterIndex = ++parameterCount;
         var resultContext = ++parameterCount;
 
-        return new MethodExtenderDescriptor(new[] { typeof(GraphQLField), typeof(RequestContext), typeof(ResultContext) },
+        return new MethodExtenderDescriptor(new[] { typeof(GraphQLField), typeof(IRequestContext), typeof(ResultContext) },
             methodBuilder => {
                 methodBuilder.DefineAnonymousResolvedParameter(astNodeParameterIndex);
                 methodBuilder.DefineAnonymousResolvedParameter(graphQLOptionsParameterIndex);
@@ -40,7 +40,7 @@ public class EntityFrameworkCoreMethodExtender : IMethodExtenderGenerator {
             });
     }
 
-    public static async Task<IQueryable<TElement>?> ExtendTaskResult<TElement>(Task<IQueryable<TElement>?> resultTask, GraphQLField graphQLField, RequestContext graphQLContext, ResultContext resultContext) {
+    public static async Task<IQueryable<TElement>?> ExtendTaskResult<TElement>(Task<IQueryable<TElement>?> resultTask, GraphQLField graphQLField, IRequestContext graphQLContext, ResultContext resultContext) {
         var taskResult = await resultTask.ConfigureAwait(false);
         if(taskResult == null)
             return null;
@@ -62,22 +62,22 @@ public class EntityFrameworkCoreMethodExtender : IMethodExtenderGenerator {
         return (IQueryable<TElement>?)includeVisitor.Execute(graphQLField);
     }
 
-    public static IQueryable<TElement>? ExtendResult<TElement>(IQueryable<TElement>? result, GraphQLField graphQLField, RequestContext graphQLContext, ResultContext resultContext) where TElement : class {
+    public static IQueryable<TElement>? ExtendResult<TElement>(IQueryable<TElement>? result, GraphQLField graphQLField, IRequestContext graphQLContext, ResultContext resultContext) where TElement : class {
         return ExtendTaskResult(Task.FromResult(result), graphQLField, graphQLContext, resultContext).Result;
     }
 
-    private abstract class IncludeVisitor : ASTVisitor<RequestContext> {
+    private abstract class IncludeVisitor : ASTVisitor<IRequestContext> {
         public abstract object Execute(ASTNode startNode);
     }
 
     private class IncludeVisitor<TElement> : IncludeVisitor where TElement : class {
-        private readonly RequestContext _context;
+        private readonly IRequestContext _context;
         private readonly Stack<(string PropertyName, Type Type)> _path = new();
 
         private IQueryable<TElement> _result;
         private bool _isFirst = true;
 
-        public IncludeVisitor(IQueryable<TElement> queryable, RequestContext context) {
+        public IncludeVisitor(IQueryable<TElement> queryable, IRequestContext context) {
             _context = context;
             _result = queryable;
         }
@@ -87,7 +87,7 @@ public class EntityFrameworkCoreMethodExtender : IMethodExtenderGenerator {
             return _result;
         }
 
-        protected override async ValueTask VisitFieldAsync(GraphQLField field, RequestContext context) {
+        protected override async ValueTask VisitFieldAsync(GraphQLField field, IRequestContext context) {
             if(field.SelectionSet == null || field.SelectionSet.Selections.Count == 0)
                 return;
 
