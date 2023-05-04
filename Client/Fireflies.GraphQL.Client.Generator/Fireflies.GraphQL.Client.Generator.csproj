@@ -8,24 +8,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Compile Remove="Error\ClientError.cs" />
-		<Compile Remove="Error\IClientError.cs" />
-		<Compile Remove="Error\Location.cs" />
-		<Compile Remove="Subscription\ConnectionNotAcceptedException.cs" />
-		<Compile Remove="Subscription\GraphQLSubscriber.cs" />
-		<Compile Remove="Subscription\GraphQLSubscription.cs" />
-		<Compile Remove="Subscription\GraphQLWsClient.cs" />
-		<Compile Remove="Subscription\SocketClosedException.cs" />
-		<Compile Remove="Subscription\SubscriptionException.cs" />
-		<EmbeddedResource Include="Error\ClientError.cs" />
-		<EmbeddedResource Include="Error\IClientError.cs" />
-		<EmbeddedResource Include="Error\Location.cs" />
-		<EmbeddedResource Include="Subscription\ConnectionNotAcceptedException.cs" />
-		<EmbeddedResource Include="Subscription\GraphQLSubscriber.cs" />
-		<EmbeddedResource Include="Subscription\GraphQLSubscription.cs" />
-		<EmbeddedResource Include="Subscription\GraphQLWsClient.cs" />
-		<EmbeddedResource Include="Subscription\SocketClosedException.cs" />
-		<EmbeddedResource Include="Subscription\SubscriptionException.cs" />
+		<Compile Remove="Shared\**\*.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="Shared\**\*.cs" />
 	</ItemGroup>
 
 	<ItemGroup>
