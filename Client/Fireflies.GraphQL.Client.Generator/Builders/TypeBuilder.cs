@@ -212,7 +212,7 @@ public class TypeBuilder : ITypeBuilder {
 
     private void GenerateActualProperty(bool isInterface, SchemaField schemaField, string typeName, string propertyName) {
         if(schemaField.IsEnumerable()) {
-            _stringBuilder.AppendLine($"\t{(isInterface ? null : "public ")}IEnumerable<{typeName}> {propertyName} {{ get; }}");
+            _stringBuilder.AppendLine($"\t{(isInterface ? null : "public ")}{typeName}[] {propertyName} {{ get; }}");
         } else {
             _stringBuilder.AppendLine($"\t{(isInterface ? null : "public ")}{typeName} {propertyName} {{ get; }}");
         }
