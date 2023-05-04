@@ -10,6 +10,9 @@ public class ProjectInitOptions {
     [Option('n', "namespace", Required = true, HelpText = "Namespace of generated client")]
     public string Namespace { get; set; }
 
+    [Option("service-collection", Required = false, HelpText = "Generates ServiceCollection.Add{Name}Client() extension method")]
+    public bool ServiceCollection { get; set; }
+
     [Option('f', "force", Required = false, HelpText = "Forces reinitialization")]
     public bool Force { get; set; }
 }

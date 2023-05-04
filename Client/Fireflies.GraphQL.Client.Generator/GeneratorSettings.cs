@@ -2,6 +2,7 @@
 
 public class GeneratorSettings {
     public string Namespace { get; set; }
+    public bool ServiceCollection { get; set; }
 
     public bool IsValid => !string.IsNullOrWhiteSpace(Namespace);
 }
