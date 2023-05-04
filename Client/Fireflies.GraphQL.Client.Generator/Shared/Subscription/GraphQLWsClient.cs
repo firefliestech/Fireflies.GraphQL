@@ -1,13 +1,13 @@
 ﻿public class GraphQLWsClient : IAsyncDisposable {
-    private readonly Uri _uri;
     private ClientWebSocket? _client;
     private CancellationToken _cancellationToken;
 
     private TaskCompletionSource _connectionAckCompletionSource;
     private readonly ConcurrentDictionary<Guid, GraphQLSubscriber> _subscribers = new();
 
-    public GraphQLWsClient(Uri uri) {
-        _uri = uri;
+    public Uri Uri { get; set; }
+
+    public GraphQLWsClient() {
     }
     
     public GraphQLSubscriber<TInterface> CreateSubscriber<TInterface>(JsonObject request, Func<JsonNode, TInterface> instanceFactory) {
@@ -119,7 +119,7 @@
 
         _client = new ClientWebSocket();
         _client.Options.AddSubProtocol("graphql-ws");
-        await _client.ConnectAsync(_uri, CancellationToken.None);
+        await _client.ConnectAsync(Uri, CancellationToken.None);
 
         _connectionAckCompletionSource = new TaskCompletionSource();
 

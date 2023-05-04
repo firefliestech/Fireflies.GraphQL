@@ -28,8 +28,7 @@ public class SharedGenerator {
 
         typeBuilder.AppendLine($"namespace {_generatorSettings.Namespace};");
 
-        await GetResource("Fireflies.GraphQL.Client.Generator.Error.", typeBuilder);
-        await GetResource("Fireflies.GraphQL.Client.Generator.Subscription.", typeBuilder);
+        await GetResource("Fireflies.GraphQL.Client.Generator.Shared.", typeBuilder);
         var filePath = Path.Combine(_rootDirectory.FullName, "GraphQLShared.g.cs");
         await File.WriteAllTextAsync(filePath, typeBuilder.Source());
     }
