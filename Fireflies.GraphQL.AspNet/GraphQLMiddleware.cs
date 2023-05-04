@@ -44,7 +44,7 @@ public class GraphQLMiddleware {
                 connectionContext.WebSocket.Process();
             } else {
                 var request = await JsonSerializer.DeserializeAsync<GraphQLRequest>(httpContext.Request.Body, DefaultJsonSerializerSettings.DefaultSettings).ConfigureAwait(false);
-                await engine.Execute(request, new RequestContext(connectionContext, requestLifetimeScope, null, null)).ConfigureAwait(false);
+                await engine.Execute(request, new RequestContext(connectionContext, requestLifetimeScope)).ConfigureAwait(false);
             }
 
             await foreach(var subResult in engine.Results().WithCancellation(connectionContext.CancellationToken).ConfigureAwait(false)) {
