@@ -4,39 +4,38 @@ using GraphQLParser.AST;
 namespace Fireflies.GraphQL.Client.Generator.Builders;
 
 public class ClientBuilder : ITypeBuilder {
-    private readonly StringBuilder _stringBuilder = new();
+    private readonly StringBuilder _classBuilder = new();
+    private readonly StringBuilder _interfaceBuilder = new();
 
     public ClientBuilder(string clientName) {
         var className = $"{clientName}Client";
 
-        _stringBuilder.AppendLine($"public class {className} {{");
+        _interfaceBuilder.AppendLine($"public interface I{className} {{");
 
-        _stringBuilder.AppendLine("\tprivate Uri _uri;");
-        _stringBuilder.AppendLine("\tprivate GraphQLWsClient _wsClient;");
-        _stringBuilder.AppendLine("\tprivate JsonSerializerOptions _serializerSettings = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } };");
-        _stringBuilder.AppendLine();
-        _stringBuilder.AppendLine("\tprivate static readonly HttpClient Client = new();");
-        _stringBuilder.AppendLine();
-        _stringBuilder.AppendLine($"\tpublic {className}(Uri uri, Uri subscriptionUri) {{");
-        _stringBuilder.AppendLine($"\t\t_uri = uri;");
-        _stringBuilder.AppendLine($"\t\t_wsClient = new GraphQLWsClient(subscriptionUri);");
-        _stringBuilder.AppendLine("\t}");
+        _classBuilder.AppendLine($"public class {className} : I{className} {{");
 
-        _stringBuilder.AppendLine();
+        _classBuilder.AppendLine("\tprivate Action<HttpBuilder>? _httpConfigurator;");
+        _classBuilder.AppendLine("\tprivate Action<WebSocketBuilder>? _webSocketConfigurator;");
+        _classBuilder.AppendLine("\tprivate GraphQLWsClient? _wsClient;");
+        _classBuilder.AppendLine("\tprivate JsonSerializerOptions _serializerSettings = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } };");
+        _classBuilder.AppendLine();
+        _classBuilder.AppendLine("\tprivate static readonly HttpClientHandler _httpHandler = new();");
+        _classBuilder.AppendLine();
+        _classBuilder.AppendLine($"\tpublic {className}(Action<HttpBuilder> httpConfigurator, Action<WebSocketBuilder> webSocketConfigurator) {{");
+        _classBuilder.AppendLine($"\t\t_httpConfigurator = httpConfigurator;");
+        _classBuilder.AppendLine($"\t\t_webSocketConfigurator = webSocketConfigurator;");
+        _classBuilder.AppendLine("\t}");
+        
+        _classBuilder.AppendLine();
 
-        _stringBuilder.AppendLine("\tpublic void AddDefaultRequestHeader(string name, string? value) {");
-        _stringBuilder.AppendLine("\t\tClient.DefaultRequestHeaders.Add(name, value);");
-        _stringBuilder.AppendLine("\t}");
-
-        _stringBuilder.AppendLine();
-
-        _stringBuilder.AppendLine("\tpublic void AddDefaultRequestHeader(string name, IEnumerable<string?> value) {");
-        _stringBuilder.AppendLine("\t\tClient.DefaultRequestHeaders.Add(name, value);");
-        _stringBuilder.AppendLine("\t}");
+        _classBuilder.AppendLine($"\tpublic {className}({className}Config config) {{");
+        _classBuilder.AppendLine($"\t\t_httpConfigurator = config.ConfigureHttp;");
+        _classBuilder.AppendLine($"\t\t_webSocketConfigurator = config.ConfigureWebSocket;");
+        _classBuilder.AppendLine("\t}");
     }
 
     public async Task AddOperation(GraphQLOperationDefinition operationDefinition, GraphQLGeneratorContext context) {
-        _stringBuilder.AppendLine();
+        _classBuilder.AppendLine();
 
         if(operationDefinition.Operation is OperationType.Query or OperationType.Mutation)
             await GenerateRequestOperation(operationDefinition, context);
@@ -46,34 +45,60 @@ public class ClientBuilder : ITypeBuilder {
 
     private async Task GenerateSubscriptionOperation(GraphQLOperationDefinition operationDefinition, GraphQLGeneratorContext context) {
         var className = $"{operationDefinition.Name}Result";
-        _stringBuilder.Append($"\tpublic GraphQLSubscriber<I{className}> {operationDefinition.Name}(");
-        GenerateParameters(operationDefinition);
-        _stringBuilder.AppendLine(") {");
+
+        _interfaceBuilder.Append($"\tGraphQLSubscriber<I{className}> {operationDefinition.Name}(");
+        GenerateParameters(operationDefinition, _interfaceBuilder);
+        _interfaceBuilder.AppendLine(");");
+
+        _classBuilder.Append($"\tpublic GraphQLSubscriber<I{className}> {operationDefinition.Name}(");
+        GenerateParameters(operationDefinition, _classBuilder);
+        _classBuilder.AppendLine(") {");
+
+        _classBuilder.AppendLine("\t\tif(_wsClient == null) {");
+        _classBuilder.AppendLine("\t\t\tif(_webSocketConfigurator == null)");
+        _classBuilder.AppendLine("\t\t\t\tthrow new ArgumentException($\"{nameof(_webSocketConfigurator)} is null\", nameof(_webSocketConfigurator));");
+        _classBuilder.AppendLine();
+
+        _classBuilder.AppendLine("\t\t\tvar wsClient = new GraphQLWsClient();");
+        _classBuilder.AppendLine("\t\t\t_webSocketConfigurator(new WebSocketBuilder(wsClient));");
+        _classBuilder.AppendLine();
+        _classBuilder.AppendLine("\t\t\tif(wsClient.Uri == null)");
+        _classBuilder.AppendLine("\t\t\t\tthrow new ArgumentException($\"{nameof(wsClient.Uri)} is null\", nameof(wsClient.Uri));");
+        _classBuilder.AppendLine();
+        _classBuilder.AppendLine("\t\t\t_wsClient = wsClient;");
+        _classBuilder.AppendLine("\t\t}");
+
+        _classBuilder.AppendLine();
 
         await GenerateRequest(operationDefinition, context);
 
-        _stringBuilder.AppendLine($"\t\treturn _wsClient.CreateSubscriber<I{className}>(request, payload => new {className}(payload[\"errors\"], payload[\"data\"], _serializerSettings));");
+        _classBuilder.AppendLine($"\t\treturn _wsClient.CreateSubscriber<I{className}>(request, payload => new {className}(payload, _serializerSettings));");
 
-        _stringBuilder.AppendLine("\t}");
+        _classBuilder.AppendLine("\t}");
 
-        var resultTypeBuilder = context.RootContext.GetOperationResultTypeBuilder(className, operationDefinition, context);
+        var resultTypeBuilder = context.RootContext.GetOperationResultTypeBuilder(operationDefinition.Name.StringValue, operationDefinition, context);
         await resultTypeBuilder.Build();
     }
 
     private async Task GenerateRequestOperation(GraphQLOperationDefinition operationDefinition, GraphQLGeneratorContext context) {
         var className = $"{operationDefinition.Name}Result";
-        _stringBuilder.Append($"\tpublic async Task<I{className}> {operationDefinition.Name}(");
-        GenerateParameters(operationDefinition);
-        _stringBuilder.AppendLine(") {");
+
+        _interfaceBuilder.Append($"\tTask<I{className}> {operationDefinition.Name}(");
+        GenerateParameters(operationDefinition, _interfaceBuilder);
+        _interfaceBuilder.AppendLine(");");
+
+        _classBuilder.Append($"\tpublic async Task<I{className}> {operationDefinition.Name}(");
+        GenerateParameters(operationDefinition, _classBuilder);
+        _classBuilder.AppendLine(") {");
 
         await GenerateRequest(operationDefinition, context);
 
-        _stringBuilder.AppendLine($"\t\tvar json = await Execute(request);");
-        _stringBuilder.AppendLine($"\t\treturn new {className}(json[\"errors\"], json[\"data\"], _serializerSettings);");
+        _classBuilder.AppendLine($"\t\tvar json = await Execute(request);");
+        _classBuilder.AppendLine($"\t\treturn new {className}(json, _serializerSettings);");
 
-        _stringBuilder.AppendLine("\t}");
+        _classBuilder.AppendLine("\t}");
 
-        var resultTypeBuilder = context.RootContext.GetOperationResultTypeBuilder(className, operationDefinition, context);
+        var resultTypeBuilder = context.RootContext.GetOperationResultTypeBuilder(operationDefinition.Name.StringValue, operationDefinition, context);
         await resultTypeBuilder.Build();
     }
 
@@ -81,29 +106,29 @@ public class ClientBuilder : ITypeBuilder {
         var visitor = new QueryCreator(context.Document);
         await visitor.Execute(operationDefinition, context);
 
-        _stringBuilder.AppendLine("\t\tvar request = new JsonObject();");
-        _stringBuilder.AppendLine($"\t\trequest[\"query\"] = @\"{visitor.Query}\";");
-        _stringBuilder.AppendLine();
+        _classBuilder.AppendLine("\t\tvar request = new JsonObject();");
+        _classBuilder.AppendLine($"\t\trequest[\"query\"] = @\"{visitor.Query}\";");
+        _classBuilder.AppendLine();
 
         if(operationDefinition.Variables != null) {
-            _stringBuilder.AppendLine($"\t\tvar variables = new JsonObject();");
-            _stringBuilder.AppendLine($"\t\trequest[\"variables\"] = variables;");
+            _classBuilder.AppendLine($"\t\tvar variables = new JsonObject();");
+            _classBuilder.AppendLine($"\t\trequest[\"variables\"] = variables;");
             foreach(var variableDefinition in operationDefinition.Variables) {
-                _stringBuilder.AppendLine($"\t\tvariables[\"{variableDefinition.Variable.Name.StringValue}\"] = JsonSerializer.SerializeToNode({TypeMapper.FromGraphQL(variableDefinition.Variable.Name.StringValue)}, _serializerSettings);");
+                _classBuilder.AppendLine($"\t\tvariables[\"{variableDefinition.Variable.Name.StringValue}\"] = JsonSerializer.SerializeToNode({TypeMapper.FromGraphQL(variableDefinition.Variable.Name.StringValue)}, _serializerSettings);");
             }
 
-            _stringBuilder.AppendLine();
+            _classBuilder.AppendLine();
         }
     }
 
-    private void GenerateParameters(GraphQLOperationDefinition operationDefinition) {
+    private void GenerateParameters(GraphQLOperationDefinition operationDefinition, StringBuilder typeBuilder) {
         if(operationDefinition.Variables == null)
             return;
 
         var first = true;
         foreach(var variable in operationDefinition.Variables) {
             if(!first)
-                _stringBuilder.Append(", ");
+                typeBuilder.Append(", ");
 
             GraphQLNamedType? type;
             var nullable = true;
@@ -118,30 +143,42 @@ public class ClientBuilder : ITypeBuilder {
                     break;
             }
 
-            _stringBuilder.Append(TypeMapper.FromGraphQL(type.Name.StringValue));
+            typeBuilder.Append(TypeMapper.FromGraphQL(type.Name.StringValue));
             if(nullable)
-                _stringBuilder.Append("?");
-            _stringBuilder.Append(" " + variable.Variable.Name.StringValue);
+                typeBuilder.Append("?");
+            typeBuilder.Append(" " + variable.Variable.Name.StringValue);
 
             first = false;
         }
     }
 
     public Task Build() {
-        _stringBuilder.AppendLine();
-        _stringBuilder.AppendLine("\tprivate async Task<JsonNode> Execute(JsonObject request) {");
-        _stringBuilder.AppendLine("\t\tvar content = new StringContent(request.ToJsonString(), Encoding.UTF8, \"text/text\");");
-        _stringBuilder.AppendLine("\t\tvar result = await Client.PostAsync(_uri, content);");
-        _stringBuilder.AppendLine("\t\tresult.EnsureSuccessStatusCode();");
-        _stringBuilder.AppendLine("\t\treturn (await JsonSerializer.DeserializeAsync<JsonNode>(await result.Content.ReadAsStreamAsync().ConfigureAwait(false)))!;");
-        _stringBuilder.AppendLine("\t}");
+        _interfaceBuilder.AppendLine("}");
+        
+        _classBuilder.AppendLine();
+        _classBuilder.AppendLine("\tprivate async Task<JsonNode> Execute(JsonObject request) {");
+        _classBuilder.AppendLine("\t\tvar content = new StringContent(request.ToJsonString(), Encoding.UTF8, \"text/text\");");
+        _classBuilder.AppendLine("\t\tvar client = new HttpClient(_httpHandler);");
+        _classBuilder.AppendLine();
+        _classBuilder.AppendLine("\t\tif(_httpConfigurator == null)");
+        _classBuilder.AppendLine("\t\t\tthrow new ArgumentException($\"{nameof(_httpConfigurator)} is null\", nameof(_httpConfigurator));");
+        _classBuilder.AppendLine();
+        _classBuilder.AppendLine("\t\t_httpConfigurator(new HttpBuilder(client));");
+        _classBuilder.AppendLine();
+        _classBuilder.AppendLine("\t\tif(client.BaseAddress == null)");
+        _classBuilder.AppendLine("\t\t\tthrow new ArgumentException($\"{nameof(client.BaseAddress)} is null\", nameof(client.BaseAddress));");
+        _classBuilder.AppendLine();
+        _classBuilder.AppendLine("\t\tvar result = await client.PostAsync(\"\", content);");
+        _classBuilder.AppendLine("\t\tresult.EnsureSuccessStatusCode();");
+        _classBuilder.AppendLine("\t\treturn (await JsonSerializer.DeserializeAsync<JsonNode>(await result.Content.ReadAsStreamAsync().ConfigureAwait(false)))!;");
+        _classBuilder.AppendLine("\t}");
 
-        _stringBuilder.AppendLine("}");
+        _classBuilder.AppendLine("}");
 
         return Task.CompletedTask;
     }
 
     public string Source() {
-        return _stringBuilder.ToString();
+        return $"{_interfaceBuilder}\r\n{_classBuilder}";
     }
 }

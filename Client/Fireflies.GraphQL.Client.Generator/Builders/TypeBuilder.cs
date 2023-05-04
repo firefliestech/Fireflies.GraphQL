@@ -121,8 +121,8 @@ public class TypeBuilder : ITypeBuilder {
         var dataMayBeNull = false;
         if(_isOperation) {
             dataMayBeNull = true;
-            _stringBuilder.AppendLine($"\tpublic {_typeName}(JsonNode? errors, JsonNode? data, JsonSerializerOptions serializerOptions) {{");
-            _stringBuilder.AppendLine("\t\tErrors = errors?.Deserialize<IEnumerable<ClientError>>(serializerOptions)?.ToArray() ?? new IClientError[0];");
+            _stringBuilder.AppendLine($"\tpublic {_typeName}(JsonNode? data, JsonSerializerOptions serializerOptions) {{");
+            _stringBuilder.AppendLine("\t\tErrors = data?[\"errors\"]?.Deserialize<IEnumerable<ClientError>>(serializerOptions)?.ToArray() ?? new IClientError[0];");
         } else {
             _stringBuilder.AppendLine($"\tpublic {_typeName}(JsonNode data, JsonSerializerOptions serializerOptions) {{");
         }
