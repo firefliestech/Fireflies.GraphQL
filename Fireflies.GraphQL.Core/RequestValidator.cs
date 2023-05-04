@@ -87,7 +87,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
             returnType = returnType.GetGraphQLType();
             _fieldStack.Push(returnType);
 
-            await ValidateFieldAgainstActualParameters(field, context, queryType.Method.GetParameters()).ConfigureAwait(false);
+            await ValidateFieldAgainstActualParameters(field, context, queryType.Method.GetAllGraphQLParameters()).ConfigureAwait(false);
 
             pushed = true;
         } else {
@@ -112,7 +112,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
                 case MethodInfo methodInfo:
                     _fieldStack.Push(methodInfo.ReturnType.GetGraphQLType());
                     pushed = true;
-                    await ValidateFieldAgainstActualParameters(field, context, methodInfo.GetParameters()).ConfigureAwait(false);
+                    await ValidateFieldAgainstActualParameters(field, context, methodInfo.GetAllGraphQLParameters()).ConfigureAwait(false);
                     break;
                 case PropertyInfo propertyInfo:
                     _fieldStack.Push(propertyInfo.PropertyType.GetGraphQLType());
@@ -195,12 +195,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
             }
         }
 
-        var unspecifiedParameters = remainingParameters.Where(rp =>
-            !rp.HasDefaultValue
-            && !NullabilityChecker.IsNullable(rp)
-            && !rp.HasCustomAttribute<ResolvedAttribute>()
-            && !rp.HasCustomAttribute<EnumeratorCancellationAttribute>()
-            && rp.ParameterType != typeof(ASTNode));
+        var unspecifiedParameters = remainingParameters.Where(rp => !rp.HasDefaultValue && !NullabilityChecker.IsNullable(rp));
 
         foreach(var unspecifiedParameter in unspecifiedParameters) {
             _errors.Add($"Missing required argument \"{unspecifiedParameter.Name}\" on field \"{field.Name.StringValue}\".");

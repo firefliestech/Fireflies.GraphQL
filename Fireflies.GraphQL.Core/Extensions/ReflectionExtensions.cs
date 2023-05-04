@@ -104,7 +104,11 @@ public static class ReflectionExtensions {
         return ReflectionCache.GetParameters(methodInfo).Where(x =>
             !x.HasCustomAttribute<ResolvedAttribute>() &&
             !x.HasCustomAttribute<EnumeratorCancellationAttribute>() &&
+            !x.ParameterType.IsAssignableTo(typeof(CancellationToken)) &&
             !x.ParameterType.IsAssignableTo(typeof(ASTNode)) &&
+            !x.ParameterType.IsAssignableTo(typeof(GraphQLDocument)) &&
+            !x.ParameterType.IsAssignableTo(typeof(FragmentAccessor)) &&
+            !x.ParameterType.IsAssignableTo(typeof(ValueAccessor)) &&
             !x.ParameterType.IsAssignableTo(typeof(IConnectionContext)) &&
             !x.ParameterType.IsAssignableTo(typeof(IRequestContext))
         );

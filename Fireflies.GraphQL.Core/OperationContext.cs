@@ -13,6 +13,7 @@ public class OperationContext : IRequestContext {
     
     public string? Id => RequestContext.Id;
     public byte[]? RawRequest => RequestContext.RawRequest;
+    public GraphQLDocument? Document => RequestContext.Document;
 
     public CancellationToken CancellationToken => RequestContext.CancellationToken;
 

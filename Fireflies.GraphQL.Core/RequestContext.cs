@@ -1,26 +1,8 @@
 ﻿using Fireflies.GraphQL.Core.Json;
 using Fireflies.IoC.Abstractions;
-using GraphQLParser.Visitors;
+using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core;
-
-public interface IRequestContext : IASTVisitorContext {
-    IConnectionContext ConnectionContext { get; }
-    IDependencyResolver DependencyResolver { get; }
-    
-    string? Id { get; }
-    byte[]? RawRequest { get; }
-    
-    CancellationToken CancellationToken { get; }
-    FragmentAccessor? FragmentAccessor { get; }
-    ValueAccessor? ValueAccessor { get; }
-
-    ResultJsonWriter? Writer { get; }
-
-    Task PublishResult(JsonWriter writer);
-    void IncreaseExpectedOperations();
-    void Cancel();
-}
 
 public class RequestContext : IRequestContext {
     private readonly CancellationTokenSource _cancellationTokenSource;
@@ -35,6 +17,7 @@ public class RequestContext : IRequestContext {
     public FragmentAccessor? FragmentAccessor { get; set; } = null!;
     public ValueAccessor? ValueAccessor { get; set; } = null!;
     public ResultJsonWriter? Writer { get; set; }
+    public GraphQLDocument? Document { get; set; }
 
     public RequestContext(IConnectionContext connectionContext, IDependencyResolver requestLifetimeScope) {
         ConnectionContext = connectionContext;

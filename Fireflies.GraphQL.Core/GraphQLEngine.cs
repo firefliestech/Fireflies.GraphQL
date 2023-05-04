@@ -30,6 +30,7 @@ public class GraphQLEngine : ASTVisitor<IRequestContext> {
 
     public async Task Execute(GraphQLRequest? request, RequestContext requestContext) {
         var (graphQLDocument, result) = Parse(request);
+        requestContext.Document = graphQLDocument;
         if(result != null) {
             requestContext.IncreaseExpectedOperations();
             await requestContext.PublishResult(result).ConfigureAwait(false);

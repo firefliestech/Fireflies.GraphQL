@@ -42,6 +42,9 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
             if(typeof(TASTNode).IsAssignableTo(x.ParameterType))
                 return node;
 
+            if(typeof(GraphQLDocument).IsAssignableTo(x.ParameterType))
+                return _requestContext.Document;
+
             if(x.ParameterType == typeof(CancellationToken))
                 return !x.HasCustomAttribute<EnumeratorCancellationAttribute>() ? _requestContext.CancellationToken : default;
 

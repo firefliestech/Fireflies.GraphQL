@@ -25,8 +25,6 @@ internal class SchemaBuilder {
         _wrapperRegistry = wrapperRegistry;
         _scalarRegistry = scalarRegistry;
         _federationSchemas = federationSchemas;
-        _ignore.Add(typeof(CancellationToken));
-        _ignore.Add(typeof(ASTNode));
         _ignore.Add(typeof(__Schema));
     }
 
@@ -330,6 +328,9 @@ internal class SchemaBuilder {
     private List<__InputValue> GetArguments(MethodInfo method) {
         var args = new List<__InputValue>();
         foreach(var parameter in method.GetAllGraphQLParameters()) {
+            if(_ignore.Contains(parameter.ParameterType))
+                continue;
+
             var propertyType = WrapNonNullable(NullabilityChecker.IsNullable(parameter), CreateType(parameter.ParameterType, true));
             args.Add(new __InputValue(parameter.GraphQLName(), parameter.GetDescription(), propertyType, GetDefaultValue(parameter)));
         }
