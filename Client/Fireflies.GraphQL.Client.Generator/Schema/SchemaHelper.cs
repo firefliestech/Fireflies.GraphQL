@@ -18,22 +18,22 @@ public static class SchemaHelper {
     }
 
     public static string GetNetType(this SchemaInputValue field) {
-        return InternalGetDotnetType(field.Type);
+        return InternalGetDotnetType(field.Type, false, true);
     }
 
     public static string GetNetType(this SchemaField field) {
-        return InternalGetDotnetType(field.Type);
+        return InternalGetDotnetType(field.Type, false, true);
     }
 
-    public static string GetNetType(this SchemaType type) {
-        return InternalGetDotnetType(type);
+    public static string GetNetType(this SchemaType type, bool skipList = false) {
+        return InternalGetDotnetType(type, skipList, true);
     }
 
-    internal static string InternalGetDotnetType(SchemaType fieldType, bool nullable = true) {
+    internal static string InternalGetDotnetType(SchemaType fieldType, bool skipList, bool nullable) {
         return fieldType.Kind switch {
             SchemaTypeKind.SCALAR => TypeMapper.FromGraphQL(fieldType.Name) + (nullable ? "?" : ""),
-            SchemaTypeKind.LIST => "IEnumerable<" + InternalGetDotnetType(fieldType.OfType, nullable) + ">",
-            SchemaTypeKind.NON_NULL => InternalGetDotnetType(fieldType.OfType, false),
+            SchemaTypeKind.LIST => skipList ? InternalGetDotnetType(fieldType.OfType, skipList, nullable) : "IEnumerable<" + InternalGetDotnetType(fieldType.OfType, skipList, nullable) + ">",
+            SchemaTypeKind.NON_NULL => InternalGetDotnetType(fieldType.OfType, skipList, false),
             SchemaTypeKind.OBJECT => fieldType.Name + (nullable ? "?" : ""),
             SchemaTypeKind.INTERFACE => fieldType.Name + (nullable ? "?" : ""),
             SchemaTypeKind.UNION => fieldType.Name + (nullable ? "?" : ""),
