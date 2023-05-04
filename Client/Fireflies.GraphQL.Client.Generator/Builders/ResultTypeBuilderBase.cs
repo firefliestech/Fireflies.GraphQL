@@ -37,7 +37,7 @@ public abstract class ResultTypeBuilderBase {
                     await fragmentBuilder.Build();
                 }
 
-                TypeBuilder.AddProperty($"{fieldType.GetNetType()}", propertyName, field, match);
+                TypeBuilder.AddProperty($"{field.Type.GetNetType(skipList: true)}", propertyName, field, match);
             } else {
                 await AddObjectProperty(propertyName, fieldType, match, field);
             }
