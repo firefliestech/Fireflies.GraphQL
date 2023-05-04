@@ -188,7 +188,7 @@ public class TypeBuilder : ITypeBuilder {
         _stringBuilder.AppendLine();
         _stringBuilder.AppendLine($"\tprivate {(isScalarOrEnum ? null : "I")}{property.TypeName}{(isScalarOrEnum ? null : "?")} Create{property.PropertyName}(JsonNode? data, JsonSerializerOptions serializerOptions) {{");
         if(isScalarOrEnum) {
-            _stringBuilder.AppendLine($"\t\treturn data?.Deserialize<{property.TypeName}>(serializerOptions);");
+            _stringBuilder.AppendLine($"\t\treturn data?.Deserialize<{property.TypeName}>(serializerOptions) ?? default;");
         } else {
             _stringBuilder.AppendLine("\t\tif(data == null)");
             _stringBuilder.AppendLine("\t\t\treturn null;");
