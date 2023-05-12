@@ -1,19 +1,21 @@
 ﻿using CommandLine;
+using CommandLine.Text;
 using Fireflies.GraphQL.Client.Console;
 using Fireflies.GraphQL.Client.Console.Generate;
 using Fireflies.GraphQL.Client.Console.Schema;
 
-ConsoleLogger.WriteInfo("Fireflies GraphQL Client Generator");
-ConsoleLogger.WriteInfo("==================================");
+var parser = new Parser(with => with.HelpWriter = null);
+var parseResult = parser.ParseArguments<ProjectInitOptions, GenerateOptions, ClientInitOptions, ClientUpdateOptions>(args);
 
-Parser.Default.ParseArguments<ProjectInitOptions, GenerateOptions, ClientInitOptions, ClientUpdateOptions>(args)
-    .MapResult(
-        (ProjectInitOptions o) => RunProjectInit(o),
+DisplayHelp(parseResult);
+
+parseResult.WithParsed(_ => {
+    parseResult.MapResult((ProjectInitOptions o) => RunProjectInit(o),
         (ClientInitOptions o) => RunClientInit(o),
         (ClientUpdateOptions o) => RunClientUpdate(o),
         (GenerateOptions o) => RunGenerate(o),
-        errs => 1);
-
+        _ => 1);
+});
 
 int RunProjectInit(ProjectInitOptions options) {
     var handler = new ProjectHandler();
@@ -33,4 +35,20 @@ int RunClientInit(ClientInitOptions options) {
 int RunGenerate(GenerateOptions options) {
     var handler = new GenerateHandler();
     return (int)handler.Generate(options).GetAwaiter().GetResult();
+}
+
+static void DisplayHelp(ParserResult<object> result) {
+    if(!result.Errors.Any()) {
+        ConsoleLogger.WriteInfo("Fireflies GraphQL Client Generator");
+        ConsoleLogger.WriteInfo("==================================");
+    } else {
+        var helpText = HelpText.AutoBuild(result, h => {
+            h.AdditionalNewLineAfterOption = false;
+            h.Heading = "Fireflies GraphQL Client Generator";
+            h.Copyright = "==================================";
+            return HelpText.DefaultParsingErrorsHandler(result, h);
+        }, e => e);
+
+        ConsoleLogger.WriteInfo(helpText);
+    }
 }
