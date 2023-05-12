@@ -20,7 +20,7 @@ public class GenerateHandler {
         var generatorSettings = await GetGeneratorSettings(rootPath);
         var sharedGenerator = new SharedGenerator(rootPath, generatorSettings);
         await sharedGenerator.GenerateSharedFiles();
-        ConsoleLogger.WriteSuccess($"Generated shared types!");
+        ConsoleLogger.WriteSuccess($"Generated shared types!\r\n");
 
         ConsoleLogger.WriteInfo("Generating clients...\r\n");
 

@@ -74,10 +74,11 @@ fireflies-graphql generate --path path-to-project
 
 ### Setup the client
 ```
-var client = new MyProjectClient(h => {
-    h.SetUri(new Uri("https://localhost:7273/graphql"));
-}, h => {
-    h.SetUri(new Uri("wss://localhost:7273/graphql"));
+var client = new MyProjectClient(b => {
+    b.Uri = new Uri("https://localhost:7273/graphql");
+}, b => {
+    b.Uri = new Uri("wss://localhost:7273/graphql");
+    b.ReconnectDelay = TimeSpan.FromSeconds(5);
 });
 ```
 

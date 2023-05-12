@@ -6,10 +6,17 @@
     private readonly ConcurrentDictionary<Guid, GraphQLSubscriber> _subscribers = new();
 
     public Uri Uri { get; set; }
+    public TimeSpan? ReconnectDelay;
+
+    public event Action? Connecting;
+    public event Action? Connected;
+    public event Action? Disconnected;
+    public event Action? Reconnecting;
+    public event Action<Exception>? Exception;
 
     public GraphQLWsClient() {
     }
-    
+
     public GraphQLSubscriber<TInterface> CreateSubscriber<TInterface>(JsonObject request, Func<JsonNode, TInterface> instanceFactory) {
         var subscriber = new GraphQLSubscriber<TInterface>(this, request, instanceFactory);
 
@@ -43,7 +50,7 @@
                     var json = JsonSerializer.Deserialize<JsonNode>(result);
                     await MessageReceived(json);
                 } catch(Exception handlerException) {
-                    Console.WriteLine($"Error in handler: {handlerException}");
+                    Exception?.Invoke(handlerException);
                 }
 
                 result = null;
@@ -51,8 +58,23 @@
         } catch(SocketClosedException) {
         } catch(OperationCanceledException) {
         } catch(Exception ex) {
-            Console.WriteLine($"Exception in receive: {ex}");
-            throw;
+            await DisposeAsync();
+            Exception?.Invoke(ex);
+
+            if(_subscribers.Any() && ReconnectDelay != null) {
+                await Task.Delay(ReconnectDelay.Value);
+                Task.Run(async () => await Reconnect());
+            }
+        }
+    }
+
+    private async Task Reconnect() {
+        Reconnecting?.Invoke();
+        await EnsureClient();
+
+        if(_client != null) {
+            foreach(var subscriber in _subscribers)
+                await subscriber.Value.Restart();
         }
     }
 
@@ -115,24 +137,42 @@
     }
 
     private async Task EnsureClient() {
-        if(_client != null) return;
+        if(_client != null)
+            return;
 
-        _client = new ClientWebSocket();
-        _client.Options.AddSubProtocol("graphql-ws");
-        await _client.ConnectAsync(Uri, CancellationToken.None);
+        while(!_cancellationToken.IsCancellationRequested) {
+            try {
+                Connecting?.Invoke();
 
-        _connectionAckCompletionSource = new TaskCompletionSource();
+                _client = new ClientWebSocket();
+                _client.Options.AddSubProtocol("graphql-ws");
+                await _client.ConnectAsync(Uri, CancellationToken.None);
 
-        Task.Run(async () => await Receive());
-        await SendConnectionInit();
+                _connectionAckCompletionSource = new TaskCompletionSource();
 
-        var winner = await Task.WhenAny(new[] {
-            _connectionAckCompletionSource.Task, Task.Delay(5000, _cancellationToken)
-        });
+                Task.Run(async () => await Receive());
+                await SendConnectionInit();
 
-        if(winner != _connectionAckCompletionSource.Task) {
-            await DisposeAsync();
-            throw new ConnectionNotAcceptedException();
+                var winner = await Task.WhenAny(new[] {
+                    _connectionAckCompletionSource.Task, Task.Delay(5000, _cancellationToken)
+                });
+
+                if(winner != _connectionAckCompletionSource.Task) {
+                    await DisposeAsync();
+                    throw new ConnectionNotAcceptedException();
+                }
+
+                Connected?.Invoke();
+                return;
+            } catch(Exception ex) {
+                Exception?.Invoke(ex);
+                await DisposeAsync();
+
+                if(ReconnectDelay != null)
+                    Task.Delay(ReconnectDelay.Value);
+                else
+                    throw;
+            }
         }
     }
 
@@ -148,5 +188,7 @@
         }
 
         _client = null;
+
+        Disconnected?.Invoke();
     }
 }

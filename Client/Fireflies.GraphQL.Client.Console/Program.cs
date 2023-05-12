@@ -1,6 +1,10 @@
 ﻿using CommandLine;
+using Fireflies.GraphQL.Client.Console;
 using Fireflies.GraphQL.Client.Console.Generate;
 using Fireflies.GraphQL.Client.Console.Schema;
+
+ConsoleLogger.WriteInfo("Fireflies GraphQL Client Generator");
+ConsoleLogger.WriteInfo("==================================");
 
 Parser.Default.ParseArguments<ProjectInitOptions, GenerateOptions, ClientInitOptions, ClientUpdateOptions>(args)
     .MapResult(

@@ -16,21 +16,45 @@ public class ClientBuilder : ITypeBuilder {
 
         _classBuilder.AppendLine("\tprivate Action<HttpBuilder>? _httpConfigurator;");
         _classBuilder.AppendLine("\tprivate Action<WebSocketBuilder>? _webSocketConfigurator;");
-        _classBuilder.AppendLine("\tprivate GraphQLWsClient? _wsClient;");
+        _classBuilder.AppendLine("\tprivate GraphQLWsClient _wsClient;");
         _classBuilder.AppendLine("\tprivate JsonSerializerOptions _serializerSettings = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } };");
         _classBuilder.AppendLine();
         _classBuilder.AppendLine("\tprivate static readonly HttpClientHandler _httpHandler = new();");
         _classBuilder.AppendLine();
+        _classBuilder.AppendLine("\tpublic event Action Connecting { add { _wsClient.Connecting += value; } remove { _wsClient.Connecting -= value; } }");
+        _classBuilder.AppendLine("\tpublic event Action Connected { add { _wsClient.Connected += value; } remove { _wsClient.Connected -= value; } }");
+        _classBuilder.AppendLine("\tpublic event Action Disconnected { add { _wsClient.Disconnected += value; } remove { _wsClient.Disconnected -= value; } }");
+        _classBuilder.AppendLine("\tpublic event Action Reconnecting { add { _wsClient.Reconnecting += value; } remove { _wsClient.Reconnecting -= value; } }");
+        _classBuilder.AppendLine("\tpublic event Action<Exception> Exception { add { _wsClient.Exception += value; } remove { _wsClient.Exception -= value; } }");
+        _classBuilder.AppendLine();
         _classBuilder.AppendLine($"\tpublic {className}(Action<HttpBuilder> httpConfigurator, Action<WebSocketBuilder> webSocketConfigurator) {{");
-        _classBuilder.AppendLine($"\t\t_httpConfigurator = httpConfigurator;");
-        _classBuilder.AppendLine($"\t\t_webSocketConfigurator = webSocketConfigurator;");
+        _classBuilder.AppendLine("\t\t_httpConfigurator = httpConfigurator;");
+        _classBuilder.AppendLine("\t\t_webSocketConfigurator = webSocketConfigurator;");
+        _classBuilder.AppendLine("\t\tCreateWsClient();");
         _classBuilder.AppendLine("\t}");
         
         _classBuilder.AppendLine();
 
         _classBuilder.AppendLine($"\tpublic {className}({className}Config config) {{");
-        _classBuilder.AppendLine($"\t\t_httpConfigurator = config.ConfigureHttp;");
-        _classBuilder.AppendLine($"\t\t_webSocketConfigurator = config.ConfigureWebSocket;");
+        _classBuilder.AppendLine("\t\t_httpConfigurator = config.ConfigureHttp;");
+        _classBuilder.AppendLine("\t\t_webSocketConfigurator = config.ConfigureWebSocket;");
+        _classBuilder.AppendLine("\t\tCreateWsClient();");
+        _classBuilder.AppendLine("\t}");
+
+        _classBuilder.AppendLine();
+
+        _classBuilder.AppendLine("\tprivate void CreateWsClient() {");
+        _classBuilder.AppendLine("\t\tif(_webSocketConfigurator == null)");
+        _classBuilder.AppendLine("\t\t\tthrow new ArgumentException($\"{nameof(_webSocketConfigurator)} is null\", nameof(_webSocketConfigurator));");
+        _classBuilder.AppendLine();
+
+        _classBuilder.AppendLine("\t\tvar wsClient = new GraphQLWsClient();");
+        _classBuilder.AppendLine("\t\t_webSocketConfigurator(new WebSocketBuilder(wsClient));");
+        _classBuilder.AppendLine();
+        _classBuilder.AppendLine("\t\tif(wsClient.Uri == null)");
+        _classBuilder.AppendLine("\t\t\tthrow new ArgumentException($\"{nameof(wsClient.Uri)} is null\", nameof(wsClient.Uri));");
+        _classBuilder.AppendLine();
+        _classBuilder.AppendLine("\t\t_wsClient = wsClient;");
         _classBuilder.AppendLine("\t}");
     }
 
@@ -53,23 +77,7 @@ public class ClientBuilder : ITypeBuilder {
         _classBuilder.Append($"\tpublic GraphQLSubscriber<I{className}> {operationDefinition.Name}(");
         GenerateParameters(operationDefinition, _classBuilder);
         _classBuilder.AppendLine(") {");
-
-        _classBuilder.AppendLine("\t\tif(_wsClient == null) {");
-        _classBuilder.AppendLine("\t\t\tif(_webSocketConfigurator == null)");
-        _classBuilder.AppendLine("\t\t\t\tthrow new ArgumentException($\"{nameof(_webSocketConfigurator)} is null\", nameof(_webSocketConfigurator));");
-        _classBuilder.AppendLine();
-
-        _classBuilder.AppendLine("\t\t\tvar wsClient = new GraphQLWsClient();");
-        _classBuilder.AppendLine("\t\t\t_webSocketConfigurator(new WebSocketBuilder(wsClient));");
-        _classBuilder.AppendLine();
-        _classBuilder.AppendLine("\t\t\tif(wsClient.Uri == null)");
-        _classBuilder.AppendLine("\t\t\t\tthrow new ArgumentException($\"{nameof(wsClient.Uri)} is null\", nameof(wsClient.Uri));");
-        _classBuilder.AppendLine();
-        _classBuilder.AppendLine("\t\t\t_wsClient = wsClient;");
-        _classBuilder.AppendLine("\t\t}");
-
-        _classBuilder.AppendLine();
-
+        
         await GenerateRequest(operationDefinition, context);
 
         _classBuilder.AppendLine($"\t\treturn _wsClient.CreateSubscriber<I{className}>(request, payload => new {className}(payload, _serializerSettings));");
