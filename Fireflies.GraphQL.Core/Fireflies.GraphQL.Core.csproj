@@ -19,10 +19,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Fireflies.IoC.Abstractions" Version="1.0.1" />
-		<PackageReference Include="Fireflies.IoC.TinyIoC" Version="1.0.1" />
-		<PackageReference Include="Fireflies.Logging.Abstractions" Version="1.0.1" />
-		<PackageReference Include="Fireflies.Utility.Reflection" Version="1.0.1" />
+		<PackageReference Include="Fireflies.IoC.Abstractions" Version="1.1.0" />
+		<PackageReference Include="Fireflies.IoC.TinyIoC" Version="1.1.0" />
+		<PackageReference Include="Fireflies.Logging.Abstractions" Version="1.1.0" />
+		<PackageReference Include="Fireflies.Utility.Reflection" Version="1.1.0" />
 		<PackageReference Include="GraphQL-Parser" Version="9.1.0" />
 	</ItemGroup>
 
