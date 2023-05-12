@@ -6,7 +6,6 @@ using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Federation.Schema;
 using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.Utility.Reflection;
-using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Schema;
 

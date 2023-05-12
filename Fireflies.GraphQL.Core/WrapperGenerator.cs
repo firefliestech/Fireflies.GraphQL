@@ -20,7 +20,7 @@ internal class WrapperGenerator {
     }
 
     public Type GenerateWrapper(Type baseType, bool copyConstructors = true) {
-        if(baseType.HasCustomAttribute<GraphQLNoWrapperAttribute>())
+        if(baseType.HasCustomAttribute<GraphQLNoWrapperAttribute>() || baseType.IsFrameworkType())
             return baseType;
 
         if(_wrapperRegistry.TryGetValue(baseType, out var existingType))

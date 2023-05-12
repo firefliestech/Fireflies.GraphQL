@@ -8,6 +8,12 @@ using GraphQLParser.AST;
 namespace Fireflies.GraphQL.Core.Extensions;
 
 public static class ReflectionExtensions {
+    private static readonly HashSet<Type> _frameworkTypes;
+
+    static ReflectionExtensions() {
+        _frameworkTypes = typeof(object).Assembly.GetTypes().ToHashSet();
+    }
+
     public static string GraphQLName(this MemberInfo member) {
         if(member is TypeInfo { IsInterface: true } && member.Name.Length > 1 && member.Name[0] == 'I' && char.IsUpper(member.Name[1])) {
             return LowerCaseGraphQLName(member.Name.Substring(1));
@@ -97,7 +103,14 @@ public static class ReflectionExtensions {
     }
 
     private static IEnumerable<MethodInfo> GetAllAccessibleMethods(Type type) {
-        return type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy).Where(p => p.DeclaringType != typeof(object) && !p.IsSpecialName && p.Name != nameof(ToString));
+        return type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy).Where(m =>
+            m.DeclaringType != typeof(object)
+            && !m.IsSpecialName
+            && m.Name != nameof(ToString)
+            && m.Name != nameof(Equals)
+            && m.Name != nameof(GetHashCode)
+            && m.Name != nameof(GetType)
+            && !m.IsGenericMethod);
     }
 
     public static IEnumerable<ParameterInfo> GetAllGraphQLParameters(this MethodInfo methodInfo) {
@@ -110,8 +123,11 @@ public static class ReflectionExtensions {
             !x.ParameterType.IsAssignableTo(typeof(FragmentAccessor)) &&
             !x.ParameterType.IsAssignableTo(typeof(ValueAccessor)) &&
             !x.ParameterType.IsAssignableTo(typeof(IConnectionContext)) &&
-            !x.ParameterType.IsAssignableTo(typeof(IRequestContext))
-        );
+            !x.ParameterType.IsAssignableTo(typeof(IRequestContext)));
+    }
+
+    public static bool IsFrameworkType(this Type type) {
+        return _frameworkTypes.Contains(type);
     }
 
     public static string? GetDescription(this MemberInfo memberInfo) {

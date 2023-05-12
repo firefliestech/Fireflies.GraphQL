@@ -39,6 +39,7 @@ public class GraphQLOptionsBuilder {
 
         AddScalar<DateTimeOffset>(new DateTimeScalarHandler());
         AddScalar<DateTime>(new DateTimeScalarHandler());
+        AddScalar<Version>(new VersionScalarHandler());
 
         _generatorRegistry = new GeneratorRegistry();
         _generatorRegistry.Add(new WhereGenerator(_moduleBuilder, _scalarRegistry));
