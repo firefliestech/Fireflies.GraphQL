@@ -2,6 +2,7 @@ using Autofac;
 using Fireflies.GraphQL.AspNet;
 using Fireflies.GraphQL.Core;
 using Fireflies.GraphQL.FederationDemo;
+using Fireflies.GraphQL.FederationDemo.Authors;
 using Fireflies.IoC.Autofac;
 using Fireflies.Logging.NLog;
 using NLog;
@@ -33,7 +34,6 @@ config.LoggingRules.Add(new LoggingRule("*", LogLevel.Debug, consoleTarget));
 LogManager.Configuration = config;
 
 var containerBuilder = new ContainerBuilder();
-containerBuilder.RegisterType<MustBeSysopToSeeAttribute>();
 containerBuilder.RegisterType<RequestDependencyResolverBuilder>().As<IRequestDependencyResolverBuilder>();
 var container = containerBuilder.Build();
 

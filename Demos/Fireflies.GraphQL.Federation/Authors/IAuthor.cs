@@ -1,11 +1,10 @@
 ﻿using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Schema;
 
-namespace Fireflies.GraphQL.FederationDemo;
+namespace Fireflies.GraphQL.FederationDemo.Authors;
 
-[GraphQLUnion]
 public interface IAuthor {
-    [GraphQLId]
+    [GraphQLId(true)]
     public int Id { get; set; }
 
     [GraphQLDescription("The authors name")]

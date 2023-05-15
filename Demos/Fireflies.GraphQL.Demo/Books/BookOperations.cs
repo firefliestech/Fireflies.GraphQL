@@ -12,23 +12,14 @@ public class BookOperations {
     [GraphQLQuery]
     [GraphQLSort]
     [GraphQLWhere]
-    public IEnumerable<IBook> Books(BookFilterInput? filter) {
-        var x = YieldBooks()
-            .Where(x => x.BookId != 1 || filter == null || string.IsNullOrWhiteSpace(filter.Title) || x.Title == filter.Title);
-        return x;
+    [GraphQLParallel]
+    public IEnumerable<IBook> Books() {
+        return YieldBooks();
     }
 
     [GraphQLQuery]
-    public async Task<InventoryBook> GetBook() {
-        return null;
-    }
-
-    private IEnumerable<InventoryBook> YieldBooks() {
-        Console.WriteLine("Yielding 1");
-        yield return new() { BookId = 1, Title = "My first book", ISBN = "1234", ExactInventory = 20, Editions = new[] { new Edition { Name = "Deluxeutgåva", Released = DateTimeOffset.UtcNow.AddYears(-1) }, new Edition { Name = "First", Released = DateTimeOffset.UtcNow.AddYears(-2) } }.AsQueryable() };
-
-        Console.WriteLine("Yielding 2");
-        yield return new() { BookId = 2, Title = "My second book", ISBN = "5678", ExactInventory = 29 };
+    public async Task<IBook> Book(int bookId) {
+        return YieldBooks().First();
     }
 
     [GraphQLMutation]
@@ -40,10 +31,41 @@ public class BookOperations {
     }
 
     [GraphQLSubscription]
-    public async IAsyncEnumerable<InventoryBook> BookUpdated(int bookId, ASTNode astNode, [EnumeratorCancellation] CancellationToken cancellation) {
+    public async IAsyncEnumerable<IBook> BookUpdated(int bookId, ASTNode astNode, [EnumeratorCancellation] CancellationToken cancellation) {
         while(!cancellation.IsCancellationRequested) {
-            await Task.Delay(2000, cancellation).ConfigureAwait(false);
-            yield return new InventoryBook { BookId = 1, Title = "My first book was updated", ISBN = "1234", ExactInventory = 20 };
+            await Task.Delay(7500, cancellation).ConfigureAwait(false);
+            yield return CreateInventoryBook(bookId);
         }
+    }
+
+    ///////////////////////////////////////
+    // Helper methods
+
+    private IEnumerable<IBook> YieldBooks() {
+        for(var i = 0; i < 100; i++) {
+            yield return CreateInventoryBook(i);
+        }
+
+        for(var i = 0; i < 100; i++) {
+            yield return CreateRemoteBook(i);
+        }
+    }
+
+    private static RemoteBook CreateRemoteBook(int i) {
+        return new RemoteBook {
+            BookId = i,
+            Title = $"My {i}th book",
+            ISBN = "1234",
+        };
+    }
+
+    private static InventoryBook CreateInventoryBook(int i) {
+        return new InventoryBook {
+            BookId = i, Title = $"My {i}th book", ISBN = "1234", ExactInventory = 20,
+            Editions = new[] {
+                new Edition { Name = "Deluxe", Released = DateTimeOffset.UtcNow.AddYears(-1) },
+                new Edition { Name = "Original", Released = DateTimeOffset.UtcNow.AddYears(-2) }
+            }.AsQueryable()
+        };
     }
 }

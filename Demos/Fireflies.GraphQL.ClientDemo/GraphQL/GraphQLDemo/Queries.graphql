@@ -1,29 +1,37 @@
-﻿query MyBasicQuery($bookId: Int!, $otherId: String) {
-	books(filter: {}) {
-		bookId
-		iSBN
+﻿query GetBooks {
+	books {
 		...TitleFragment
 	}
-	#getBook(bookId: $bookId) {
-	#	...TitleFragment
-	#}
+}
+
+query GetBook($bookId: Int!) {
+	getBook(bookId: $bookId) {
+		...TitleFragment
+	}
 }
 
 fragment TitleFragment on IBook {
 	title
-	
 	... on InventoryBook {
-		
-		calculatePrice
+		calculatedPrice
 		editions {
 			name
 			released
 		}
 	}
-	... TestFragment
 }
 
-fragment TestFragment on RemoteBook {
-	test
+mutation AddBook($title: String) {
+	addBook(data: { title: $title }) {
+		bookId
+		...TitleFragment
+	}
 }
 
+subscription BookUpdated($bookId: Int!) {
+  bookUpdated(bookId: $bookId) {
+    title
+	bookId
+    __typename
+  }
+}

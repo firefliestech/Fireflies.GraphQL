@@ -1,10 +1,8 @@
-﻿using Fireflies.GraphQL.Abstractions;
-using Fireflies.GraphQL.Abstractions.Schema;
+﻿using Fireflies.GraphQL.Abstractions.Schema;
 
-namespace Fireflies.GraphQL.FederationDemo;
+namespace Fireflies.GraphQL.FederationDemo.Authors;
 
 public class RealAuthor : IAuthor {
-    [GraphQLId]
     public int Id { get; set; }
 
     public string Name { get; set; } = null!;

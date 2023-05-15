@@ -4,8 +4,9 @@ namespace Fireflies.GraphQL.Demo.Books;
 
 public interface IBook {
     [GraphQLId]
-    public int BookId { get; set; }
+    public int BookId { get; }
 
-    string Title { get; set; }
-    string ISBN { get; set; }
+    string ISBN { get; }
+
+    string Title { get; }
 }
