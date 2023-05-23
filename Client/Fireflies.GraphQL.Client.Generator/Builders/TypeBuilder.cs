@@ -160,7 +160,9 @@ public class TypeBuilder : ITypeBuilder {
 
     private void GeneratePolymorphicPropertyFactory(PolymorphicPropertyKey property, List<PolymorphicProperty> implementations) {
         _stringBuilder.AppendLine();
-        _stringBuilder.AppendLine($"\tprivate {property.TypeName}? Create{property.PropertyName}(JsonNode? data, JsonSerializerOptions serializerOptions) {{");
+
+        var typeName = GetActualType(property.SchemaField, property.TypeName);
+        _stringBuilder.AppendLine($"\tprivate {typeName} Create{property.PropertyName}(JsonNode? data, JsonSerializerOptions serializerOptions) {{");
         
         _stringBuilder.AppendLine("\t\tif(data == null) {");
         _stringBuilder.AppendLine("\t\t\treturn null;");
@@ -186,7 +188,8 @@ public class TypeBuilder : ITypeBuilder {
         var isScalarOrEnum = schemaType.Kind is SchemaTypeKind.SCALAR or SchemaTypeKind.ENUM;
 
         _stringBuilder.AppendLine();
-        _stringBuilder.AppendLine($"\tprivate {(isScalarOrEnum ? null : "I")}{property.TypeName}{(isScalarOrEnum ? null : "?")} Create{property.PropertyName}(JsonNode? data, JsonSerializerOptions serializerOptions) {{");
+        var typeName = GetActualType(property.SchemaField, property.TypeName);
+        _stringBuilder.AppendLine($"\tprivate {(isScalarOrEnum ? null : "I")}{typeName} Create{property.PropertyName}(JsonNode? data, JsonSerializerOptions serializerOptions) {{");
         if(isScalarOrEnum) {
             _stringBuilder.AppendLine($"\t\treturn data?.Deserialize<{property.TypeName}>(serializerOptions) ?? default;");
         } else {
@@ -211,11 +214,15 @@ public class TypeBuilder : ITypeBuilder {
     }
 
     private void GenerateActualProperty(bool isInterface, SchemaField schemaField, string typeName, string propertyName) {
-        var actualTypeName = $"{typeName}{(schemaField.IsNullable() ? "?" : null)}";
+        var actualTypeName = GetActualType(schemaField, typeName);
         if(schemaField.IsEnumerable()) {
             _stringBuilder.AppendLine($"\t{(isInterface ? null : "public ")}{actualTypeName}[] {propertyName} {{ get; }}");
         } else {
             _stringBuilder.AppendLine($"\t{(isInterface ? null : "public ")}{actualTypeName} {propertyName} {{ get; }}");
         }
+    }
+
+    private static string GetActualType(SchemaField schemaField, string typeName) {
+        return $"{typeName}{(schemaField.IsNullable() ? "?" : null)}";
     }
 }

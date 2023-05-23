@@ -20,25 +20,25 @@ public static class SchemaHelper {
         };
     }
 
-    public static string GetNetType(this SchemaField field) {
-        return InternalGetDotnetType(field.Type, false, true);
+    public static string GetNetType(this SchemaType schemaType) {
+        return InternalGetDotnetType(schemaType, null, false, true);
     }
 
-    public static string GetNetType(this SchemaType type, bool skipList = false) {
-        return InternalGetDotnetType(type, skipList, true);
+    public static string GetNetType(this SchemaField field, bool skipList = false, bool skipNullable = false) {
+        return InternalGetDotnetType(field.Type, null, skipList, !skipNullable);
     }
 
-    internal static string InternalGetDotnetType(SchemaType fieldType, bool skipList, bool nullable) {
+    internal static string InternalGetDotnetType(SchemaType fieldType, string? overrideName, bool skipList, bool nullable) {
         return fieldType.Kind switch {
             SchemaTypeKind.SCALAR => TypeMapper.FromGraphQL(fieldType.Name) + (nullable ? "?" : ""),
-            SchemaTypeKind.LIST => skipList ? InternalGetDotnetType(fieldType.OfType, skipList, nullable) : "IEnumerable<" + InternalGetDotnetType(fieldType.OfType, skipList, nullable) + ">",
-            SchemaTypeKind.NON_NULL => InternalGetDotnetType(fieldType.OfType, skipList, false),
-            SchemaTypeKind.OBJECT => fieldType.Name + (nullable ? "?" : ""),
-            SchemaTypeKind.INTERFACE => fieldType.Name + (nullable ? "?" : ""),
-            SchemaTypeKind.UNION => fieldType.Name + (nullable ? "?" : ""),
-            SchemaTypeKind.ENUM => fieldType.Name + (nullable ? "?" : ""),
-            SchemaTypeKind.INPUT_OBJECT => fieldType.Name + (nullable ? "?" : ""),
-            _ => fieldType.Name + (nullable ? "?" : "")
+            SchemaTypeKind.LIST => skipList ? InternalGetDotnetType(fieldType.OfType, overrideName, skipList, nullable) : "IEnumerable<" + InternalGetDotnetType(fieldType.OfType, overrideName, skipList, nullable) + ">",
+            SchemaTypeKind.NON_NULL => InternalGetDotnetType(fieldType.OfType, overrideName, skipList, false),
+            SchemaTypeKind.OBJECT => (overrideName ?? fieldType.Name) + (nullable ? "?" : ""),
+            SchemaTypeKind.INTERFACE => (overrideName ?? fieldType.Name) + (nullable ? "?" : ""),
+            SchemaTypeKind.UNION => (overrideName ?? fieldType.Name) + (nullable ? "?" : ""),
+            SchemaTypeKind.ENUM => (overrideName ?? fieldType.Name) + (nullable ? "?" : ""),
+            SchemaTypeKind.INPUT_OBJECT => (overrideName ?? fieldType.Name) + (nullable ? "?" : ""),
+            _ => (overrideName ?? fieldType.Name) + (nullable ? "?" : "")
         };
     }
 
