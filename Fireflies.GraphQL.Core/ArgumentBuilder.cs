@@ -89,7 +89,7 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
                 await VisitAsync(argument.Value, context).ConfigureAwait(false);
                 Values[parameterInfo.Name!] = _stack.Pop();
             } else {
-                Values[parameterInfo.Name!] = await context.ValueAccessor.GetValue(argument.Value).ConfigureAwait(false);
+                Values[parameterInfo.Name!] = await context.ValueAccessor!.GetValue(argument.Value).ConfigureAwait(false);
             }
         } else {
             throw new InvalidOperationException("Unmatched value");
@@ -107,7 +107,7 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
             await VisitAsync(objectField.Value, context).ConfigureAwait(false);
             propertyField.SetValue(parent, _stack.Pop());
         } else {
-            var value = await context.ValueAccessor.GetValue(underlyingType, objectField.Value).ConfigureAwait(false);
+            var value = await context.ValueAccessor!.GetValue(underlyingType, objectField.Value).ConfigureAwait(false);
             propertyField.SetValue(parent, value);
         }
     }
