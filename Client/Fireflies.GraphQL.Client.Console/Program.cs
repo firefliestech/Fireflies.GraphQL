@@ -18,7 +18,7 @@ parseResult.WithParsed(_ => {
 });
 
 int RunProjectInit(ProjectInitOptions options) {
-    var handler = new ProjectHandler();
+    var handler = new ProjectInitHandler();
     return (int)handler.Init(options).GetAwaiter().GetResult();
 }
 
