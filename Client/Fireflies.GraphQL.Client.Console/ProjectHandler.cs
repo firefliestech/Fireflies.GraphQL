@@ -1,6 +1,6 @@
-﻿using Fireflies.GraphQL.Client.Console;
-using Fireflies.GraphQL.Client.Console.Schema;
-using System.Text.Json.Nodes;
+﻿using System.Text.Json.Nodes;
+
+namespace Fireflies.GraphQL.Client.Console; 
 
 public class ProjectHandler {
     public async Task<ResultCode> Init(ProjectInitOptions options) {

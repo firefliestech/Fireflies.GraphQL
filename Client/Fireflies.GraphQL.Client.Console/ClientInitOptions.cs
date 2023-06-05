@@ -1,6 +1,6 @@
 ﻿using CommandLine;
 
-namespace Fireflies.GraphQL.Client.Console.Schema;
+namespace Fireflies.GraphQL.Client.Console;
 
 [Verb("project-init", HelpText = "Initializes project")]
 public class ProjectInitOptions {

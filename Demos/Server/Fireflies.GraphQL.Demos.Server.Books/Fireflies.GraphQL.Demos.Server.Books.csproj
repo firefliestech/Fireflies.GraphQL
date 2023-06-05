@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Autofac" Version="7.0.1" />
+		<PackageReference Include="Fireflies.Logging.NLog" Version="1.1.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.5">
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		  <PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.5" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\..\Extensions\Fireflies.GraphQL.Extensions.EntityFrameworkCore\Fireflies.GraphQL.Extensions.EntityFrameworkCore.csproj" />
+		<ProjectReference Include="..\..\..\Fireflies.GraphQL.AspNet\Fireflies.GraphQL.AspNet.csproj" />
+		<ProjectReference Include="..\..\..\Fireflies.GraphQL.Abstractions\Fireflies.GraphQL.Abstractions.csproj" />
+		<ProjectReference Include="..\..\..\Fireflies.GraphQL.Core\Fireflies.GraphQL.Core.csproj" />
+	</ItemGroup>
+
+</Project>
