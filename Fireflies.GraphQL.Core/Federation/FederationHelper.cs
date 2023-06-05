@@ -19,15 +19,80 @@ public static class FederationHelper {
 
         var response = await HttpClient.SendAsync(request, requestContext.CancellationToken).ConfigureAwait(false);
         var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+
+        return await ParseResult(stream, astNode, requestContext).ConfigureAwait(false);
+    }
+
+    private static async Task<JsonNode?> ParseResult(Stream stream, ASTNode astNode, IRequestContext requestContext) {
         var json = await JsonSerializer.DeserializeAsync<JsonObject>(stream).ConfigureAwait(false);
 
         var field = (GraphQLField)astNode;
 
-        var result = json?["data"]?[field.Name.StringValue];
         if(json?["errors"] != null)
             throw new FederationExecutionException(json["errors"]!.AsArray());
 
+        var result = json?["data"]?[field.Name.StringValue];
+        if(result == null)
+            return null;
+
+        if(result is JsonObject obj && obj.TryGetPropertyValue("_query", out var value))
+            return await PerformFederatedQuery(value!.GetValue<string>(), requestContext);
+
+        await ResolveFederatedQueries(result, requestContext).ConfigureAwait(false);
+
         return result;
+    }
+
+    private static async Task<JsonNode?> ResolveFederatedQueries(JsonNode? node, IRequestContext requestContext) {
+        if(node == null)
+            return null;
+
+        if(node is JsonObject obj) {
+            if(obj.TryGetPropertyValue("_query", out var value)) {
+                return await PerformFederatedQuery(value!.GetValue<string>(), requestContext).ConfigureAwait(false);
+            }
+
+            foreach(var subField in obj) {
+                var replaceWith = await ResolveFederatedQueries(subField.Value, requestContext).ConfigureAwait(false);
+                if(replaceWith != null) {
+                    obj[subField.Key] = replaceWith;
+                }
+            }
+        } else if(node is JsonArray arr) {
+            for(var index = 0; index < arr.Count; index++) {
+                var item = arr[(Index)index];
+                var replaceWith = await ResolveFederatedQueries(item, requestContext).ConfigureAwait(false);
+                if(replaceWith != null) {
+                    var localIndex = index;
+                    arr[localIndex] = replaceWith;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static async Task<JsonNode?> PerformFederatedQuery(string query, IRequestContext requestContext) {
+        var lifetimeFactory = requestContext.DependencyResolver.Resolve<RequestContainerFactory>();
+        var connectionContext = requestContext.ConnectionContext.CreateChildContext();
+
+        var lifetime = lifetimeFactory.Create(connectionContext);
+        var subEngine = lifetime.Resolve<GraphQLEngine>();
+        var subContext = new RequestContext(connectionContext, lifetime);
+        await subEngine.Execute(new GraphQLRequest { Query = query }, subContext).ConfigureAwait(false);
+
+        await foreach(var x in subEngine.Results().ConfigureAwait(false)) {
+            var json = (JsonObject)JsonNode.Parse(x.Result);
+
+            if(json?["errors"] != null)
+                throw new FederationExecutionException(json["errors"]!.AsArray());
+
+            var newResult = json["data"] ?? new JsonObject();
+            json.Remove("data");
+            return newResult;
+        }
+
+        return new JsonObject();
     }
 
     public static async IAsyncEnumerable<JsonNode> ExecuteSubscription(ASTNode astNode, ValueAccessor valueAccessor, FragmentAccessor fragmentAccessor, IRequestContext requestContext, string url, OperationType operation, string operationName) {
@@ -39,27 +104,24 @@ public static class FederationHelper {
     private static async Task<(string, string, Dictionary<string, object?>)> CreateFederationQuery(ASTNode astNode, IRequestContext requestContext, ValueAccessor valueAccessor, FragmentAccessor fragmentAccessor) {
         await using var query = new StringWriter();
         var queryWriter = new QueryWriter(valueAccessor);
-        await queryWriter.PrintAsync(
-            astNode,
+        await queryWriter.PrintAsync(astNode,
             query,
-            requestContext.CancellationToken
-        ).ConfigureAwait(false);
+            requestContext.CancellationToken).ConfigureAwait(false);
 
         await using var fragments = new StringWriter();
         var fragmentWriter = new SDLPrinter();
         foreach(var includedFragment in queryWriter.IncludedFragments)
-            await fragmentWriter.PrintAsync(
-                await fragmentAccessor.GetFragment(includedFragment).ConfigureAwait(false),
+            await fragmentWriter.PrintAsync(await fragmentAccessor.GetFragment(includedFragment).ConfigureAwait(false),
                 fragments,
                 requestContext.CancellationToken).ConfigureAwait(false);
-        
+
         return (query.ToString(), fragments.ToString(), queryWriter.IncludedVariables);
     }
 
     private class QueryWriter : SDLPrinter {
         private readonly ValueAccessor _valueAccessor;
         public Dictionary<string, object?> IncludedVariables { get; } = new();
-        public HashSet<GraphQLFragmentName> IncludedFragments { get; } = new();
+        public HashSet<string> IncludedFragments { get; } = new();
 
         public QueryWriter(ValueAccessor valueAccessor) {
             _valueAccessor = valueAccessor;
@@ -73,7 +135,7 @@ public static class FederationHelper {
         }
 
         protected override ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, DefaultPrintContext context) {
-            IncludedFragments.Add(fragmentSpread.FragmentName);
+            IncludedFragments.Add(fragmentSpread.FragmentName.Name.StringValue);
             return base.VisitFragmentSpreadAsync(fragmentSpread, context);
         }
     }

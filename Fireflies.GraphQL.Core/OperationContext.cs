@@ -7,10 +7,11 @@ namespace Fireflies.GraphQL.Core;
 public class OperationContext : IRequestContext {
     public IRequestContext RequestContext { get; }
     public OperationType OperationType { get; }
+    public string? OperationName { get; set; }
 
     public IConnectionContext ConnectionContext => RequestContext.ConnectionContext;
     public IDependencyResolver DependencyResolver => RequestContext.DependencyResolver;
-    
+
     public string? Id => RequestContext.Id;
     public byte[]? RawRequest => RequestContext.RawRequest;
     public GraphQLDocument? Document => RequestContext.Document;
@@ -21,9 +22,10 @@ public class OperationContext : IRequestContext {
     public ValueAccessor? ValueAccessor => RequestContext.ValueAccessor;
     public ResultJsonWriter? Writer => RequestContext.Writer;
 
-    public OperationContext(IRequestContext requestContext, OperationType operationType) {
+    public OperationContext(IRequestContext requestContext, GraphQLOperationDefinition operationDefinition) {
         RequestContext = requestContext;
-        OperationType = operationType;
+        OperationType = operationDefinition.Operation;
+        OperationName = operationDefinition.Name?.StringValue;
     }
 
     public Task PublishResult(JsonWriter writer) {

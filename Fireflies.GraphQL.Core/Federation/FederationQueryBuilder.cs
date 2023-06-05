@@ -41,6 +41,7 @@ fragment FullType on __Type {
   kind
   name
   description
+  federated
   fields(includeDeprecated: true) {
     name
     description

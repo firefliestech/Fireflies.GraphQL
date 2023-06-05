@@ -30,9 +30,12 @@ public class GraphQLMiddleware {
         if(httpContext.Request.Method == "OPTIONS")
             return;
 
-        var requestLifetimeScope = CreateRequestLifetimeScope(httpContext);
+        var connectionContext = new ConnectionContext(httpContext);
+        
+        var requestLifetimeFactory = _options.DependencyResolver.Resolve<RequestContainerFactory>();
+        var requestLifetimeScope = requestLifetimeFactory.Create(connectionContext);
+
         var engine = requestLifetimeScope.Resolve<GraphQLEngine>();
-        var connectionContext = requestLifetimeScope.Resolve<ConnectionContext>();
         var loggerFactory = requestLifetimeScope.Resolve<IFirefliesLoggerFactory>();
         var logger = loggerFactory.GetLogger<GraphQLMiddleware>();
 
@@ -81,23 +84,5 @@ public class GraphQLMiddleware {
             throw new ArgumentOutOfRangeException(nameof(httpContext.WebSockets.WebSocketRequestedProtocols), $"Unknown sub-protocol ({string.Join(",", httpContext.WebSockets.WebSocketRequestedProtocols)})");
 
         return new DefaultWsProtocolHandler(httpContext, engine, connectionContext, requestLifetimeScope, loggerFactory.GetLogger<DefaultWsProtocolHandler>());
-    }
-
-    private IDependencyResolver CreateRequestLifetimeScope(HttpContext httpContext) {
-        var graphQLContext = new ConnectionContext(httpContext);
-
-        var lifetimeScopeResolver = _options.DependencyResolver.BeginLifetimeScope(builder => {
-            builder.RegisterType<GraphQLEngine>();
-            builder.RegisterInstance(_options.LoggerFactory);
-            builder.RegisterInstance(httpContext);
-            builder.RegisterInstance(graphQLContext);
-            builder.RegisterInstance((IConnectionContext)graphQLContext);
-            if(_options.DependencyResolver.TryResolve<IRequestDependencyResolverBuilder>(out var innerBuilder)) {
-                innerBuilder!.Build(builder, httpContext);
-            }
-
-            _options.Extensions.BuildRequestLifetimeScope(builder);
-        });
-        return lifetimeScopeResolver;
     }
 }

@@ -10,6 +10,8 @@ public class FederationType {
     public string? Name { get; set; }
     public string? Description { get; set; }
 
+    public bool Federated { get; set; }
+
     public FederationField[] Fields { get; set; } = Array.Empty<FederationField>();
     public FederationType[] Interfaces { get; set; } = Array.Empty<FederationType>();
     public FederationType[] PossibleTypes { get; set; } = Array.Empty<FederationType>();

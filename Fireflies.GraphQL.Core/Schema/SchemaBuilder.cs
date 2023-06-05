@@ -66,9 +66,15 @@ internal class SchemaBuilder {
 
         foreach(var federationSchema in _federationSchemas) {
             foreach(var federatedType in federationSchema.Types) {
+                // Ignore GraphQL root query/mutation/subscription types since they are generated
                 if(federatedType.Name == federationSchema.QueryType?.Name || federatedType.Name == federationSchema.MutationType?.Name || federatedType.Name == federationSchema.SubscriptionType?.Name)
                     continue;
 
+                // Ignore federated types
+                if(federatedType.Federated)
+                    continue;
+
+                // Ignore existing types
                 if(allTypesIncludingRootTypes.Any(x => x.Name == federatedType.Name))
                     continue;
 

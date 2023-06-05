@@ -36,11 +36,11 @@ public class ConnectionContext : IConnectionContext {
 
             if(IsWebSocket) {
                 yield return (entry.Id, await entry.Writer.GetBuffer().ConfigureAwait(false));
-                continue;
-            }
+            } else {
+                var newOutstandingOperations = Interlocked.Decrement(ref _outstandingOperations);
+                if(newOutstandingOperations != 0)
+                    continue;
 
-            var newOutstandingOperations = Interlocked.Decrement(ref _outstandingOperations);
-            if(newOutstandingOperations == 0) {
                 yield return (entry.Id, await entry.Writer.GetBuffer().ConfigureAwait(false));
                 yield break;
             }
@@ -49,7 +49,6 @@ public class ConnectionContext : IConnectionContext {
 
     public async Task PublishResult(string? id, JsonWriter writer) {
         await _channel.Writer.WriteAsync((id, writer), CancellationToken).ConfigureAwait(false);
-        //_results.Enqueue((id, writer), CancellationToken);
     }
 
     public void Done() {
@@ -59,5 +58,9 @@ public class ConnectionContext : IConnectionContext {
     public void IncreaseExpectedOperations(int i = 1) {
         if(!IsWebSocket)
             Interlocked.Add(ref _outstandingOperations, i);
+    }
+
+    public IConnectionContext CreateChildContext() {
+        return new ConnectionContext(_httpContext);
     }
 }

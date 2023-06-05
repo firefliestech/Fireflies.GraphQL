@@ -13,4 +13,6 @@ public interface IConnectionContext : IASTVisitorContext, IAsyncEnumerable<(stri
     void IncreaseExpectedOperations(int i = 1);
     Task PublishResult(string? id, JsonWriter writer);
     void Done();
+
+    IConnectionContext CreateChildContext();
 }

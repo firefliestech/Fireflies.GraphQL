@@ -88,7 +88,7 @@ public class GraphQLEngine : ASTVisitor<IRequestContext> {
         if(operationDefinition.Operation is OperationType.Query or OperationType.Mutation)
             context.ConnectionContext.IncreaseExpectedOperations(operationDefinition.SelectionSet.Selections.Count);
 
-        var operationContext = new OperationContext(context, operationDefinition.Operation);
+        var operationContext = new OperationContext(context, operationDefinition);
         await _operationVisitor.VisitAsync(operationDefinition, operationContext);
     }
 }

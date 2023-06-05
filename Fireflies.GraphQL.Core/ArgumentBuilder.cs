@@ -54,6 +54,9 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
             if(x.ParameterType == typeof(IRequestContext))
                 return _requestContext;
 
+            if(x.ParameterType == typeof(OperationContext) && _requestContext is OperationContext)
+                return _requestContext;
+
             if(x.ParameterType == typeof(ValueAccessor))
                 return _requestContext.ValueAccessor;
 

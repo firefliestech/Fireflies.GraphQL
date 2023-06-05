@@ -7,6 +7,8 @@ public class FragmentAccessor {
     private readonly GraphQLDocument _document;
     private readonly IRequestContext _context;
     private Dictionary<string, GraphQLFragmentDefinition>? _fragments;
+    
+    private readonly SemaphoreSlim _semaphore = new(1);
 
     private static readonly FragmentVisitor FragmentVisitorInstance;
 
@@ -20,13 +22,25 @@ public class FragmentAccessor {
     }
 
     public async Task<GraphQLFragmentDefinition> GetFragment(GraphQLFragmentName fragmentName) {
-        if(_fragments == null) {
-            var context = new FragmentVisitorContext(_context);
-            await FragmentVisitorInstance.VisitAsync(_document, context).ConfigureAwait(false);
-            _fragments = context.FragmentDefinitions.ToDictionary(x => x.FragmentName.Name.StringValue);
+        return await GetFragment(fragmentName.Name.StringValue);
+    }
+
+    public async Task<GraphQLFragmentDefinition> GetFragment(string name) {
+        if(_fragments != null)
+            return _fragments[name];
+
+        try {
+            await _semaphore.WaitAsync().ConfigureAwait(false);
+            if(_fragments == null) {
+                var context = new FragmentVisitorContext(_context);
+                await FragmentVisitorInstance.VisitAsync(_document, context).ConfigureAwait(false);
+                _fragments = context.FragmentDefinitions.ToDictionary(x => x.FragmentName.Name.StringValue);
+            }
+        } finally {
+            _semaphore.Release();
         }
 
-        return _fragments[fragmentName.Name.StringValue];
+        return _fragments[name];
     }
 
     private class FragmentVisitor : ASTVisitor<FragmentVisitorContext> {

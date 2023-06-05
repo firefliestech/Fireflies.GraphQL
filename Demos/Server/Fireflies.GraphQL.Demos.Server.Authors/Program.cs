@@ -34,7 +34,7 @@ config.LoggingRules.Add(new LoggingRule("*", LogLevel.Debug, consoleTarget));
 LogManager.Configuration = config;
 
 var containerBuilder = new ContainerBuilder();
-containerBuilder.RegisterType<RequestDependencyResolverBuilder>().As<IRequestDependencyResolverBuilder>();
+containerBuilder.RegisterType<RequestContainerBuilder>().As<IRequestContainerBuilder>();
 var container = containerBuilder.Build();
 
 var graphQLOptions = new GraphQLOptionsBuilder();

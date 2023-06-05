@@ -96,6 +96,9 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
             if(field.Name.StringValue == "__typename")
                 return;
 
+            if(currentType.IsAssignableTo(typeof(FederatedQuery)))
+                return;
+
             var member = currentType.GetGraphQLMemberInfo(field.Name.StringValue);
             if(member == null || member.DeclaringType == typeof(object) || member.HasCustomAttribute<GraphQLInternalAttribute>()) {
                 _errors.Add($"Cannot query field \"{field.Name}\" on type \"{currentTypeName}\"");

@@ -37,7 +37,7 @@ LogManager.Configuration = config;
 
 var container = new TinyIoCContainer();
 container.Register<MustBeSalesmanAttribute>();
-container.Register<IRequestDependencyResolverBuilder, RequestDependencyResolverBuilder>();
+container.Register<IRequestContainerBuilder, RequestContainerBuilder>();
 
 // Enable websockets (needed for subscriptions)
 app.UseWebSockets();

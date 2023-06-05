@@ -3,8 +3,8 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Json;
-using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.Utility.Reflection;
 using Fireflies.Utility.Reflection.Fasterflect;
 using GraphQLParser.AST;
@@ -14,11 +14,11 @@ namespace Fireflies.GraphQL.Core;
 
 public class ResultVisitor : ASTVisitor<ResultContext> {
     private readonly WrapperRegistry _wrapperRegistry;
-    private readonly ScalarRegistry _scalarRegistry;
+    private readonly JsonWriterFactory _jsonWriterFactory;
 
-    public ResultVisitor(WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry) {
+    public ResultVisitor(WrapperRegistry wrapperRegistry, JsonWriterFactory jsonWriterFactory) {
         _wrapperRegistry = wrapperRegistry;
-        _scalarRegistry = scalarRegistry;
+        _jsonWriterFactory = jsonWriterFactory;
     }
 
     protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, ResultContext context) {
@@ -97,7 +97,7 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
                     } else {
                         await ExecuteSynchronously(field, context, fieldValue);
                     }
-                    
+
                     context.Writer.WriteEndArray();
                 } else {
                     context.Writer.WriteStartObject(fieldName);
@@ -115,33 +115,21 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
     private async Task ExecuteSynchronously(GraphQLField field, ResultContext context, object fieldValue) {
         foreach(var data in (IEnumerable)fieldValue) {
             var subContext = new ResultContext(data, context);
-            context.Writer.WriteStartObject();
-
-            foreach(var subSelection in field.SelectionSet.Selections) {
-                await VisitAsync(subSelection, subContext).ConfigureAwait(false);
-            }
-
-            context.Writer.WriteEndObject();
+            await ExecuteSelection(field, context.Writer, subContext);
         }
     }
 
     private async Task ExecuteParallel(GraphQLField field, ResultContext context, object fieldValue, GraphQLParallel parallelOptions) {
         var results = new ConcurrentDictionary<int, JsonWriter>();
-        
+
         var values = ((IEnumerable)fieldValue).OfType<object>();
         await values.AsyncParallelForEach(async data => {
-            var jsonWriter = new JsonWriter(_scalarRegistry);
+            var jsonWriter = _jsonWriterFactory.CreateWriter();
             results.TryAdd(data.Index, jsonWriter);
 
             var subResultContext = new ResultContext(data.Value.GetType(), data.Value, context, jsonWriter);
 
-            jsonWriter.WriteStartObject();
-
-            foreach(var subSelection in field.SelectionSet.Selections) {
-                await VisitAsync(subSelection, subResultContext).ConfigureAwait(false);
-            }
-
-            jsonWriter.WriteEndObject();
+            await ExecuteSelection(field, jsonWriter, subResultContext);
         }).ConfigureAwait(false);
 
         if(parallelOptions.SortResults) {
@@ -151,6 +139,20 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
             foreach(var result in results)
                 await context.Writer.WriteRaw(result.Value).ConfigureAwait(false);
         }
+    }
+
+    private async Task ExecuteSelection(GraphQLField field, JsonWriter jsonWriter, ResultContext subResultContext) {
+        jsonWriter.WriteStartObject();
+
+        if(subResultContext.Data is FederatedQuery federatedQuery) {
+            jsonWriter.WriteValue("_query", federatedQuery._query, TypeCode.String, typeof(string));
+        } else {
+            foreach(var subSelection in field.SelectionSet.Selections) {
+                await VisitAsync(subSelection, subResultContext).ConfigureAwait(false);
+            }
+        }
+
+        jsonWriter.WriteEndObject();
     }
 
     private async Task<bool> RunBuiltInDirectives(GraphQLField field, ResultContext resultContext) {

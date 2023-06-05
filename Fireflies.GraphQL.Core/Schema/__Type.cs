@@ -1,6 +1,8 @@
 ﻿using System.Reflection;
+using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Federation.Schema;
 
 namespace Fireflies.GraphQL.Core.Schema;
@@ -11,11 +13,12 @@ public class __Type {
     private readonly IEnumerable<__Field> _fields;
     private readonly IEnumerable<__EnumValue> _enumValues;
 
-    public __Type(MemberInfo? baseType, IEnumerable<__Field>? fields = null, IEnumerable<__EnumValue>? enumValues = null, IEnumerable<__InputValue>? inputValues = null) {
+    public __Type(Type? baseType, IEnumerable<__Field>? fields = null, IEnumerable<__EnumValue>? enumValues = null, IEnumerable<__InputValue>? inputValues = null) {
         _fields = fields ?? Enumerable.Empty<__Field>();
         _enumValues = enumValues ?? Enumerable.Empty<__EnumValue>();
         InputFields = inputValues?.ToArray() ?? Array.Empty<__InputValue>();
         Description = baseType?.GetDescription();
+        Federated = baseType?.IsAssignableTo(typeof(FederatedQuery)) ?? false;
     }
 
     private __Type(FederationType field) {
@@ -42,6 +45,7 @@ public class __Type {
     public __TypeKind Kind { get; set; }
     public string? Name { get; set; }
     public string? Description { get; set; }
+    public bool Federated { get; set; }
 
     public __Field[] Fields(bool includeDeprecated = false) {
         return includeDeprecated ? _fields.ToArray() : _fields.Where(f => !f.IsDeprecated).ToArray();
