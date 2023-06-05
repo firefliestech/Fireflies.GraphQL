@@ -102,6 +102,19 @@ public class OperationVisitor : ASTVisitor<OperationContext> {
         }
     }
 
+    private async IAsyncEnumerable<object?> GetResult<T>(OperationDescriptor operationDescriptor, object query, ArgumentBuilder argumentBuilder, GraphQLField node, OperationContext context) {
+        var arguments = await BuildArguments(operationDescriptor, argumentBuilder, node);
+        if(context.OperationType is OperationType.Query or OperationType.Mutation) {
+            var resultTask = await ReflectionCache.ExecuteMethod(operationDescriptor.Method, query, arguments).ConfigureAwait(false);
+            yield return resultTask;
+        } else {
+            var asyncEnumerable = (IAsyncEnumerable<T>)operationDescriptor.Method.Invoke(query, arguments)!;
+            await foreach(var obj in asyncEnumerable.WithCancellation(context.CancellationToken).ConfigureAwait(false)) {
+                yield return obj;
+            }
+        }
+    }
+
     private async Task ExecuteSynchronously(OperationContext context, IEnumerable enumerable, ResultJsonWriter writer, GraphQLField graphQLField) {
         foreach(var obj in enumerable) {
             writer.WriteStartObject();
@@ -148,23 +161,6 @@ public class OperationVisitor : ASTVisitor<OperationContext> {
             OperationType.Subscription => _options.SubscriptionOperations,
             _ => throw new ArgumentOutOfRangeException()
         };
-    }
-
-    private async IAsyncEnumerable<object?> GetResult<T>(OperationDescriptor operationDescriptor, object query, ArgumentBuilder argumentBuilder, GraphQLField node, OperationContext context) {
-        var arguments = await BuildArguments(operationDescriptor, argumentBuilder, node);
-        if(context.OperationType is OperationType.Query or OperationType.Mutation) {
-            var resultTask = await ExecuteMethod(operationDescriptor, query, arguments).ConfigureAwait(false);
-            yield return resultTask;
-        } else {
-            var asyncEnumerable = (IAsyncEnumerable<T>)operationDescriptor.Method.Invoke(query, arguments)!;
-            await foreach(var obj in asyncEnumerable.WithCancellation(context.CancellationToken).ConfigureAwait(false)) {
-                yield return obj;
-            }
-        }
-    }
-
-    private static async Task<object?> ExecuteMethod(OperationDescriptor operationDescriptor, object query, object?[] arguments) {
-        return await ReflectionCache.ExecuteMethod(operationDescriptor.Method, query, arguments).ConfigureAwait(false);
     }
 
     private static async Task<object?[]> BuildArguments(OperationDescriptor operationDescriptor, ArgumentBuilder argumentBuilder, GraphQLField node) {

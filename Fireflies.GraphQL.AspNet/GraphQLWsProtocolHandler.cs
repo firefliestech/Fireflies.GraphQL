@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Fireflies.IoC.Abstractions;
+using Fireflies.GraphQL.Core.Federation;
 
 namespace Fireflies.GraphQL.AspNet;
 
@@ -42,11 +43,13 @@ internal class GraphQLWsProtocolHandler : WsProtocolHandlerBase, IWsProtocolHand
 
     public string? SubProtocol => "graphql-ws";
 
-    public JsonNode HandleFederatedResponse(byte[] bytes, string operationName) {
+    public async Task<JsonNode?> HandleFederatedResponse(byte[] bytes, string operationName, IRequestContext requestContext) {
         var content = System.Text.Encoding.UTF8.GetString(bytes);
         var json = JsonSerializer.Deserialize<JsonObject>(content, DefaultJsonSerializerSettings.DefaultSettings);
 
-        return json?["payload"]?["data"]?[operationName]!;
+        var jsonNode = json?["payload"];
+        var result = await FederationHelper.ParseResult(jsonNode, operationName, requestContext);
+        return result;
     }
 
     protected override async Task ProcessInbound(byte[] bytes) {

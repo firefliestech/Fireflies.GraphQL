@@ -10,5 +10,5 @@ public interface IWsProtocolHandler {
     void Process();
     Task HandleResult((string Id, byte[] Result) subResult);
     string? SubProtocol { get; }
-    JsonNode? HandleFederatedResponse(byte[] bytes, string operationName);
+    Task<JsonNode?> HandleFederatedResponse(byte[] bytes, string operationName, IRequestContext requestContext);
 }

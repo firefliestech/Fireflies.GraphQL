@@ -52,7 +52,7 @@ public class FederationWebsocket {
                     break;
                 }
 
-                json = _requestContext.ConnectionContext.WebSocket.HandleFederatedResponse(bytes, _operationName);
+                json = await _requestContext.ConnectionContext.WebSocket.HandleFederatedResponse(bytes, _operationName, _requestContext).ConfigureAwait(false);
             } catch(OperationCanceledException) {
                 break;
             }

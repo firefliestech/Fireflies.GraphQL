@@ -31,7 +31,7 @@ public class GraphQLMiddleware {
             return;
 
         var connectionContext = new ConnectionContext(httpContext);
-        
+
         var requestLifetimeFactory = _options.DependencyResolver.Resolve<RequestContainerFactory>();
         var requestLifetimeScope = requestLifetimeFactory.Create(connectionContext);
 
@@ -80,9 +80,6 @@ public class GraphQLMiddleware {
             return new GraphQLWsProtocolHandler(httpContext, engine, connectionContext, requestLifetimeScope, loggerFactory.GetLogger<GraphQLWsProtocolHandler>());
         }
 
-        if(httpContext.WebSockets.WebSocketRequestedProtocols.Any())
-            throw new ArgumentOutOfRangeException(nameof(httpContext.WebSockets.WebSocketRequestedProtocols), $"Unknown sub-protocol ({string.Join(",", httpContext.WebSockets.WebSocketRequestedProtocols)})");
-
-        return new DefaultWsProtocolHandler(httpContext, engine, connectionContext, requestLifetimeScope, loggerFactory.GetLogger<DefaultWsProtocolHandler>());
+        throw new ArgumentOutOfRangeException(nameof(httpContext.WebSockets.WebSocketRequestedProtocols), $"Unknown sub-protocol ({string.Join(",", httpContext.WebSockets.WebSocketRequestedProtocols)})");
     }
 }

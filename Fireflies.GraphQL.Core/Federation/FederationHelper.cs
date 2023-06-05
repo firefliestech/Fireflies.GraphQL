@@ -20,18 +20,20 @@ public static class FederationHelper {
         var response = await HttpClient.SendAsync(request, requestContext.CancellationToken).ConfigureAwait(false);
         var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
 
-        return await ParseResult(stream, astNode, requestContext).ConfigureAwait(false);
+        var operationName = ((GraphQLField)astNode).Name.StringValue;
+
+        var json = await JsonSerializer.DeserializeAsync<JsonObject>(stream).ConfigureAwait(false);
+        return await ParseResult(json, operationName, requestContext).ConfigureAwait(false);
     }
 
-    private static async Task<JsonNode?> ParseResult(Stream stream, ASTNode astNode, IRequestContext requestContext) {
-        var json = await JsonSerializer.DeserializeAsync<JsonObject>(stream).ConfigureAwait(false);
+    public static async Task<JsonNode?> ParseResult(JsonNode? json, string operationName, IRequestContext requestContext) {
+        if(json == null)
+            return null;
 
-        var field = (GraphQLField)astNode;
-
-        if(json?["errors"] != null)
+        if(json["errors"] != null)
             throw new FederationExecutionException(json["errors"]!.AsArray());
 
-        var result = json?["data"]?[field.Name.StringValue];
+        var result = json["data"]?[operationName];
         if(result == null)
             return null;
 
@@ -87,7 +89,7 @@ public static class FederationHelper {
             if(json?["errors"] != null)
                 throw new FederationExecutionException(json["errors"]!.AsArray());
 
-            var newResult = json["data"] ?? new JsonObject();
+            var newResult = json["data"];
             json.Remove("data");
             return newResult;
         }
