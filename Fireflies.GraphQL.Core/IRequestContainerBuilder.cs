@@ -2,6 +2,6 @@
 
 namespace Fireflies.GraphQL.Core;
 
-public interface IRequestContainerBuilder {
-    void Build(ILifetimeScopeBuilder builder, IConnectionContext context);
+public interface IRequestContainerBuilder<in THttpContext> {
+    void Build(ILifetimeScopeBuilder builder, THttpContext httpContext);
 }

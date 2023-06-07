@@ -31,11 +31,11 @@ public class RequestContext : IRequestContext {
     }
 
     public async Task PublishResult(JsonWriter writer) {
-        await ConnectionContext.PublishResult(Id, writer).ConfigureAwait(false);
+        await ConnectionContext.Results.PublishResult(Id, writer).ConfigureAwait(false);
     }
 
     public void IncreaseExpectedOperations() {
-        ConnectionContext.IncreaseExpectedOperations();
+        ConnectionContext.Results.IncreaseExpectedOperations();
     }
 
     public void Cancel() {

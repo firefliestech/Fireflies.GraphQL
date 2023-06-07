@@ -30,14 +30,19 @@ public class GraphQLMiddleware {
         if(httpContext.Request.Method == "OPTIONS")
             return;
 
-        var connectionContext = new ConnectionContext(httpContext);
+        var connectionLifetimeScope = _options.DependencyResolver.BeginLifetimeScope(builder => {
+            var connectionContext = new AspNetConnectionContext(httpContext, _options);
+            builder.RegisterInstance(httpContext);
+            builder.RegisterInstance(connectionContext);
+            builder.RegisterInstance<IConnectionContext>(connectionContext);
+        });
+        var connectionContext = connectionLifetimeScope.Resolve<AspNetConnectionContext>();
+        connectionContext.ConnectionDependencyResolver = connectionLifetimeScope;
 
-        var requestLifetimeFactory = _options.DependencyResolver.Resolve<RequestContainerFactory>();
-        var requestLifetimeScope = requestLifetimeFactory.Create(connectionContext);
+        var requestLifetimeScope = connectionContext.CreateRequestContainer();
 
         var engine = requestLifetimeScope.Resolve<GraphQLEngine>();
         var loggerFactory = requestLifetimeScope.Resolve<IFirefliesLoggerFactory>();
-        var logger = loggerFactory.GetLogger<GraphQLMiddleware>();
 
         try {
             if(httpContext.WebSockets.IsWebSocketRequest) {
@@ -61,6 +66,7 @@ public class GraphQLMiddleware {
         } catch(OperationCanceledException) {
             // Noop
         } catch(Exception ex) {
+            var logger = loggerFactory.GetLogger<GraphQLMiddleware>();
             logger.Error(ex, "Exception occured while processing request");
         } finally {
             if(connectionContext.IsWebSocket) {

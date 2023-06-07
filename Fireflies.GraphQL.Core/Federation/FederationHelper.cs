@@ -79,10 +79,9 @@ public static class FederationHelper {
     }
 
     private static async Task<JsonNode?> PerformFederatedQuery(string query, IRequestContext requestContext) {
-        var lifetimeFactory = requestContext.DependencyResolver.Resolve<RequestContainerFactory>();
         var connectionContext = requestContext.ConnectionContext.CreateChildContext();
 
-        var lifetime = lifetimeFactory.Create(connectionContext);
+        var lifetime = connectionContext.CreateRequestContainer();
         var subEngine = lifetime.Resolve<GraphQLEngine>();
         var subContext = new RequestContext(connectionContext, lifetime);
         await subEngine.Execute(new GraphQLRequest { Query = query }, subContext).ConfigureAwait(false);

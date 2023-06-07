@@ -40,7 +40,7 @@ internal abstract class WsProtocolHandlerBase {
         }
 
         _logger.Debug($"Connection from {_httpContext.Connection.RemoteIpAddress}:{_httpContext.Connection.RemotePort} to {_httpContext.Request.Path} closed");
-        _connectionContext.Done();
+        _connectionContext.Results.Done();
     }
 
     protected abstract Task ProcessInbound(byte[] bytes);

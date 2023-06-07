@@ -1,18 +1,21 @@
-﻿using Fireflies.GraphQL.Core.Json;
+﻿using Fireflies.IoC.Abstractions;
 using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core;
 
-public interface IConnectionContext : IASTVisitorContext, IAsyncEnumerable<(string Id, byte[] Result)> {
+public interface IConnectionContext : IASTVisitorContext {
     bool IsWebSocket { get; }
     IWsProtocolHandler? WebSocket { get; }
 
-    public Dictionary<string, string[]> RequestHeaders { get; }
-    public string QueryString { get; }
+    Dictionary<string, string[]> RequestHeaders { get; }
+    string QueryString { get; }
 
-    void IncreaseExpectedOperations(int i = 1);
-    Task PublishResult(string? id, JsonWriter writer);
-    void Done();
+    IResultBuilder Results { get; }
 
     IConnectionContext CreateChildContext();
+    IDependencyResolver CreateRequestContainer();
+}
+
+public interface IConnectionContext<out THttpContext> : IConnectionContext {
+    public THttpContext HttpContext { get; }
 }

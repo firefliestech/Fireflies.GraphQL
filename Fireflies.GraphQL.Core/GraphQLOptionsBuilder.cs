@@ -133,7 +133,6 @@ public class GraphQLOptionsBuilder {
             builder.RegisterTypeAsSingleInstance<ResultVisitor>();
             builder.RegisterTypeAsSingleInstance<OperationVisitor>();
             builder.RegisterInstance(_loggerFactory);
-            builder.RegisterTypeAsSingleInstance<RequestContainerFactory>();
             builder.RegisterType<JsonWriterFactory>();
 
             options.Extensions.BuildGraphQLLifetimeScope(builder);

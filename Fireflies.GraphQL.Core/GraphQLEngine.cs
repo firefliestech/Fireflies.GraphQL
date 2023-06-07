@@ -48,7 +48,7 @@ public class GraphQLEngine : ASTVisitor<IRequestContext> {
     }
 
     public async IAsyncEnumerable<(string Id, byte[] Result)> Results() {
-        await foreach(var result in _connectionContext.WithCancellation(_connectionContext.CancellationToken).ConfigureAwait(false)) {
+        await foreach(var result in _connectionContext.Results.WithCancellation(_connectionContext.CancellationToken).ConfigureAwait(false)) {
             yield return result;
 
             if(!_connectionContext.IsWebSocket)
@@ -83,7 +83,7 @@ public class GraphQLEngine : ASTVisitor<IRequestContext> {
 
     protected override async ValueTask VisitOperationDefinitionAsync(GraphQLOperationDefinition operationDefinition, IRequestContext context) {
         if(operationDefinition.Operation is OperationType.Query or OperationType.Mutation)
-            context.ConnectionContext.IncreaseExpectedOperations(operationDefinition.SelectionSet.Selections.Count);
+            context.ConnectionContext.Results.IncreaseExpectedOperations(operationDefinition.SelectionSet.Selections.Count);
 
         var operationContext = new OperationContext(context, operationDefinition);
         await _operationVisitor.VisitAsync(operationDefinition, operationContext);
