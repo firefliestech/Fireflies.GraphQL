@@ -14,11 +14,9 @@ namespace Fireflies.GraphQL.Core;
 
 public class ResultVisitor : ASTVisitor<ResultContext> {
     private readonly WrapperRegistry _wrapperRegistry;
-    private readonly JsonWriterFactory _jsonWriterFactory;
 
-    public ResultVisitor(WrapperRegistry wrapperRegistry, JsonWriterFactory jsonWriterFactory) {
+    public ResultVisitor(WrapperRegistry wrapperRegistry) {
         _wrapperRegistry = wrapperRegistry;
-        _jsonWriterFactory = jsonWriterFactory;
     }
 
     protected override async ValueTask VisitInlineFragmentAsync(GraphQLInlineFragment inlineFragment, ResultContext context) {
@@ -124,9 +122,9 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
 
         var values = ((IEnumerable)fieldValue).OfType<object>();
         await values.AsyncParallelForEach(async data => {
-            var jsonWriter = _jsonWriterFactory.CreateWriter();
+            var jsonWriter = context.Writer.CreateSubWriter();
             results.TryAdd(data.Index, jsonWriter);
-
+            
             var subResultContext = new ResultContext(data.Value.GetType(), data.Value, context, jsonWriter);
 
             await ExecuteSelection(field, jsonWriter, subResultContext);
@@ -145,7 +143,8 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
         jsonWriter.WriteStartObject();
 
         if(subResultContext.Data is FederatedQuery federatedQuery) {
-            jsonWriter.WriteValue("_query", federatedQuery._query, TypeCode.String, typeof(string));
+            jsonWriter.Metadata.Federated = true;
+            jsonWriter.WriteValue("_query", federatedQuery.Query, TypeCode.String, typeof(string));
         } else {
             foreach(var subSelection in field.SelectionSet.Selections) {
                 await VisitAsync(subSelection, subResultContext).ConfigureAwait(false);

@@ -9,10 +9,6 @@ public class JsonWriterFactory {
         _scalarRegistry = scalarRegistry;
     }
 
-    public JsonWriter CreateWriter() {
-        return new JsonWriter(_scalarRegistry);
-    }
-
     public ResultJsonWriter CreateResultWriter() {
         return new ResultJsonWriter(_scalarRegistry);
     }

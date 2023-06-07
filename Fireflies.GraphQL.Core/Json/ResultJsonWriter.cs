@@ -20,6 +20,9 @@ public class ResultJsonWriter : JsonWriter {
         if(!_empty)
             _writer.WriteEndObject();
 
+        if(Metadata.Federated)
+            _writer.WriteBoolean("_federated", true);
+
         if(_errors != null) {
             _writer.WriteStartArray("errors");
             foreach(var error in _errors) {

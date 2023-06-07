@@ -123,12 +123,12 @@ public class OperationVisitor : ASTVisitor<OperationContext> {
         }
     }
 
-    private async Task ExecuteParallel(OperationContext context, object fieldValue, ResultJsonWriter writer, GraphQLField graphQLField, GraphQLParallel parallelOptions) {
+    private async Task ExecuteParallel(OperationContext context, object fieldValue, JsonWriter writer, GraphQLField graphQLField, GraphQLParallel parallelOptions) {
         var results = new ConcurrentDictionary<int, JsonWriter>();
 
         var values = ((IEnumerable)fieldValue).OfType<object>();
         await values.AsyncParallelForEach(async data => {
-            var subWriter = _writerFactory.CreateWriter();
+            var subWriter = writer.CreateSubWriter();
             results.TryAdd(data.Index, subWriter);
 
             subWriter.WriteStartObject();

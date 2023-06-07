@@ -10,10 +10,14 @@ public class JsonWriter {
     private readonly MemoryStream _stream;
     protected readonly Utf8JsonWriter _writer;
 
-    public JsonWriter(ScalarRegistry scalarRegistry) {
+    public JsonWriterMetadata Metadata { get; }
+
+    public JsonWriter(ScalarRegistry scalarRegistry, JsonWriter? parent = null) {
         _scalarRegistry = scalarRegistry;
         _stream = new MemoryStream();
-        _writer = new Utf8JsonWriter(_stream, new JsonWriterOptions() { SkipValidation = true });
+        _writer = new Utf8JsonWriter(_stream, new JsonWriterOptions { SkipValidation = true });
+
+        Metadata = parent?.Metadata ?? new JsonWriterMetadata();
     }
 
     public virtual async Task<byte[]> GetBuffer() {
@@ -149,5 +153,9 @@ public class JsonWriter {
 
     public async Task WriteRaw(JsonWriter otherWriter) {
         _writer.WriteRawValue(await otherWriter.GetBuffer());
+    }
+
+    public JsonWriter CreateSubWriter() {
+        return new JsonWriter(_scalarRegistry, this);
     }
 }

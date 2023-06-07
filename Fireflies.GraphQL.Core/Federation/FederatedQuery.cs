@@ -6,10 +6,10 @@ namespace Fireflies.GraphQL.Core.Federation;
 
 [GraphQLNoWrapper]
 public abstract class FederatedQuery {
-    public string _query { get; set; }
+    public string Query { get; private set; }
 
     protected FederatedQuery(string query) {
-        _query = query;
+        Query = query;
     }
 
     protected static async Task<string> CreateSelectionSet(ASTNode astNode, IRequestContext requestContext) {

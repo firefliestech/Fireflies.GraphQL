@@ -37,6 +37,10 @@ public static class FederationHelper {
         if(result == null)
             return null;
 
+        var hasFederated = json["_federated"]?.GetValue<bool>() ?? false;
+        if(!hasFederated)
+            return result;
+
         if(result is JsonObject obj && obj.TryGetPropertyValue("_query", out var value))
             return await PerformFederatedQuery(value!.GetValue<string>(), requestContext);
 

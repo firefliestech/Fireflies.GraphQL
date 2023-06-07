@@ -1,7 +1,6 @@
 ﻿using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
@@ -68,7 +67,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
 
         if(_fieldStack.Count == 0) {
             var queryType = GetOperations().FirstOrDefault(x => x.Name.Equals(field.Name.StringValue, StringComparison.InvariantCultureIgnoreCase));
-            if(queryType.Method.HasCustomAttribute<GraphQLFederatedAttribute>())
+            if(queryType?.Method.HasCustomAttribute<GraphQLFederatedAttribute>() ?? false)
                 return;
 
             if(queryType == null || queryType.Method.HasCustomAttribute<GraphQLInternalAttribute>()) {
