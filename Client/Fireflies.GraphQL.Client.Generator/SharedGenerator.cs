@@ -1,6 +1,5 @@
 ﻿using Fireflies.GraphQL.Client.Generator.Builders;
 using System.Reflection;
-using System.Reflection.Emit;
 
 namespace Fireflies.GraphQL.Client.Generator;
 

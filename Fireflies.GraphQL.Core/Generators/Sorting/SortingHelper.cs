@@ -93,7 +93,7 @@ public static class SortingHelper {
             }
 
             var waitMethodInvoker = Reflect.Method(WaitForMethod, new[] { elementType! }, typeof(MethodBase), typeof(object));
-            var valueTask = (Task<object?>)waitMethodInvoker.Invoke(this, currentValueMethod, element)!;
+            var valueTask = (Task<object?>)waitMethodInvoker.Invoke(this, currentValueMethod, element);
             return valueTask.ConfigureAwait(false).GetAwaiter().GetResult();
         }
 

@@ -16,7 +16,7 @@ public abstract class EdgeBase<TBase> {
             if(member.HasCustomAttribute<GraphQLIdAttribute>()) {
                 var value = member switch {
                     PropertyInfo propertyInfo => Reflect.PropertyGetter(propertyInfo),
-                    MethodInfo methodInfo => Reflect.Method(methodInfo, typeof(WrapperRegistry))(node!, (WrapperRegistry)null!), //TODO: Maybe ID-properties should not be wrapped as a method?
+                    MethodInfo methodInfo => Reflect.Method(methodInfo, typeof(WrapperRegistry))(node, (WrapperRegistry)null!), //TODO: Maybe ID-properties should not be wrapped as a method?
                     _ => null
                 };
 

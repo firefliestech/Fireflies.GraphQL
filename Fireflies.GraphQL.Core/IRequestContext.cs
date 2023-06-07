@@ -13,7 +13,6 @@ public interface IRequestContext : IASTVisitorContext {
     byte[]? RawRequest { get; }
     GraphQLDocument? Document { get; }
 
-    CancellationToken CancellationToken { get; }
     FragmentAccessor? FragmentAccessor { get; }
     ValueAccessor? ValueAccessor { get; }
 

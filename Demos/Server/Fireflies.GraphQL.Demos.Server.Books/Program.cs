@@ -1,6 +1,5 @@
 using Fireflies.GraphQL.AspNet;
 using Fireflies.GraphQL.Core;
-using Fireflies.GraphQL.Demo;
 using Fireflies.GraphQL.Demos.Server.Books;
 using Fireflies.GraphQL.Demos.Server.Books.Blogs;
 using Fireflies.GraphQL.Demos.Server.Books.Books;

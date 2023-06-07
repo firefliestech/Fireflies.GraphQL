@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-using Fireflies.GraphQL.Abstractions;
-using Fireflies.GraphQL.Abstractions.Generator;
+﻿using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Federation.Schema;
@@ -34,7 +32,7 @@ public class __Type {
         if(field.OfType != null)
             OfType = new __Type(field.OfType);
 
-        _fields = field.Fields.Select(x =>__Field.FromFederation(x)).ToArray();
+        _fields = field.Fields.Select(__Field.FromFederation).ToArray();
         _enumValues = field.EnumValues;
     }
 

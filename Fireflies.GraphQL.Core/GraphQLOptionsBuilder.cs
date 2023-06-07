@@ -25,7 +25,7 @@ public class GraphQLOptionsBuilder {
     private string? _schemaDescription;
     private readonly GeneratorRegistry _generatorRegistry;
 
-    public static int _optionCounter = 0;
+    public static int _optionCounter;
     private readonly ModuleBuilder _moduleBuilder;
     private readonly List<IExtensionBuilder> _extensions = new();
     private readonly ScalarRegistry _scalarRegistry = new();

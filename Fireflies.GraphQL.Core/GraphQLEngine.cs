@@ -1,6 +1,5 @@
 ﻿using Fireflies.GraphQL.Core.Json;
 using Fireflies.GraphQL.Core.Scalar;
-using Fireflies.Logging.Abstractions;
 using GraphQLParser;
 using GraphQLParser.AST;
 using GraphQLParser.Exceptions;
@@ -12,17 +11,15 @@ public class GraphQLEngine : ASTVisitor<IRequestContext> {
     private readonly GraphQLOptions _options;
     private readonly WrapperRegistry _wrapperRegistry;
     private readonly ScalarRegistry _scalarRegistry;
-    private readonly IFirefliesLoggerFactory _loggerFactory;
     private readonly JsonWriterFactory _writerFactory;
 
     private readonly IConnectionContext _connectionContext;
     private readonly OperationVisitor _operationVisitor;
 
-    public GraphQLEngine(GraphQLOptions options, IConnectionContext connectionContext, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry, IFirefliesLoggerFactory loggerFactory, JsonWriterFactory writerFactory, OperationVisitor operationVisitor) {
+    public GraphQLEngine(GraphQLOptions options, IConnectionContext connectionContext, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry, JsonWriterFactory writerFactory, OperationVisitor operationVisitor) {
         _options = options;
         _wrapperRegistry = wrapperRegistry;
         _scalarRegistry = scalarRegistry;
-        _loggerFactory = loggerFactory;
         _writerFactory = writerFactory;
         _operationVisitor = operationVisitor;
         _connectionContext = connectionContext;
