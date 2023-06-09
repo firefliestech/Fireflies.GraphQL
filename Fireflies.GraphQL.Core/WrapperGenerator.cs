@@ -2,6 +2,7 @@
 using System.Reflection.Emit;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Generator;
+using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Generators;
 using Fireflies.Utility.Reflection;
@@ -20,6 +21,14 @@ internal class WrapperGenerator {
     }
 
     public Type GenerateWrapper(Type baseType, bool copyConstructors = true) {
+        try {
+            return InternalGenerateWrapper(baseType, copyConstructors);
+        } catch(Exception ex) {
+            throw new GraphQLException($"Error while generating wrapper for {baseType.Name}", ex);
+        }
+    }
+
+    private Type InternalGenerateWrapper(Type baseType, bool copyConstructors) {
         if(baseType.HasCustomAttribute<GraphQLNoWrapperAttribute>() || baseType.IsFrameworkType())
             return baseType;
 
@@ -35,9 +44,11 @@ internal class WrapperGenerator {
 
         baseType.CopyAttributes(a => typeBuilder.SetCustomAttribute(a));
 
-        foreach(var interf in baseType.GetInterfaces()) {
-            var wrappedInterfaceType = GenerateWrapper(interf);
-            typeBuilder.AddInterfaceImplementation(wrappedInterfaceType);
+        if(!isInterface) {
+            foreach(var interf in baseType.GetInterfaces()) {
+                var wrappedInterfaceType = GenerateWrapper(interf);
+                typeBuilder.AddInterfaceImplementation(wrappedInterfaceType);
+            }
         }
 
         FieldBuilder instanceField = null!;
@@ -45,7 +56,7 @@ internal class WrapperGenerator {
             instanceField = typeBuilder.DefineField("_instance", baseType, FieldAttributes.Private);
             CreateConstructor(baseType, copyConstructors, typeBuilder, instanceField);
         }
-        
+
         var methods = baseType.GetAllGraphQLMethods().Select(x => new { Name = x.Name, MethodInfo = x, Parameters = x.GetParameters(), MemberInfo = x as MemberInfo });
         var properties = baseType.GetAllGraphQLProperties().Select(x => new { Name = x.Name, MethodInfo = x.GetMethod!, Parameters = Array.Empty<ParameterInfo>(), MemberInfo = x as MemberInfo });
         foreach(var baseMethod in methods.Concat(properties)) {
@@ -74,19 +85,19 @@ internal class WrapperGenerator {
             methodBuilder.DefineParameters(baseMethod.Parameters);
             methodBuilder.DefineAnonymousResolvedParameter(wrapperRegistryIndex);
 
-            foreach(var interf in baseType.GetInterfaces()) {
-                var wrappedInterfaceType = GenerateWrapper(interf);
-                var overridingMember = wrappedInterfaceType.GetMethod(baseMethod.Name, BindingFlags.Public | BindingFlags.Instance);
-                if(overridingMember != null) {
-                    typeBuilder.DefineMethodOverride(methodBuilder, overridingMember);
-                    break;
-                }
-            }
-
             foreach(var middlewareParameter in decoratorDescriptors)
                 middlewareParameter.DefineParametersCallback(methodBuilder);
 
             if(!isInterface) {
+                foreach(var interf in baseType.GetInterfaces()) {
+                    var wrappedInterfaceType = GenerateWrapper(interf);
+                    var overridingMember = wrappedInterfaceType.GetMethod(baseMethod.Name, BindingFlags.Public | BindingFlags.Instance);
+                    if(overridingMember != null) {
+                        typeBuilder.DefineMethodOverride(methodBuilder, overridingMember);
+                        break;
+                    }
+                }
+
                 var methodIlGenerator = methodBuilder.GetILGenerator();
                 methodIlGenerator.Emit(OpCodes.Ldarg_0);
                 methodIlGenerator.Emit(OpCodes.Ldfld, instanceField); // Load wrapped object from this
@@ -100,7 +111,7 @@ internal class WrapperGenerator {
 
                 // If the returned value a wrapper it needs to be converted from original return type
                 GenerateResultConverter(baseMethod.MethodInfo.ReturnType, wrapperType, originalType, methodIlGenerator, wrapperRegistryIndex);
-            
+
                 // Call method middlewares passing result from previous operation
                 foreach(var decorator in decoratorDescriptors)
                     decorator.GenerateCallback(MethodExtenderStep.AfterWrap, methodIlGenerator);
