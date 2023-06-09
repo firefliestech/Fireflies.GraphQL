@@ -8,14 +8,14 @@ namespace Fireflies.GraphQL.Client.Generator;
 public class ClientGenerator : ASTVisitor<GraphQLGeneratorContext> {
     private readonly string _clientName;
     private readonly GeneratorSettings _generatorSettings;
-    private readonly IEnumerable<GraphQLDocument> _graphQLDocuments;
+    private readonly GraphQLDocument _graphQLDocument;
 
     private readonly GraphQLRootGeneratorContext _rootContext;
 
-    public ClientGenerator(string clientName, JsonNode schema, GeneratorSettings generatorSettings, IEnumerable<GraphQLDocument> graphQLDocuments) {
+    public ClientGenerator(string clientName, JsonNode schema, GeneratorSettings generatorSettings, GraphQLDocument graphQLDocument) {
         _clientName = clientName;
         _generatorSettings = generatorSettings;
-        _graphQLDocuments = graphQLDocuments;
+        _graphQLDocument = graphQLDocument;
         _rootContext = new GraphQLRootGeneratorContext(schema);
     }
 
@@ -41,12 +41,11 @@ public class ClientGenerator : ASTVisitor<GraphQLGeneratorContext> {
 
         var clientBuilder = _rootContext.GetClientBuilder(_clientName);
 
-        foreach(var graphqlDocument in _graphQLDocuments) {
-            var context = new GraphQLGeneratorContext(_rootContext, graphqlDocument, new FragmentAccessor(graphqlDocument));
 
-            foreach(var operationDefinition in graphqlDocument.Definitions.OfType<GraphQLOperationDefinition>()) {
-                await clientBuilder.AddOperation(operationDefinition, context);
-            }
+        var context = new GraphQLGeneratorContext(_rootContext, _graphQLDocument, new FragmentAccessor(_graphQLDocument));
+
+        foreach(var operationDefinition in _graphQLDocument.Definitions.OfType<GraphQLOperationDefinition>()) {
+            await clientBuilder.AddOperation(operationDefinition, context);
         }
 
         await clientBuilder.Build();

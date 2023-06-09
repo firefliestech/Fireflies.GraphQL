@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Client.Generator;
@@ -40,7 +41,7 @@ public class GenerateHandler {
         var clientFile = new FileInfo(fileToCheck);
 
         var clientSettings = await GetClientSettings(clientDirectory);
-        var graphQLDocuments = GetGraphQLDocuments(clientDirectory);
+        var graphQLDocuments = GetGraphQLDocument(clientDirectory);
         var schema = await GetSchema(clientDirectory);
 
         var generator = new ClientGenerator(clientName, schema, generatorSettings, graphQLDocuments);
@@ -68,12 +69,17 @@ public class GenerateHandler {
         return true;
     }
 
-    private static IEnumerable<GraphQLDocument> GetGraphQLDocuments(DirectoryInfo clientDirectory) {
-        var graphQLDocuments = Directory.GetFiles(clientDirectory.FullName, "*.graphql").Select(ParseGraphQLFile);
-        if(!graphQLDocuments.Any())
+    private static GraphQLDocument GetGraphQLDocument(DirectoryInfo clientDirectory) {
+        var files = Directory.GetFiles(clientDirectory.FullName, "*.graphql", SearchOption.AllDirectories);
+        if(files.Length == 0)
             throw new GraphQLGeneratorException($"No *.graphql files found. Path: {clientDirectory.FullName}");
 
-        return graphQLDocuments;
+        var allContents = new StringBuilder();
+        foreach(var file in files) {
+            allContents.Append(File.ReadAllText(file));
+        }
+
+        return ParseGraphQL(allContents.ToString());
     }
 
     private static async Task<JsonNode?> GetSchema(DirectoryInfo clientDirectory) {
@@ -109,11 +115,11 @@ public class GenerateHandler {
         return settings;
     }
 
-    private static GraphQLDocument ParseGraphQLFile(string x) {
+    private static GraphQLDocument ParseGraphQL(string content) {
         try {
-            return GraphQLParser.Parser.Parse(File.ReadAllText(x));
+            return GraphQLParser.Parser.Parse(content);
         } catch(Exception ex) {
-            throw new GraphQLGeneratorException($"Failed to parse. File: {x}.", ex);
+            throw new GraphQLGeneratorException("Failed to parse", ex);
         }
     }
 
