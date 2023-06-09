@@ -89,7 +89,15 @@ public class ValueAccessor {
         }
 
         protected override ValueTask VisitVariableAsync(GraphQLVariable variable, ValueVisitorContext context) {
-            context.Result = GetVariable(variable.Name.StringValue);
+            var obj = GetVariable(variable.Name.StringValue);
+            if(obj != null) {
+                var returnType = Nullable.GetUnderlyingType(context.ReturnType) ?? context.ReturnType;
+                if(returnType.IsAssignableTo(typeof(IConvertible)))
+                    context.Result = Convert.ChangeType(obj, returnType);
+                else
+                    context.Result = obj;
+            }
+
             return ValueTask.CompletedTask;
         }
 
