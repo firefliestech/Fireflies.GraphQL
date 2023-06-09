@@ -44,12 +44,14 @@ public static class SchemaFieldExtensions {
                 var fragment = await context.FragmentAccessor.GetFragment(fragmentNode.FragmentName);
                 return SchemaTypeMatchesTypeCondition(schemaType, fragment.TypeCondition, exactTypeConditionIsRequired, context);
             }
-            case GraphQLInlineFragment fragmentNode: return SchemaTypeMatchesTypeCondition(schemaType, fragmentNode.TypeCondition, exactTypeConditionIsRequired, context);
+            case GraphQLInlineFragment fragmentNode: return SchemaTypeMatchesTypeCondition(schemaType, fragmentNode.TypeCondition!, exactTypeConditionIsRequired, context);
             default: return true;
         }
     }
 
     private static async Task<FieldMatch> InnerIsSelected(SchemaField field, SchemaType schemaType, ASTNode node, GraphQLFragmentDefinition? fragmentDefinition, bool exactTypeConditionIsRequired, bool isInsideValidFragment, SchemaType? matchingConditionType, GraphQLGeneratorContext context) {
+        VerifySelectionExistOnType(node, schemaType);
+
         switch(node) {
             case GraphQLOperationDefinition operationDefinitionNode: {
                 foreach(var selection in operationDefinitionNode.GetSelections()) {
@@ -85,8 +87,8 @@ public static class SchemaFieldExtensions {
             }
 
             case GraphQLInlineFragment inlineFragment: {
-                if(SchemaTypeMatchesTypeCondition(schemaType, inlineFragment.TypeCondition, exactTypeConditionIsRequired, context)) {
-                    matchingConditionType = context.GetSchemaType(inlineFragment.TypeCondition.Type);
+                if(SchemaTypeMatchesTypeCondition(schemaType, inlineFragment.TypeCondition!, exactTypeConditionIsRequired, context)) {
+                    matchingConditionType = context.GetSchemaType(inlineFragment.TypeCondition!.Type);
                     foreach(var selection in inlineFragment.GetSelections()) {
                         var innerIsSelected = await InnerIsSelected(field, schemaType, selection, fragmentDefinition, exactTypeConditionIsRequired, true, matchingConditionType, context);
                         if(innerIsSelected.IsSelected)
@@ -111,6 +113,13 @@ public static class SchemaFieldExtensions {
         }
 
         return new FieldMatch(false, null, null, null, null);
+    }
+
+    private static void VerifySelectionExistOnType(ASTNode selection, SchemaType schemaType) {
+        if(selection is GraphQLField field) {
+            if(field.Name.StringValue != "__typename" && schemaType.Fields.All(x => x.Name != field.Name.StringValue))
+                throw new GraphQLGeneratorException($"{field.Name.StringValue} does not exist on {schemaType.Name}");
+        }
     }
 
     private static bool SchemaTypeMatchesTypeCondition(SchemaType schemaType, GraphQLTypeCondition typeCondition, bool exactTypeConditionIsRequired, GraphQLGeneratorContext context) {
