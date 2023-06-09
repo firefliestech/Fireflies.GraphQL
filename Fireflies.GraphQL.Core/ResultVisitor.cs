@@ -173,7 +173,7 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
     }
 
     private async Task<object?> InvokeMethod(GraphQLField graphQLField, MethodInfo methodInfo, ResultContext parentLevel) {
-        var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, parentLevel.RequestContext, parentLevel.RequestContext.DependencyResolver, parentLevel);
+        var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, methodInfo, parentLevel.RequestContext, parentLevel);
         var arguments = await argumentBuilder.Build(graphQLField).ConfigureAwait(false);
         return await ReflectionCache.ExecuteMethod(methodInfo, parentLevel.Data!, arguments).ConfigureAwait(false);
     }

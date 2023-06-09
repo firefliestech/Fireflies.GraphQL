@@ -24,6 +24,12 @@ public class AuthorOperations {
         return Task.FromResult(list.AsEnumerable());
     }
 
+    [GraphQLMutation]
+    [MustBeAllowedToUpdateAuthor]
+    public Task<IAuthor> UpdateAuthor(UpdateAuthorInput input) {
+        return Task.FromResult((IAuthor)new RealAuthor { Id = input.AuthorId, Name = input.Name, Emails = Array.Empty<string>() });
+    }
+
     [GraphQLSubscription]
     public async IAsyncEnumerable<IAuthor> AuthorAdded([EnumeratorCancellation] CancellationToken cancellationToken = default) {
         while(!cancellationToken.IsCancellationRequested) {

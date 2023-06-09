@@ -3,7 +3,6 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Json;
-using Fireflies.IoC.Abstractions;
 using Fireflies.Utility.Reflection;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
@@ -14,7 +13,6 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
     private readonly GraphQLArguments? _arguments;
     private readonly MethodInfo _methodInfo;
     private readonly IRequestContext _requestContext;
-    private readonly IDependencyResolver _dependencyResolver;
     private readonly ResultContext _resultContext;
     private readonly Dictionary<string, ParameterInfo> _parameters;
 
@@ -22,11 +20,10 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
 
     private readonly Stack<object?> _stack = new();
 
-    public ArgumentBuilder(GraphQLArguments? arguments, MethodInfo methodInfo, IRequestContext context, IDependencyResolver dependencyResolver, ResultContext resultContext) {
+    public ArgumentBuilder(GraphQLArguments? arguments, MethodInfo methodInfo, IRequestContext context, ResultContext resultContext) {
         _arguments = arguments;
         _methodInfo = methodInfo;
         _requestContext = context;
-        _dependencyResolver = dependencyResolver;
         _resultContext = resultContext;
         _parameters = methodInfo.GetParameters().ToDictionary(x => x.Name!);
     }
@@ -64,7 +61,7 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
                 return _requestContext.FragmentAccessor;
 
             if(x.HasCustomAttribute<ResolvedAttribute>(out _))
-                return _dependencyResolver.Resolve(x.ParameterType);
+                return _requestContext.DependencyResolver.Resolve(x.ParameterType);
 
             if(Values.TryGetValue(x.Name!, out var result)) {
                 if(result != null && result.GetType().IsAssignableTo(x.ParameterType))

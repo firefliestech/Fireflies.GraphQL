@@ -39,7 +39,7 @@ public class OperationVisitor : ASTVisitor<OperationContext> {
 
             var returnType = ReflectionCache.GetReturnType(operationDescriptor.Method);
             var executeInParallel = operationDescriptor.Method.HasCustomAttribute<GraphQLParallel>(out var parallelAttribute);
-            var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, context, context.DependencyResolver, new ResultContext(returnType, context));
+            var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, context, new ResultContext(returnType, context));
             var methodInvoker = ReflectionCache.GetGenericMethodInvoker(GetResultMethod, new[] { returnType }, typeof(OperationDescriptor), typeof(object), typeof(ArgumentBuilder), typeof(GraphQLField), typeof(OperationContext));
             try {
                 var asyncEnumerable = (IAsyncEnumerable<object?>)methodInvoker(this, operationDescriptor, operations, argumentBuilder, graphQLField, context);

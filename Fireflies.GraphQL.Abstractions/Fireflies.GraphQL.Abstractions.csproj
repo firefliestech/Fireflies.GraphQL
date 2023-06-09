@@ -11,6 +11,7 @@
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>Icon-128x128.png</PackageIcon>
 		<RepositoryUrl>https://github.com/firefliestech/fireflies.graphql</RepositoryUrl>
+		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
 
 	<ItemGroup>

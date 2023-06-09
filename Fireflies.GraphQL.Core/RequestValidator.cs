@@ -76,8 +76,8 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
             }
 
             try {
-                await AuthorizationHelper.Authorize(context.DependencyResolver, queryType.Type).ConfigureAwait(false);
-                await AuthorizationHelper.Authorize(context.DependencyResolver, queryType.Method).ConfigureAwait(false);
+                await AuthorizationHelper.Authorize(queryType.Type, field, _context).ConfigureAwait(false);
+                await AuthorizationHelper.Authorize(queryType.Method, field, _context).ConfigureAwait(false);
             } catch(GraphQLUnauthorizedException) {
                 _errors.Add($"Unauthorized access to query field \"{field.Name}\" on type \"Query\"");
             }
@@ -105,7 +105,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
             }
 
             try {
-                await AuthorizationHelper.Authorize(context.DependencyResolver, member).ConfigureAwait(false);
+                await AuthorizationHelper.Authorize(member, field, context).ConfigureAwait(false);
             } catch(GraphQLUnauthorizedException) {
                 _errors.Add($"Unauthorized access to query field \"{field.Name}\" on type \"{currentTypeName}\"");
             }

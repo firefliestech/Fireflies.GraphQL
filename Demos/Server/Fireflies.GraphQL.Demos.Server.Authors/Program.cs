@@ -35,6 +35,7 @@ LogManager.Configuration = config;
 
 var containerBuilder = new ContainerBuilder();
 containerBuilder.RegisterType<RequestContainerBuilder>().As<IRequestContainerBuilder<HttpContext>>();
+containerBuilder.RegisterType<MustBeAllowedToUpdateAuthorAttribute>();
 var container = containerBuilder.Build();
 
 var graphQLOptions = new GraphQLOptionsBuilder();
