@@ -39,6 +39,12 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
 
         var memberInfo = ReflectionCache.GetMemberCache(context.Type, field.Name.StringValue);
 
+        var fieldName = field.Alias?.Name.StringValue ?? field.Name.StringValue;
+        if(!context.ShouldAdd(fieldName))
+            return;
+
+        context.Path.Push(fieldName);
+
         Type? fieldType;
         object? fieldValue;
 
@@ -64,10 +70,6 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
         }
 
         var isEnumerable = fieldType.IsAssignableTo(typeof(IEnumerable));
-        var fieldName = field.Alias?.Name.StringValue ?? field.Name.StringValue;
-
-        if(!context.ShouldAdd(fieldName))
-            return;
 
         if(field.SelectionSet == null) {
             var isCollection = fieldType.IsCollection(out var elementType);
@@ -99,7 +101,8 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
                     context.Writer.WriteEndArray();
                 } else {
                     context.Writer.WriteStartObject(fieldName);
-                    var subResultContext = new ResultContext(fieldValue, context);
+                    var subResultContext = context.CreateChildContext(fieldValue);
+
                     foreach(var subSelection in field.SelectionSet.Selections) {
                         await VisitAsync(subSelection, subResultContext).ConfigureAwait(false);
                     }
@@ -108,12 +111,18 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
                 }
             }
         }
+
+        context.Path.Pop();
     }
 
     private async Task ExecuteSynchronously(GraphQLField field, ResultContext context, object fieldValue) {
+        var i = 0;
         foreach(var data in (IEnumerable)fieldValue) {
-            var subContext = new ResultContext(data, context);
+            var subContext = context.CreateChildContext(data);
+            subContext.Path.Push(i);
             await ExecuteSelection(field, context.Writer, subContext);
+            subContext.Path.Pop();
+            i++;
         }
     }
 
@@ -124,10 +133,11 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
         await values.AsyncParallelForEach(async data => {
             var jsonWriter = context.Writer.CreateSubWriter();
             results.TryAdd(data.Index, jsonWriter);
-            
-            var subResultContext = new ResultContext(data.Value.GetType(), data.Value, context, jsonWriter);
 
-            await ExecuteSelection(field, jsonWriter, subResultContext);
+            var subContext = context.CreateChildContext(data.Value, jsonWriter);
+            subContext.Path.Push(data.Index);
+            await ExecuteSelection(field, jsonWriter, subContext);
+            subContext.Path.Pop();
         }).ConfigureAwait(false);
 
         if(parallelOptions.SortResults) {

@@ -4,16 +4,10 @@ using Fireflies.GraphQL.Core.Scalar;
 namespace Fireflies.GraphQL.Core.Json;
 
 public class ResultJsonWriter : JsonWriter {
-    private List<(string Message, string Code)>? _errors;
     private bool _empty = true;
 
     public ResultJsonWriter(ScalarRegistry scalarRegistry) : base(scalarRegistry) {
         _writer.WriteStartObject();
-    }
-
-    public void AddError(string message, string code) {
-        _errors ??= new();
-        _errors.Add((message, code));
     }
 
     public override async Task<byte[]> GetBuffer() {
@@ -23,17 +17,18 @@ public class ResultJsonWriter : JsonWriter {
         if(Metadata.Federated)
             _writer.WriteBoolean("_federated", true);
 
-        if(_errors != null) {
+        if(Errors.Count > 0) {
             _writer.WriteStartArray("errors");
-            foreach(var error in _errors) {
-                _writer.WriteStartObject();
-                _writer.WriteString("message", error.Message);
+            foreach(var error in Errors) {
+                if(error is GraphQLRawError raw) {
+                    raw.Node.WriteTo(_writer);
+                } else {
+                    _writer.WriteStartObject();
 
-                _writer.WriteStartObject("extensions");
-                _writer.WriteString("code", error.Code);
-                _writer.WriteEndObject();
+                    WriteError(error);
 
-                _writer.WriteEndObject();
+                    _writer.WriteEndObject();
+                }
             }
 
             _writer.WriteEndArray();
@@ -42,6 +37,33 @@ public class ResultJsonWriter : JsonWriter {
         _writer.WriteEndObject();
 
         return await base.GetBuffer();
+    }
+
+    private void WriteError(IGraphQLError error) {
+        if(error is not GraphQLError e)
+            return;
+
+        _writer.WriteString("message", e.Message);
+
+        if(e.Path != null) {
+            _writer.WriteStartArray("path");
+            foreach(var path in e.Path.Path) {
+                if(path is int i)
+                    _writer.WriteNumberValue(i);
+                else
+                    _writer.WriteStringValue(path.ToString());
+            }
+
+            _writer.WriteEndArray();
+        }
+
+        _writer.WriteStartObject("extensions");
+
+        foreach(var extension in e.Extensions) {
+            _writer.WriteString(extension.Key, extension.Value);
+        }
+
+        _writer.WriteEndObject();
     }
 
     public override void WriteStartArray(string fieldName) {

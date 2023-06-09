@@ -45,13 +45,13 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
             if(x.ParameterType == typeof(CancellationToken))
                 return !x.HasCustomAttribute<EnumeratorCancellationAttribute>() ? _requestContext.CancellationToken : default;
 
+            if(x.ParameterType.IsAssignableTo(typeof(IErrorCollection)))
+                return _resultContext.Writer;
+
             if(x.ParameterType == typeof(ResultContext))
                 return _resultContext;
 
-            if(x.ParameterType == typeof(IRequestContext))
-                return _requestContext;
-
-            if(x.ParameterType == typeof(OperationContext) && _requestContext is OperationContext)
+            if(x.ParameterType == typeof(IRequestContext) || (x.ParameterType == typeof(OperationContext) && _requestContext is OperationContext))
                 return _requestContext;
 
             if(x.ParameterType == typeof(ValueAccessor))
@@ -59,6 +59,9 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
 
             if(x.ParameterType == typeof(FragmentAccessor))
                 return _requestContext.FragmentAccessor;
+
+            if(x.ParameterType.IsAssignableTo(typeof(IGraphQLPath)))
+                return new GraphQLPath(_resultContext.Path);
 
             if(x.HasCustomAttribute<ResolvedAttribute>(out _))
                 return _requestContext.DependencyResolver.Resolve(x.ParameterType);

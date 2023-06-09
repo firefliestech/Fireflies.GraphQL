@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Schema;
+using Fireflies.GraphQL.Core.Json;
 using Fireflies.Utility.Reflection;
 using GraphQLParser.AST;
 
@@ -147,7 +148,10 @@ public static class ReflectionExtensions {
             !x.ParameterType.IsAssignableTo(typeof(FragmentAccessor)) &&
             !x.ParameterType.IsAssignableTo(typeof(ValueAccessor)) &&
             !x.ParameterType.IsAssignableTo(typeof(IConnectionContext)) &&
-            !x.ParameterType.IsAssignableTo(typeof(IRequestContext)));
+            !x.ParameterType.IsAssignableTo(typeof(IRequestContext)) &&
+            !x.ParameterType.IsAssignableTo(typeof(IGraphQLPath)) &&
+            !x.ParameterType.IsAssignableTo(typeof(IErrorCollection))
+        );
     }
 
     public static bool IsFrameworkType(this Type type) {

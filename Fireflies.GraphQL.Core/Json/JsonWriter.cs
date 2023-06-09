@@ -5,12 +5,27 @@ using Fireflies.GraphQL.Core.Scalar;
 
 namespace Fireflies.GraphQL.Core.Json;
 
-public class JsonWriter {
+public class JsonWriter : IErrorCollection {
     private readonly ScalarRegistry _scalarRegistry;
+
+    protected List<IGraphQLError> Errors;
+
     private readonly MemoryStream _stream;
     protected readonly Utf8JsonWriter _writer;
 
     public JsonWriterMetadata Metadata { get; }
+
+    public void AddError(string message, string code) {
+        Errors.Add(new GraphQLError(message, code));
+    }
+
+    public void AddError(IGraphQLPath path, string message, string code) {
+        Errors.Add(new GraphQLError(path, message, code));
+    }
+
+    public void AddError(JsonNode node) {
+        Errors.Add(new GraphQLRawError(node));
+    }
 
     public JsonWriter(ScalarRegistry scalarRegistry, JsonWriter? parent = null) {
         _scalarRegistry = scalarRegistry;
@@ -18,6 +33,7 @@ public class JsonWriter {
         _writer = new Utf8JsonWriter(_stream, new JsonWriterOptions { SkipValidation = true });
 
         Metadata = parent?.Metadata ?? new JsonWriterMetadata();
+        Errors = parent == null ? new List<IGraphQLError>() : parent.Errors;
     }
 
     public virtual async Task<byte[]> GetBuffer() {

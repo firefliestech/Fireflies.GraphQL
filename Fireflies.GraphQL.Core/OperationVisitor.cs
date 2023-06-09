@@ -39,7 +39,11 @@ public class OperationVisitor : ASTVisitor<OperationContext> {
 
             var returnType = ReflectionCache.GetReturnType(operationDescriptor.Method);
             var executeInParallel = operationDescriptor.Method.HasCustomAttribute<GraphQLParallel>(out var parallelAttribute);
-            var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, context, new ResultContext(returnType, context));
+
+            var resultContext = new ResultContext(returnType, context);
+            resultContext.Path.Push(graphQLField.Name.StringValue);
+            
+            var argumentBuilder = new ArgumentBuilder(graphQLField.Arguments, operationDescriptor.Method, context, resultContext);
             var methodInvoker = ReflectionCache.GetGenericMethodInvoker(GetResultMethod, new[] { returnType }, typeof(OperationDescriptor), typeof(object), typeof(ArgumentBuilder), typeof(GraphQLField), typeof(OperationContext));
             try {
                 var asyncEnumerable = (IAsyncEnumerable<object?>)methodInvoker(this, operationDescriptor, operations, argumentBuilder, graphQLField, context);
@@ -89,7 +93,7 @@ public class OperationVisitor : ASTVisitor<OperationContext> {
                     if(code != "GRAPHQL_VALIDATION_FAILED")
                         _logger.Error($"Error occurred during federated request. Message: {message}. Code: {code}");
 
-                    writer.AddError(message, code);
+                    writer.AddError(error);
                 }
 
                 await context.PublishResult(writer).ConfigureAwait(false);
@@ -99,6 +103,8 @@ public class OperationVisitor : ASTVisitor<OperationContext> {
                 writer.AddError("Internal server error occurred", "GRAPHQL_EXECUTION_FAILED");
                 await context.PublishResult(writer).ConfigureAwait(false);
             }
+
+            resultContext.Path.Pop();
         }
     }
 
@@ -145,9 +151,11 @@ public class OperationVisitor : ASTVisitor<OperationContext> {
         }
     }
 
-    private async Task WriteObject(GraphQLField graphQLField, object data, JsonWriter writer, OperationContext context) {
+    private async Task WriteObject(GraphQLField field, object data, JsonWriter writer, OperationContext context) {
         var resultContext = new ResultContext(data, context, writer);
-        await _resultVisitor.VisitAsync(graphQLField.SelectionSet, resultContext).ConfigureAwait(false);
+        resultContext.Path.Push(field.Name.StringValue);
+        await _resultVisitor.VisitAsync(field.SelectionSet, resultContext).ConfigureAwait(false);
+        resultContext.Path.Pop();
     }
 
     private OperationDescriptor GetHandler(GraphQLField graphQLField, OperationContext context) {
