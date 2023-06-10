@@ -4,14 +4,7 @@ using GraphQLParser.Visitors;
 namespace Fireflies.GraphQL.Client.Generator;
 
 public class QueryCreator : SDLPrinter {
-    private readonly GraphQLDocument _currentDocument;
-    private readonly HashSet<string> _includedFragments = new();
-
     private int _fieldCounter = 0;
-    
-    public QueryCreator(GraphQLDocument currentDocument) {
-        _currentDocument = currentDocument;
-    }
 
     public string Query { get; private set; }
 
@@ -19,8 +12,8 @@ public class QueryCreator : SDLPrinter {
         await using var writer = new StringWriter();
         await PrintAsync(operationDefinition, writer, context.CancellationToken);
 
-        var fragmentVisitor = new FragmentVisitor(_includedFragments, this, writer);
-        await fragmentVisitor.VisitAsync(_currentDocument, context);
+        var fragmentVisitor = new FragmentVisitor(this, writer);
+        await fragmentVisitor.VisitAsync(operationDefinition, context);
         Query = writer.ToString();
     }
 
@@ -44,26 +37,32 @@ public class QueryCreator : SDLPrinter {
         _fieldCounter--;
     }
 
-    protected override ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, DefaultPrintContext context) {
-        _includedFragments.Add(fragmentSpread.FragmentName.Name.StringValue);
-        return base.VisitFragmentSpreadAsync(fragmentSpread, context);
-    }
-
     private class FragmentVisitor : ASTVisitor<GraphQLGeneratorContext> {
-        private readonly HashSet<string> _graphQLFragmentNames;
         private readonly SDLPrinter _sdlPrinter;
         private readonly StringWriter _stringWriter;
+        private bool _isInsideIncludedFragmentSpread;
 
-        public FragmentVisitor(HashSet<string> graphQLFragmentNames, SDLPrinter sdlPrinter, StringWriter stringWriter) {
-            _graphQLFragmentNames = graphQLFragmentNames;
+        public FragmentVisitor(SDLPrinter sdlPrinter, StringWriter stringWriter) {
             _sdlPrinter = sdlPrinter;
             _stringWriter = stringWriter;
         }
 
+        protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, GraphQLGeneratorContext context) {
+            _isInsideIncludedFragmentSpread = true;
+            var fragment = await context.FragmentAccessor.GetFragment(fragmentSpread.FragmentName).ConfigureAwait(false);
+            await VisitAsync(fragment, context);
+            _isInsideIncludedFragmentSpread = false;
+        }
+
         protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, GraphQLGeneratorContext context) {
-            if(_graphQLFragmentNames.Contains(fragmentDefinition.FragmentName.Name.StringValue)) {
-                await _stringWriter.WriteLineAsync();
-                await _sdlPrinter.PrintAsync(fragmentDefinition, _stringWriter);
+            if(!_isInsideIncludedFragmentSpread)
+                return;
+
+            await _stringWriter.WriteLineAsync();
+            await _sdlPrinter.PrintAsync(fragmentDefinition, _stringWriter);
+
+            foreach(var selection in fragmentDefinition.SelectionSet.Selections) {
+                await VisitAsync(selection, context).ConfigureAwait(false);
             }
         }
     }
