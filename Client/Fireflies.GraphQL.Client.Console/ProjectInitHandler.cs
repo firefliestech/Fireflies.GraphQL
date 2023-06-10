@@ -2,7 +2,7 @@
 
 namespace Fireflies.GraphQL.Client.Console; 
 
-public class ProjectHandler {
+public class ProjectInitHandler {
     public async Task<ResultCode> Init(ProjectInitOptions options) {
         ConsoleLogger.WriteInfo($"Initializing project\r\n- Namespace. {options.Namespace}\r\n- Path: {options.Path}\r\n");
 

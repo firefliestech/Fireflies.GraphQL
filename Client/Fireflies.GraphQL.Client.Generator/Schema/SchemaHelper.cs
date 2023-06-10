@@ -6,7 +6,10 @@ public static class SchemaHelper {
     }
 
     public static bool IsNullable(this SchemaField schemaField) {
-        return schemaField.Type.Kind != SchemaTypeKind.NON_NULL && (schemaField.Type.Kind == SchemaTypeKind.NON_NULL && schemaField.Type.OfType!.Kind != SchemaTypeKind.NON_NULL);
+        if(schemaField.Type.Kind == SchemaTypeKind.NON_NULL)
+            return false;
+
+        return true;
     }
 
     public static SchemaType GetOfType(this SchemaType fieldType, Dictionary<string, SchemaType> schemaTypes) {
@@ -17,53 +20,26 @@ public static class SchemaHelper {
         };
     }
 
-    public static string GetNetType(this SchemaInputValue field) {
-        return InternalGetDotnetType(field.Type, false, true);
+    public static string GetNetType(this SchemaType schemaType) {
+        return InternalGetDotnetType(schemaType, null, false, true);
     }
 
-    public static string GetNetType(this SchemaField field) {
-        return InternalGetDotnetType(field.Type, false, true);
+    public static string GetNetType(this SchemaField field, bool skipList = false, bool skipNullable = false) {
+        return InternalGetDotnetType(field.Type, null, skipList, !skipNullable);
     }
 
-    public static string GetNetType(this SchemaType type, bool skipList = false) {
-        return InternalGetDotnetType(type, skipList, true);
-    }
-
-    internal static string InternalGetDotnetType(SchemaType fieldType, bool skipList, bool nullable) {
+    internal static string InternalGetDotnetType(SchemaType fieldType, string? overrideName, bool skipList, bool nullable) {
         return fieldType.Kind switch {
             SchemaTypeKind.SCALAR => TypeMapper.FromGraphQL(fieldType.Name) + (nullable ? "?" : ""),
-            SchemaTypeKind.LIST => skipList ? InternalGetDotnetType(fieldType.OfType, skipList, nullable) : "IEnumerable<" + InternalGetDotnetType(fieldType.OfType, skipList, nullable) + ">",
-            SchemaTypeKind.NON_NULL => InternalGetDotnetType(fieldType.OfType, skipList, false),
-            SchemaTypeKind.OBJECT => fieldType.Name + (nullable ? "?" : ""),
-            SchemaTypeKind.INTERFACE => fieldType.Name + (nullable ? "?" : ""),
-            SchemaTypeKind.UNION => fieldType.Name + (nullable ? "?" : ""),
-            SchemaTypeKind.ENUM => fieldType.Name + (nullable ? "?" : ""),
-            SchemaTypeKind.INPUT_OBJECT => fieldType.Name + (nullable ? "?" : ""),
-            _ => fieldType.Name + (nullable ? "?" : "")
+            SchemaTypeKind.LIST => skipList ? InternalGetDotnetType(fieldType.OfType, overrideName, skipList, nullable) : "IEnumerable<" + InternalGetDotnetType(fieldType.OfType, overrideName, skipList, nullable) + ">",
+            SchemaTypeKind.NON_NULL => InternalGetDotnetType(fieldType.OfType, overrideName, skipList, false),
+            SchemaTypeKind.OBJECT => (overrideName ?? fieldType.Name) + (nullable ? "?" : ""),
+            SchemaTypeKind.INTERFACE => (overrideName ?? fieldType.Name) + (nullable ? "?" : ""),
+            SchemaTypeKind.UNION => (overrideName ?? fieldType.Name) + (nullable ? "?" : ""),
+            SchemaTypeKind.ENUM => (overrideName ?? fieldType.Name) + (nullable ? "?" : ""),
+            SchemaTypeKind.INPUT_OBJECT => (overrideName ?? fieldType.Name) + (nullable ? "?" : ""),
+            _ => (overrideName ?? fieldType.Name) + (nullable ? "?" : "")
         };
-    }
-
-    public static string GetDotnetType(this SchemaType fieldType, string name) {
-        return InternalGetDotnetType(fieldType, name);
-    }
-
-    private static string InternalGetDotnetType(SchemaType fieldType, string name, bool nullable = true) {
-        switch(fieldType.Kind) {
-            case SchemaTypeKind.SCALAR:
-                return TypeMapper.FromGraphQL(name) + (nullable ? "?" : "");
-            case SchemaTypeKind.LIST:
-                return "IEnumerable<" + InternalGetDotnetType(fieldType.OfType, name, nullable) + ">";
-            case SchemaTypeKind.NON_NULL:
-                return InternalGetDotnetType(fieldType.OfType, name, false);
-
-            case SchemaTypeKind.OBJECT:
-            case SchemaTypeKind.INTERFACE:
-            case SchemaTypeKind.UNION:
-            case SchemaTypeKind.ENUM:
-            case SchemaTypeKind.INPUT_OBJECT:
-            default:
-                return name + (nullable ? "?" : "");
-        }
     }
 
     public static SchemaType GetOfType(this SchemaField schemaType, GraphQLGeneratorContext context) {
@@ -76,10 +52,6 @@ public static class SchemaHelper {
             SchemaTypeKind.NON_NULL => schemaType.OfType.GetOfType(context),
             _ => context.GetSchemaType(schemaType.Name)
         };
-    }
-
-    public static SchemaType GetOfType(this SchemaField schemaType, GraphQLRootGeneratorContext context) {
-        return schemaType.Type.GetOfType(context);
     }
 
     public static SchemaType GetOfType(this SchemaType schemaType, GraphQLRootGeneratorContext context) {

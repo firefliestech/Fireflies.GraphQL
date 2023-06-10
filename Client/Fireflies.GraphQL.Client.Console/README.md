@@ -17,18 +17,18 @@ dotnet tool install Fireflies.GraphQL.Client.Console
 ## Init a project
 Basically creates a GraphQL in your project and add general generation settings to Settings.json.
 ```
-fireflies-graphql project-init --path path-to-root-of-project --namespace MyProject.Api.GraphQL --service-collection
+fireflies-graphql init --path path-to-root-of-project --namespace MyProject.Api.GraphQL --service-collection
 ```
 
 ## Init a client
 Downloads the schema and stores it into a sub-folder inside the GraphQL.
 ```
-fireflies-graphql client-init --name MyProject --path path-to-project --uri https://localhost:7273/graphql
+fireflies-graphql add --name MyProject --path path-to-project --uri https://localhost:7273/graphql
 ```
 
 ## Update the schema
 ```
-fireflies-graphql client-update --name MyProject --path path-to-project
+fireflies-graphql update --name MyProject --path path-to-project
 ```
 
 ## Add your GraphQL queries

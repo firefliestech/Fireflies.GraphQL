@@ -2,7 +2,7 @@
 
 namespace Fireflies.GraphQL.Client.Console.Schema;
 
-[Verb("client-init", HelpText = "Downloads the schema")]
+[Verb("add", HelpText = "Adds a new client")]
 public class ClientInitOptions : ISchemaOptions {
     [Option('n', "name", Required = true, HelpText = "Client name")]
     public string Name { get; set; }

@@ -88,14 +88,15 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
     }
 
     protected override async ValueTask VisitArgumentAsync(GraphQLArgument argument, IRequestContext context) {
-        if(!_parameters.TryGetValue(argument.Name.StringValue, out var parameterInfo))
-            return;
-
-        if(argument.Value.Kind == ASTNodeKind.ObjectValue) {
-            var value = Activator.CreateInstance(parameterInfo.ParameterType)!;
-            _stack.Push(value);
-            await VisitAsync(argument.Value, context).ConfigureAwait(false);
-            Values[parameterInfo.Name!] = _stack.Pop();
+        if(_parameters.TryGetValue(argument.Name.StringValue, out var parameterInfo)) {
+            if(argument.Value.Kind == ASTNodeKind.ObjectValue) {
+                var value = Activator.CreateInstance(parameterInfo.ParameterType)!;
+                _stack.Push(value);
+                await VisitAsync(argument.Value, context).ConfigureAwait(false);
+                Values[parameterInfo.Name!] = _stack.Pop();
+            } else {
+                Values[parameterInfo.Name!] = await context.ValueAccessor!.GetValue(argument.Value).ConfigureAwait(false);
+            }
         } else {
             Values[parameterInfo.Name!] = await context.ValueAccessor.GetValue(argument.Value).ConfigureAwait(false);
         }
@@ -112,7 +113,7 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
             await VisitAsync(objectField.Value, context).ConfigureAwait(false);
             propertyField.SetValue(parent, _stack.Pop());
         } else {
-            var value = await context.ValueAccessor.GetValue(underlyingType, objectField.Value).ConfigureAwait(false);
+            var value = await context.ValueAccessor!.GetValue(underlyingType, objectField.Value).ConfigureAwait(false);
             propertyField.SetValue(parent, value);
         }
     }

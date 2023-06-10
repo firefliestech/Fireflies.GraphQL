@@ -2,7 +2,7 @@
 
 namespace Fireflies.GraphQL.Client.Console;
 
-[Verb("project-init", HelpText = "Initializes project")]
+[Verb("init", HelpText = "Initializes a project")]
 public class ProjectInitOptions {
     [Option('p', "path", Required = true, HelpText = "Path to project")]
     public string Path { get; set; }
