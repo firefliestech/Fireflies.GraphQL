@@ -111,7 +111,7 @@ public class ClientBuilder : ITypeBuilder {
     }
 
     private async Task GenerateRequest(GraphQLOperationDefinition operationDefinition, GraphQLGeneratorContext context) {
-        var visitor = new QueryCreator(context.Document);
+        var visitor = new QueryCreator();
         await visitor.Execute(operationDefinition, context);
 
         _classBuilder.AppendLine("\t\tvar request = new JsonObject();");

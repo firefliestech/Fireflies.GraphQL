@@ -27,7 +27,6 @@ public class ClientGenerator : ASTVisitor<GraphQLGeneratorContext> {
         typeBuilder.AppendLine();
         typeBuilder.AppendLine("#nullable enable");
         typeBuilder.AppendLine();
-        typeBuilder.AppendLine("using System.Net.WebSockets;");
         typeBuilder.AppendLine("using System.Text;");
         typeBuilder.AppendLine("using System.Text.Json;");
         typeBuilder.AppendLine("using System.Text.Json.Nodes;");
@@ -36,12 +35,10 @@ public class ClientGenerator : ASTVisitor<GraphQLGeneratorContext> {
         typeBuilder.AppendLine();
 
         typeBuilder.AppendLine($"namespace {_generatorSettings.Namespace}.{_clientName};");
-        typeBuilder.AppendLine();
 
         GenerateTypes();
 
         var clientBuilder = _rootContext.GetClientBuilder(_clientName);
-
 
         var context = new GraphQLGeneratorContext(_rootContext, _graphQLDocument, new FragmentAccessor(_graphQLDocument));
 

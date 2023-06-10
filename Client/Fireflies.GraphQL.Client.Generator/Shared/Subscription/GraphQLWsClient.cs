@@ -2,10 +2,10 @@
     private ClientWebSocket? _client;
     private CancellationToken _cancellationToken;
 
-    private TaskCompletionSource _connectionAckCompletionSource;
+    private TaskCompletionSource? _connectionAckCompletionSource;
     private readonly ConcurrentDictionary<Guid, GraphQLSubscriber> _subscribers = new();
 
-    public Uri Uri { get; set; }
+    public Uri? Uri { get; set; }
     public TimeSpan? ReconnectDelay;
 
     public event Action? Connecting;
@@ -14,7 +14,8 @@
     public event Action? Reconnecting;
     public event Action<Exception>? Exception;
 
-    public GraphQLWsClient() {
+    public GraphQLWsClient(CancellationToken cancellationToken = default(CancellationToken)) {
+        _cancellationToken = cancellationToken;
     }
 
     public GraphQLSubscriber<TInterface> CreateSubscriber<TInterface>(JsonObject request, Func<JsonNode, TInterface> instanceFactory) {
@@ -41,13 +42,13 @@
                     throw new SocketClosedException();
                 }
 
-                result += Encoding.UTF8.GetString(buffer.Array, 0, received.Count);
+                result += Encoding.UTF8.GetString(buffer.Array!, 0, received.Count);
 
                 if(!received.EndOfMessage)
                     continue;
 
                 try {
-                    var json = JsonSerializer.Deserialize<JsonNode>(result);
+                    var json = JsonSerializer.Deserialize<JsonNode>(result)!;
                     await MessageReceived(json);
                 } catch(Exception handlerException) {
                     Exception?.Invoke(handlerException);
@@ -79,15 +80,15 @@
     }
 
     private async Task MessageReceived(JsonNode json) {
-        switch(json["type"].GetValue<string>()) {
+        switch(json["type"]!.GetValue<string>()) {
             case "connection_ack":
                 // To avoid deadlock
-                Task.Run(() => _connectionAckCompletionSource.SetResult());
+                Task.Run(() => _connectionAckCompletionSource!.SetResult());
                 break;
             case "data": {
-                var id = json["id"].GetValue<Guid>();
+                var id = json["id"]!.GetValue<Guid>();
                 if(_subscribers.TryGetValue(id, out var subscriber)) {
-                    var payload = json["payload"];
+                    var payload = json["payload"]!;
                     subscriber.Handle(payload);
                 }
 
@@ -142,11 +143,14 @@
 
         while(!_cancellationToken.IsCancellationRequested) {
             try {
+                var uri = Uri;
+                if(uri == null)
+                    throw new ArgumentNullException($"{nameof(uri)} cant be null");
                 Connecting?.Invoke();
 
                 _client = new ClientWebSocket();
                 _client.Options.AddSubProtocol("graphql-ws");
-                await _client.ConnectAsync(Uri, CancellationToken.None);
+                await _client.ConnectAsync(uri, CancellationToken.None);
 
                 _connectionAckCompletionSource = new TaskCompletionSource();
 
@@ -177,9 +181,11 @@
     }
 
     public async ValueTask DisposeAsync() {
-        try {
-            await _client?.CloseAsync(WebSocketCloseStatus.NormalClosure, null, _cancellationToken);
-        } catch {
+        if(_client != null) {
+            try {
+                await _client.CloseAsync(WebSocketCloseStatus.NormalClosure, null, _cancellationToken);
+            } catch {
+            }
         }
 
         try {

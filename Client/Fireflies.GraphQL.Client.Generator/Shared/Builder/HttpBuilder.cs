@@ -5,7 +5,7 @@
         _client = client;
     }
 
-    public Uri Uri {
+    public Uri? Uri {
         get {
             return _client.BaseAddress;
         }

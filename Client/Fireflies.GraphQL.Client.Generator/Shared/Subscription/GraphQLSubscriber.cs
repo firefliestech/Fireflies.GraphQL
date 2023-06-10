@@ -19,7 +19,7 @@ public class GraphQLSubscriber<T> : GraphQLSubscriber {
     }
 
     public override async Task Restart() {
-        Request = Request.Deserialize<JsonNode>();
+        Request = Request.Deserialize<JsonNode>()!;
         await _client.Start(this);
     }
     

@@ -10,7 +10,7 @@
         set => _client.ReconnectDelay = value;
     }
 
-    public Uri Uri {
+    public Uri? Uri {
         get => _client.Uri;
         set => _client.Uri = value;
     }
