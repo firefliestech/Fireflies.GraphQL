@@ -71,13 +71,13 @@ public class GraphQLEngine : ASTVisitor<IRequestContext> {
     private JsonWriter GenerateValidationErrorResult(List<string> errors) {
         var errorWriter = _writerFactory.CreateResultWriter();
         foreach(var error in errors)
-            errorWriter.AddError(error, "GRAPHQL_VALIDATION_FAILED");
+            errorWriter.AddError("GRAPHQL_VALIDATION_FAILED", error);
         return errorWriter;
     }
 
     private JsonWriter GenerateErrorResult(string exceptionMessage, string code) {
         var errorWriter = _writerFactory.CreateResultWriter();
-        errorWriter.AddError(exceptionMessage, code);
+        errorWriter.AddError(code, exceptionMessage);
         return errorWriter;
     }
 

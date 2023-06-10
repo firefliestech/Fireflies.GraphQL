@@ -15,12 +15,12 @@ public class JsonWriter : IErrorCollection {
 
     public JsonWriterMetadata Metadata { get; }
 
-    public void AddError(string message, string code) {
-        Errors.Add(new GraphQLError(message, code));
+    public void AddError(string code, string message) {
+        Errors.Add(new GraphQLError(code, message));
     }
 
-    public void AddError(IGraphQLPath path, string message, string code) {
-        Errors.Add(new GraphQLError(path, message, code));
+    public void AddError(IGraphQLPath path, string code, string message) {
+        Errors.Add(new GraphQLError(path, code, message));
     }
 
     public void AddError(JsonNode node) {

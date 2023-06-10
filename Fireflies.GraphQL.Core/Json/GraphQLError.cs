@@ -5,12 +5,12 @@ public class GraphQLError : IGraphQLError {
     public IGraphQLPath? Path { get; }
     public Dictionary<string, string> Extensions { get; } = new();
 
-    public GraphQLError(string message, string code) {
+    public GraphQLError(string code, string message) {
         Message = message;
         AddExtension("code", code);
     }
 
-    public GraphQLError(IGraphQLPath path, string message, string code) : this(message, code) {
+    public GraphQLError(IGraphQLPath path, string code, string message) : this(code, message) {
         Path = path;
     }
 

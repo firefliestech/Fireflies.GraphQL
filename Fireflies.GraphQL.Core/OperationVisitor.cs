@@ -100,7 +100,7 @@ public class OperationVisitor : ASTVisitor<OperationContext> {
             } catch(Exception ex) {
                 _logger.Error(ex, "Exception occured while processing request");
                 var writer = context.Writer ?? _writerFactory.CreateResultWriter();
-                writer.AddError("Internal server error occurred", "GRAPHQL_EXECUTION_FAILED");
+                writer.AddError("GRAPHQL_EXECUTION_FAILED", "Internal server error occurred");
                 await context.PublishResult(writer).ConfigureAwait(false);
             }
 
