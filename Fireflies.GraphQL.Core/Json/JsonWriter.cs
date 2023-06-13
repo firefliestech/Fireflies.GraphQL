@@ -8,19 +8,23 @@ namespace Fireflies.GraphQL.Core.Json;
 public class JsonWriter : IErrorCollection {
     private readonly ScalarRegistry _scalarRegistry;
 
-    protected List<IGraphQLError> Errors;
+    protected List<object> Errors;
 
     private readonly MemoryStream _stream;
     protected readonly Utf8JsonWriter _writer;
 
     public JsonWriterMetadata Metadata { get; }
 
-    public void AddError(string code, string message) {
-        Errors.Add(new GraphQLError(code, message));
+    public IGraphQLError AddError(string code, string message) {
+        var error = new GraphQLError(code, message);
+        Errors.Add(error);
+        return error;
     }
 
-    public void AddError(IGraphQLPath path, string code, string message) {
-        Errors.Add(new GraphQLError(path, code, message));
+    public IGraphQLError AddError(IGraphQLPath path, string code, string message) {
+        var error = new GraphQLError(path, code, message);
+        Errors.Add(error);
+        return error;
     }
 
     public void AddError(JsonNode node) {
@@ -33,7 +37,7 @@ public class JsonWriter : IErrorCollection {
         _writer = new Utf8JsonWriter(_stream, new JsonWriterOptions { SkipValidation = true });
 
         Metadata = parent?.Metadata ?? new JsonWriterMetadata();
-        Errors = parent == null ? new List<IGraphQLError>() : parent.Errors;
+        Errors = parent == null ? new List<object>() : parent.Errors;
     }
 
     public virtual async Task<byte[]> GetBuffer() {
@@ -70,12 +74,13 @@ public class JsonWriter : IErrorCollection {
         _writer.WriteNull(fieldName);
     }
 
-    public virtual void WriteValue(object value, TypeCode typeCode, Type elementType) {
+    public virtual void WriteValue(object value, Type elementType) {
         if(elementType.IsEnum) {
             _writer.WriteStringValue(value.ToString());
             return;
         }
 
+        var typeCode = Type.GetTypeCode(Nullable.GetUnderlyingType(elementType) ?? elementType);
         switch(typeCode) {
             case TypeCode.Int16:
             case TypeCode.Int32:
@@ -112,12 +117,13 @@ public class JsonWriter : IErrorCollection {
         }
     }
 
-    public virtual void WriteValue(string property, object value, TypeCode typeCode, Type elementType) {
+    public virtual void WriteValue(string property, object value, Type elementType) {
         if(elementType.IsEnum) {
             _writer.WriteString(property, value.ToString());
             return;
         }
 
+        var typeCode = Type.GetTypeCode(Nullable.GetUnderlyingType(elementType) ?? elementType);
         switch(typeCode) {
             case TypeCode.Int16:
             case TypeCode.Int32:

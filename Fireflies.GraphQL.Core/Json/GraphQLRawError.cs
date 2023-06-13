@@ -2,7 +2,7 @@
 
 namespace Fireflies.GraphQL.Core.Json;
 
-public class GraphQLRawError : IGraphQLError {
+public class GraphQLRawError {
     public JsonNode Node { get; }
 
     public GraphQLRawError(JsonNode node) {

@@ -3,7 +3,7 @@
 public class GraphQLError : IGraphQLError {
     public string Message { get; }
     public IGraphQLPath? Path { get; }
-    public Dictionary<string, string> Extensions { get; } = new();
+    public Dictionary<string, object> Extensions { get; } = new();
 
     public GraphQLError(string code, string message) {
         Message = message;

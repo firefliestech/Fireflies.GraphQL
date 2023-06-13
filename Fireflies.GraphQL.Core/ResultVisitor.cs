@@ -73,17 +73,17 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
 
         if(field.SelectionSet == null) {
             var isCollection = fieldType.IsCollection(out var elementType);
-            var elementTypeCode = Type.GetTypeCode(Nullable.GetUnderlyingType(elementType) ?? elementType);
+            
 
             if(fieldValue == null) {
                 context.Writer.WriteNull(fieldName);
             } else if(isCollection) {
                 context.Writer.WriteStartArray(fieldName);
                 foreach(var value in (IEnumerable)fieldValue)
-                    context.Writer.WriteValue(value, elementTypeCode, elementType);
+                    context.Writer.WriteValue(value, elementType);
                 context.Writer.WriteEndArray();
             } else {
-                context.Writer.WriteValue(fieldName, fieldValue, elementTypeCode, elementType);
+                context.Writer.WriteValue(fieldName, fieldValue, elementType);
             }
         } else {
             if(fieldValue == null) {
@@ -154,7 +154,7 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
 
         if(subResultContext.Data is FederatedQuery federatedQuery) {
             jsonWriter.Metadata.Federated = true;
-            jsonWriter.WriteValue("_query", federatedQuery.Query, TypeCode.String, typeof(string));
+            jsonWriter.WriteValue("_query", federatedQuery.Query, typeof(string));
         } else {
             foreach(var subSelection in field.SelectionSet.Selections) {
                 await VisitAsync(subSelection, subResultContext).ConfigureAwait(false);

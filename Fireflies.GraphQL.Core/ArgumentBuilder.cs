@@ -88,17 +88,16 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
     }
 
     protected override async ValueTask VisitArgumentAsync(GraphQLArgument argument, IRequestContext context) {
-        if(_parameters.TryGetValue(argument.Name.StringValue, out var parameterInfo)) {
-            if(argument.Value.Kind == ASTNodeKind.ObjectValue) {
-                var value = Activator.CreateInstance(parameterInfo.ParameterType)!;
-                _stack.Push(value);
-                await VisitAsync(argument.Value, context).ConfigureAwait(false);
-                Values[parameterInfo.Name!] = _stack.Pop();
-            } else {
-                Values[parameterInfo.Name!] = await context.ValueAccessor!.GetValue(argument.Value).ConfigureAwait(false);
-            }
+        if(!_parameters.TryGetValue(argument.Name.StringValue, out var parameterInfo))
+            return;
+
+        if(argument.Value.Kind == ASTNodeKind.ObjectValue) {
+            var value = Activator.CreateInstance(parameterInfo.ParameterType)!;
+            _stack.Push(value);
+            await VisitAsync(argument.Value, context).ConfigureAwait(false);
+            Values[parameterInfo.Name!] = _stack.Pop();
         } else {
-            Values[parameterInfo.Name!] = await context.ValueAccessor.GetValue(argument.Value).ConfigureAwait(false);
+            Values[parameterInfo.Name!] = await context.ValueAccessor!.GetValue(argument.Value).ConfigureAwait(false);
         }
     }
 

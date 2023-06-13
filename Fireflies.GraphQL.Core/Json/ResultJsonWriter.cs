@@ -22,10 +22,10 @@ public class ResultJsonWriter : JsonWriter {
             foreach(var error in Errors) {
                 if(error is GraphQLRawError raw) {
                     raw.Node.WriteTo(_writer);
-                } else {
+                } else if(error is GraphQLError graphQLError) {
                     _writer.WriteStartObject();
 
-                    WriteError(error);
+                    WriteError(graphQLError);
 
                     _writer.WriteEndObject();
                 }
@@ -39,15 +39,12 @@ public class ResultJsonWriter : JsonWriter {
         return await base.GetBuffer();
     }
 
-    private void WriteError(IGraphQLError error) {
-        if(error is not GraphQLError e)
-            return;
+    private void WriteError(GraphQLError error) {
+        _writer.WriteString("message", error.Message);
 
-        _writer.WriteString("message", e.Message);
-
-        if(e.Path != null) {
+        if(error.Path != null) {
             _writer.WriteStartArray("path");
-            foreach(var path in e.Path.Path) {
+            foreach(var path in error.Path.Path) {
                 if(path is int i)
                     _writer.WriteNumberValue(i);
                 else
@@ -59,8 +56,14 @@ public class ResultJsonWriter : JsonWriter {
 
         _writer.WriteStartObject("extensions");
 
-        foreach(var extension in e.Extensions) {
-            _writer.WriteString(extension.Key, extension.Value);
+        foreach(var extension in error.Extensions) {
+            if(extension.Value == null) {
+                WriteNull(extension.Key);
+            } else {
+                var type = extension.Value.GetType();
+                WriteValue(extension.Key, extension.Value, type);
+            }
+            
         }
 
         _writer.WriteEndObject();
@@ -96,14 +99,14 @@ public class ResultJsonWriter : JsonWriter {
         base.WriteNull(fieldName);
     }
 
-    public override void WriteValue(object value, TypeCode typeCode, Type elementType) {
+    public override void WriteValue(object value, Type elementType) {
         EnsureData();
-        base.WriteValue(value, typeCode, elementType);
+        base.WriteValue(value, elementType);
     }
 
-    public override void WriteValue(string property, object value, TypeCode typeCode, Type elementType) {
+    public override void WriteValue(string property, object value, Type elementType) {
         EnsureData();
-        base.WriteValue(property, value, typeCode, elementType);
+        base.WriteValue(property, value, elementType);
     }
 
     public override void WriteRaw(string fieldName, JsonNode jsonObject) {
