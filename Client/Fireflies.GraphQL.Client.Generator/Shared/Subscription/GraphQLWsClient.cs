@@ -59,13 +59,14 @@
         } catch(SocketClosedException) {
         } catch(OperationCanceledException) {
         } catch(Exception ex) {
-            await DisposeAsync();
             Exception?.Invoke(ex);
+        }
 
-            if(_subscribers.Any() && ReconnectDelay != null) {
-                await Task.Delay(ReconnectDelay.Value);
-                Task.Run(async () => await Reconnect());
-            }
+        await DisposeAsync();
+
+        if(!_cancellationToken.IsCancellationRequested && _subscribers.Any() && ReconnectDelay != null) {
+            await Task.Delay(ReconnectDelay.Value);
+            Task.Run(async () => await Reconnect());
         }
     }
 
