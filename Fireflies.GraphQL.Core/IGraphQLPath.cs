@@ -2,5 +2,5 @@
 
 public interface IGraphQLPath {
     IEnumerable<object> Path { get; }
-    IGraphQLPath Add(object subPath);
+    IGraphQLPath Add(params object[] subPath);
 }
