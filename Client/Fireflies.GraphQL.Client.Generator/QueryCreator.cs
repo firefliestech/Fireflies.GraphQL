@@ -41,6 +41,7 @@ public class QueryCreator : SDLPrinter {
         private readonly SDLPrinter _sdlPrinter;
         private readonly StringWriter _stringWriter;
         private bool _isInsideIncludedFragmentSpread;
+        private HashSet<string> _includedFragments = new();
 
         public FragmentVisitor(SDLPrinter sdlPrinter, StringWriter stringWriter) {
             _sdlPrinter = sdlPrinter;
@@ -56,6 +57,9 @@ public class QueryCreator : SDLPrinter {
 
         protected override async ValueTask VisitFragmentDefinitionAsync(GraphQLFragmentDefinition fragmentDefinition, GraphQLGeneratorContext context) {
             if(!_isInsideIncludedFragmentSpread)
+                return;
+
+            if(!_includedFragments.Add(fragmentDefinition.FragmentName.Name.StringValue))
                 return;
 
             await _stringWriter.WriteLineAsync();
