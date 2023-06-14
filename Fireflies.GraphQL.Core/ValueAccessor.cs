@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Collections;
+using System.Text.Json;
+using Fireflies.GraphQL.Core.Extensions;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 
@@ -27,13 +29,20 @@ public class ValueAccessor {
     public async Task<object?> GetValue(Type returnType, ASTNode node) {
         var visitorContext = new ValueVisitorContext(_context, returnType);
         await _visitor.VisitAsync(node, visitorContext).ConfigureAwait(false);
-        return Convert.ChangeType(visitorContext.Result, returnType);
+        return Convert.ChangeType(visitorContext.Stack.Pop(), returnType);
+    }
+
+    public async Task<object?> GetValue(Type returnType, ASTNode node, object rootObject) {
+        var visitorContext = new ValueVisitorContext(_context, returnType);
+        visitorContext.Stack.Push(rootObject);
+        await _visitor.VisitAsync(node, visitorContext).ConfigureAwait(false);
+        return Convert.ChangeType(visitorContext.Stack.Pop(), returnType);
     }
 
     public async Task<object?> GetValue(ASTNode node) {
         var visitorContext = new ValueVisitorContext(_context, typeof(object));
         await _visitor.VisitAsync(node, visitorContext).ConfigureAwait(false);
-        return visitorContext.Result;
+        return visitorContext.Stack.Pop();
     }
 
     public object? GetVariable(string variableName) {
@@ -64,27 +73,32 @@ public class ValueAccessor {
         }
 
         protected override ValueTask VisitBooleanValueAsync(GraphQLBooleanValue booleanValue, ValueVisitorContext context) {
-            context.Result = booleanValue.BoolValue;
+            context.Stack.Push(booleanValue.BoolValue);
             return ValueTask.CompletedTask;
         }
 
         protected override ValueTask VisitStringValueAsync(GraphQLStringValue stringValue, ValueVisitorContext context) {
-            context.Result = stringValue.Value.ToString();
+            context.Stack.Push(stringValue.Value.ToString());
             return ValueTask.CompletedTask;
         }
 
         protected override ValueTask VisitNullValueAsync(GraphQLNullValue nullValue, ValueVisitorContext context) {
-            context.Result = null;
+            context.Stack.Push(null);
             return ValueTask.CompletedTask;
         }
 
         protected override ValueTask VisitIntValueAsync(GraphQLIntValue intValue, ValueVisitorContext context) {
-            context.Result = int.Parse(intValue.Value);
+            context.Stack.Push(int.Parse(intValue.Value));
             return ValueTask.CompletedTask;
         }
 
         protected override ValueTask VisitEnumValueAsync(GraphQLEnumValue enumValue, ValueVisitorContext context) {
-            context.Result = Enum.Parse(context.ReturnType, enumValue.Name.StringValue);
+            context.Stack.Push(Enum.Parse(context.ReturnType, enumValue.Name.StringValue));
+            return ValueTask.CompletedTask;
+        }
+
+        protected override ValueTask VisitFloatValueAsync(GraphQLFloatValue floatValue, ValueVisitorContext context) {
+            context.Stack.Push(decimal.Parse(floatValue.Value));
             return ValueTask.CompletedTask;
         }
 
@@ -93,12 +107,48 @@ public class ValueAccessor {
             if(obj != null) {
                 var returnType = Nullable.GetUnderlyingType(context.ReturnType) ?? context.ReturnType;
                 if(returnType.IsAssignableTo(typeof(IConvertible)))
-                    context.Result = Convert.ChangeType(obj, returnType);
+                    context.Stack.Push(Convert.ChangeType(obj, returnType));
                 else
-                    context.Result = obj;
+                    context.Stack.Push(obj);
             }
 
             return ValueTask.CompletedTask;
+        }
+
+        protected override async ValueTask VisitListValueAsync(GraphQLListValue listValue, ValueVisitorContext context) {
+            var list = (IList)context.Stack.Peek()!;
+            var genericTypeArgument = list.GetType().GenericTypeArguments[0];
+            var isObject = Type.GetTypeCode(genericTypeArgument) == TypeCode.Object;
+
+            foreach(var value in listValue.Values) {
+                if(isObject)
+                    context.Stack.Push(Activator.CreateInstance(genericTypeArgument));
+
+                await VisitAsync(value, context);
+                list.Add(context.Stack.Pop());
+            }
+        }
+
+        protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, ValueVisitorContext context) {
+            var parent = context.Stack.Peek()!;
+            var propertyField = parent.GetType().GetGraphQLProperty(objectField.Name.StringValue);
+            var underlyingType = Nullable.GetUnderlyingType(propertyField.PropertyType) ?? propertyField.PropertyType;
+
+            if(Type.GetTypeCode(underlyingType) == TypeCode.Object) {
+                if(underlyingType.IsCollection(out var elementType)) {
+                    var list = Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType));
+                    context.Stack.Push(list);
+                } else {
+                    var value = Activator.CreateInstance(underlyingType)!;
+                    context.Stack.Push(value);
+                }
+
+                await VisitAsync(objectField.Value, context).ConfigureAwait(false);
+                propertyField.SetValue(parent, context.Stack.Pop());
+            } else {
+                var value = await context.ValueAccessor.GetValue(underlyingType, objectField.Value).ConfigureAwait(false);
+                propertyField.SetValue(parent, value);
+            }
         }
 
         public object? GetVariable(string variableName) {
@@ -109,9 +159,10 @@ public class ValueAccessor {
     private class ValueVisitorContext : IASTVisitorContext {
         private readonly IRequestContext _context;
 
-        public object? Result { get; set; }
         public CancellationToken CancellationToken => _context.CancellationToken;
         public Type ReturnType { get; }
+        public Stack<object?> Stack { get; } = new();
+        public ValueAccessor ValueAccessor => _context.ValueAccessor!;
 
         public ValueVisitorContext(IRequestContext context, Type returnType) {
             ReturnType = returnType;

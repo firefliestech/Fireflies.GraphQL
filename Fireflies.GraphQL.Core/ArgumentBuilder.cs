@@ -1,7 +1,6 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Json;
 using Fireflies.Utility.Reflection;
 using GraphQLParser.AST;
@@ -93,27 +92,9 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
 
         if(argument.Value.Kind == ASTNodeKind.ObjectValue) {
             var value = Activator.CreateInstance(parameterInfo.ParameterType)!;
-            _stack.Push(value);
-            await VisitAsync(argument.Value, context).ConfigureAwait(false);
-            Values[parameterInfo.Name!] = _stack.Pop();
+            Values[parameterInfo.Name!] = await context.ValueAccessor!.GetValue(parameterInfo.ParameterType, argument.Value, value).ConfigureAwait(false);
         } else {
             Values[parameterInfo.Name!] = await context.ValueAccessor!.GetValue(argument.Value).ConfigureAwait(false);
-        }
-    }
-
-    protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IRequestContext context) {
-        var parent = _stack.Peek()!;
-        var propertyField = parent.GetType().GetGraphQLProperty(objectField.Name.StringValue);
-        var underlyingType = Nullable.GetUnderlyingType(propertyField.PropertyType) ?? propertyField.PropertyType;
-
-        if(Type.GetTypeCode(underlyingType) == TypeCode.Object) {
-            var value = Activator.CreateInstance(underlyingType)!;
-            _stack.Push(value);
-            await VisitAsync(objectField.Value, context).ConfigureAwait(false);
-            propertyField.SetValue(parent, _stack.Pop());
-        } else {
-            var value = await context.ValueAccessor!.GetValue(underlyingType, objectField.Value).ConfigureAwait(false);
-            propertyField.SetValue(parent, value);
         }
     }
 }
