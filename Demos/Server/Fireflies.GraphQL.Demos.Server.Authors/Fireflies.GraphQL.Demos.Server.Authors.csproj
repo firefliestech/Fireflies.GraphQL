@@ -8,8 +8,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="Autofac" Version="7.0.1" />
-		<PackageReference Include="Fireflies.IoC.Autofac" Version="1.1.0" />
-		<PackageReference Include="Fireflies.Logging.NLog" Version="1.1.0" />
+		<PackageReference Include="Fireflies.IoC.Autofac" Version="1.1.1" />
+		<PackageReference Include="Fireflies.Logging.NLog" Version="1.1.1" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -8,7 +8,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Autofac" Version="7.0.1" />
-		<PackageReference Include="Fireflies.Logging.NLog" Version="1.1.0" />
+		<PackageReference Include="Fireflies.Logging.NLog" Version="1.1.1" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.5">
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 			<PrivateAssets>all</PrivateAssets>
