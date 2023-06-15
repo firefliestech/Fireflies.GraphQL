@@ -63,6 +63,7 @@ public class ClientGenerator : ASTVisitor<GraphQLGeneratorContext> {
             serviceCollectionBuilder.AppendLine($"\t\tvar config = new {_clientName}ClientConfig();");
             serviceCollectionBuilder.AppendLine("\t\tconfiguration(config);");
             serviceCollectionBuilder.AppendLine("\t\tservices.AddSingleton(config);");
+            serviceCollectionBuilder.AppendLine("\t\tservices.AddSingleton<IGraphQLGlobalContext, GraphQLGlobalContext>();");
             serviceCollectionBuilder.AppendLine();
             serviceCollectionBuilder.AppendLine("\t\treturn services;");
             serviceCollectionBuilder.AppendLine("\t}");
