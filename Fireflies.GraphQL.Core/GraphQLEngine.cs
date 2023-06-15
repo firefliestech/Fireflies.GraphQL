@@ -37,10 +37,12 @@ public class GraphQLEngine : ASTVisitor<IRequestContext> {
         requestContext.FragmentAccessor = new FragmentAccessor(graphQLDocument!, requestContext);
         requestContext.ValueAccessor = new ValueAccessor(request!.Variables, requestContext);
 
-        var validationErrors = await new RequestValidator(request, _options, requestContext, _wrapperRegistry, _scalarRegistry).Validate(graphQLDocument!).ConfigureAwait(false);
-        if(validationErrors.Any()) {
+        var requestValidator = new RequestValidator(request, _options, requestContext, _wrapperRegistry, _scalarRegistry);
+        await requestValidator.Validate(graphQLDocument!).ConfigureAwait(false);
+        if(requestValidator.Errors.Any()) {
             requestContext.IncreaseExpectedOperations();
-            await requestContext.PublishResult(GenerateValidationErrorResult(validationErrors)).ConfigureAwait(false);
+            requestContext.ConnectionContext.StatusCode = requestValidator.StatusCode;
+            await requestContext.PublishResult(GenerateValidationErrorResult(requestValidator.Errors)).ConfigureAwait(false);
         } else {
             requestContext.Writer = !requestContext.ConnectionContext.IsWebSocket ? _writerFactory.CreateResultWriter() : null;
             await VisitAsync(graphQLDocument, requestContext).ConfigureAwait(false);
@@ -68,7 +70,7 @@ public class GraphQLEngine : ASTVisitor<IRequestContext> {
         }
     }
 
-    private JsonWriter GenerateValidationErrorResult(List<string> errors) {
+    private JsonWriter GenerateValidationErrorResult(IEnumerable<string> errors) {
         var errorWriter = _writerFactory.CreateResultWriter();
         foreach(var error in errors)
             errorWriter.AddError("GRAPHQL_VALIDATION_FAILED", error);

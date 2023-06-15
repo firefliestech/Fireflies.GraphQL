@@ -1,4 +1,5 @@
-﻿using Fireflies.GraphQL.Core;
+﻿using System.Net;
+using Fireflies.GraphQL.Core;
 using Fireflies.IoC.Abstractions;
 using Microsoft.AspNetCore.Http;
 
@@ -17,6 +18,7 @@ internal class AspNetConnectionContext : IConnectionContext<HttpContext> {
     public string QueryString => HttpContext.Request.QueryString.Value;
 
     public IResultBuilder Results { get; }
+    public HttpStatusCode StatusCode { get; set; } = HttpStatusCode.OK;
 
     public bool IsWebSocket => WebSocket != null;
     public IWsProtocolHandler? WebSocket { get; internal set; }

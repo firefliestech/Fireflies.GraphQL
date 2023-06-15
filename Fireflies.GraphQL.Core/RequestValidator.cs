@@ -1,4 +1,5 @@
-﻿using GraphQLParser.AST;
+﻿using System.Net;
+using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 using System.Reflection;
 using Fireflies.GraphQL.Abstractions;
@@ -21,6 +22,9 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
     private readonly Stack<Type> _fieldStack = new();
     private OperationType _operationType;
 
+    public IEnumerable<string> Errors => _errors;
+    public HttpStatusCode StatusCode { get; private set; } = HttpStatusCode.BadRequest;
+
     public RequestValidator(GraphQLRequest request, GraphQLOptions options, IRequestContext context, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry) {
         _request = request;
         _options = options;
@@ -29,12 +33,10 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
         _scalarRegistry = scalarRegistry;
     }
 
-    public async Task<List<string>> Validate(ASTNode startNode) {
+    public async Task Validate(ASTNode startNode) {
         await VisitAsync(startNode, _context).ConfigureAwait(false);
 
         ValidateVariables();
-
-        return _errors;
     }
 
     private void ValidateVariables() {
@@ -80,6 +82,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
                 await AuthorizationHelper.Authorize(queryType.Method, field, _context).ConfigureAwait(false);
             } catch(GraphQLUnauthorizedException) {
                 _errors.Add($"Unauthorized access to query field \"{field.Name}\" on type \"Query\"");
+                StatusCode = HttpStatusCode.Unauthorized;
             }
 
             var returnType = queryType.Method.ReturnType.DiscardTask();
@@ -108,6 +111,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
                 await AuthorizationHelper.Authorize(member, field, context).ConfigureAwait(false);
             } catch(GraphQLUnauthorizedException) {
                 _errors.Add($"Unauthorized access to query field \"{field.Name}\" on type \"{currentTypeName}\"");
+                StatusCode = HttpStatusCode.Unauthorized;
             }
 
             switch(member) {
