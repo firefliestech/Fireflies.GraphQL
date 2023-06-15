@@ -1,7 +1,7 @@
 ﻿public interface IGraphQLGlobalContext {
     event Action<IGraphQLClient>? RequestStarted;
-    event Action<IGraphQLClient>? RequestEnded;
+    event Action<IGraphQLClient, IOperationResult?>? RequestEnded;
 
     void TriggerRequestStarted(IGraphQLClient client);
-    void TriggerRequestEnded(IGraphQLClient client);
+    void TriggerRequestEnded(IGraphQLClient client, IOperationResult? result);
 }

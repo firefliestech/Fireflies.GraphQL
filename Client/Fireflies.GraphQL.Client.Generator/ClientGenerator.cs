@@ -19,7 +19,7 @@ public class ClientGenerator : ASTVisitor<GraphQLGeneratorContext> {
         _rootContext = new GraphQLRootGeneratorContext(schema);
     }
 
-    public string Source => _rootContext.Source;
+    public string Source => _rootContext.Source + "\r\n" + "#pragma warning restore CS8618 // Data objects are populated by JSON";
 
     public async Task Generate() {
         var typeBuilder = _rootContext.GetRawTypeBuilder();
@@ -32,6 +32,8 @@ public class ClientGenerator : ASTVisitor<GraphQLGeneratorContext> {
         typeBuilder.AppendLine("using System.Text.Json.Nodes;");
         typeBuilder.AppendLine("using System.Text.Json.Serialization;");
 
+        typeBuilder.AppendLine();
+        typeBuilder.AppendLine("#pragma warning disable CS8618 // Data objects are populated by JSON");
         typeBuilder.AppendLine();
 
         typeBuilder.AppendLine($"namespace {_generatorSettings.Namespace}.{_clientName};");

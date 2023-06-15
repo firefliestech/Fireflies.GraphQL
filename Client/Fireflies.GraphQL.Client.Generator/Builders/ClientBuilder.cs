@@ -15,7 +15,7 @@ public class ClientBuilder : ITypeBuilder {
 
         _classBuilder.AppendLine("\tprivate Action<HttpBuilder>? _httpConfigurator;");
         _classBuilder.AppendLine("\tprivate Action<WebSocketBuilder>? _webSocketConfigurator;");
-        _classBuilder.AppendLine("\tprivate GraphQLWsClient _wsClient;");
+        _classBuilder.AppendLine("\tprivate GraphQLWsClient _wsClient = null!;");
         _classBuilder.AppendLine("\tprivate IGraphQLGlobalContext _globalContext;");
         _classBuilder.AppendLine("\tprivate JsonSerializerOptions _serializerSettings = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } };");
         _classBuilder.AppendLine();
@@ -26,9 +26,6 @@ public class ClientBuilder : ITypeBuilder {
         _classBuilder.AppendLine("\tpublic event Action Disconnected { add { _wsClient.Disconnected += value; } remove { _wsClient.Disconnected -= value; } }");
         _classBuilder.AppendLine("\tpublic event Action Reconnecting { add { _wsClient.Reconnecting += value; } remove { _wsClient.Reconnecting -= value; } }");
         _classBuilder.AppendLine("\tpublic event Action<Exception> Exception { add { _wsClient.Exception += value; } remove { _wsClient.Exception -= value; } }");
-        _classBuilder.AppendLine();
-        _classBuilder.AppendLine("\tpublic event Action? RequestStarted;");
-        _classBuilder.AppendLine("\tpublic event Action? RequestEnded;");
         _classBuilder.AppendLine();
         _classBuilder.AppendLine($"\tpublic {className}(Action<HttpBuilder> httpConfigurator, Action<WebSocketBuilder> webSocketConfigurator, IGraphQLGlobalContext globalContext) {{");
         _classBuilder.AppendLine("\t\t_httpConfigurator = httpConfigurator;");
@@ -103,17 +100,19 @@ public class ClientBuilder : ITypeBuilder {
         _classBuilder.Append($"\tpublic async Task<I{className}> {operationDefinition.Name}(");
         GenerateParameters(operationDefinition, _classBuilder);
         _classBuilder.AppendLine(") {");
+        _classBuilder.AppendLine($"\t\tI{className}? result = null;");
         _classBuilder.AppendLine("\t\ttry {");
         _classBuilder.AppendLine("\t\t\t_globalContext.TriggerRequestStarted(this);");
         _classBuilder.AppendLine();
         await GenerateRequest(operationDefinition, context);
 
         _classBuilder.AppendLine($"\t\t\tvar json = await Execute(request);");
-        _classBuilder.AppendLine($"\t\t\treturn new {className}(json, _serializerSettings);");
+        _classBuilder.AppendLine($"\t\t\tresult = new {className}(json, _serializerSettings);");
 
         _classBuilder.AppendLine("\t\t} finally {");
-        _classBuilder.AppendLine("\t\t\t_globalContext.TriggerRequestEnded(this);");
+        _classBuilder.AppendLine("\t\t\t_globalContext.TriggerRequestEnded(this, result);");
         _classBuilder.AppendLine("\t\t}");
+        _classBuilder.AppendLine("\t\treturn result!;");
         _classBuilder.AppendLine("\t}");
 
         var resultTypeBuilder = context.RootContext.GetOperationResultTypeBuilder(operationDefinition.Name.StringValue, operationDefinition, context);

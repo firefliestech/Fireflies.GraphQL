@@ -67,7 +67,8 @@ public abstract class ResultTypeBuilderBase {
                         className: $"{fragmentClassName}_{possibleType.Name.Capitalize()}",
                         interfaceName: $"I{fragmentClassName}",
                         schemaField: field,
-                        schemaType: possibleType);
+                        schemaType: possibleType,
+                        fieldMatch);
                 }
             } else {
                 TypeBuilder.AddProperty(fragmentClassName, propertyName, field, fieldMatch);
@@ -88,7 +89,8 @@ public abstract class ResultTypeBuilderBase {
                     className: className,
                     interfaceName: $"I{className}",
                     schemaField: field,
-                    schemaType: possibleType);
+                    schemaType: possibleType,
+                    fieldMatch);
             }
         } else {
             var subResultTypeBuilder = new SubResultTypeBuilder(subClassName, fieldMatch.SelectedByNode, null, fieldType, Context);

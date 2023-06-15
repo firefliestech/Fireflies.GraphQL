@@ -16,8 +16,8 @@ public class TypeBuilder : ITypeBuilder {
     private bool _isOperation;
     private bool _onlyInterface;
 
-    public readonly record struct PropertyDescriptor(string PropertyName, string TypeName, SchemaField SchemaField, bool includeInInterface);
-    public readonly record struct PolymorphicPropertyKey(string PropertyName, string TypeName, SchemaField SchemaField);
+    public readonly record struct PropertyDescriptor(string PropertyName, string TypeName, SchemaField SchemaField, bool IncludeInInterface);
+    public readonly record struct PolymorphicPropertyKey(string PropertyName, string TypeName, SchemaField SchemaField, bool IncludeInInterface);
     public readonly record struct PolymorphicProperty(string ClassName, string InterfaceName, SchemaType SchemaType);
 
     public TypeBuilder(string typeName, ASTNode node, GraphQLGeneratorContext context) {
@@ -49,6 +49,27 @@ public class TypeBuilder : ITypeBuilder {
     }
 
     public void AddProperty(string typeName, string propertyName, SchemaField schemaField, FieldMatch fieldMatch) {
+        var includeInInterface = IncludeInInterface(fieldMatch);
+        _properties.Add(new PropertyDescriptor(propertyName, typeName, schemaField, includeInInterface));
+    }
+
+    public void AddOperationProperties() {
+        _isOperation = true;
+    }
+
+    public void AddPolymorphicProperty(string typeName, string propertyName, string className, string interfaceName, SchemaField schemaField, SchemaType schemaType, FieldMatch fieldMatch) {
+        var includeInInterface = IncludeInInterface(fieldMatch);
+
+        var polymorphicPropertyKey = new PolymorphicPropertyKey(propertyName, typeName, schemaField, includeInInterface);
+        if(!_polymorphicProperties.TryGetValue(polymorphicPropertyKey, out var existing)) {
+            existing = new List<PolymorphicProperty>();
+            _polymorphicProperties[polymorphicPropertyKey] = existing;
+        }
+
+        existing.Add(new PolymorphicProperty(className, interfaceName, schemaType));
+    }
+
+    private bool IncludeInInterface(FieldMatch fieldMatch) {
         bool includeInInterface;
         if(fieldMatch.FoundOnType != null) {
             includeInInterface = false;
@@ -56,25 +77,12 @@ public class TypeBuilder : ITypeBuilder {
             includeInInterface = fieldMatch.DefinedByFragment == null || fieldMatch.DefinedByFragment == _node;
         }
 
-        _properties.Add(new PropertyDescriptor(propertyName, typeName, schemaField, includeInInterface));
         if(fieldMatch.DefinedByFragment != null && fieldMatch.DefinedByFragment != _node) {
-            var interfaceName = $"I{fieldMatch.DefinedByFragment.FragmentName.Name}{(fieldMatch.ConditionType != null ? $"_{fieldMatch.ConditionType}" : null)}";
-            _implementedInterfaces.Add(interfaceName);
-        }
-    }
-
-    public void AddOperationProperties() {
-        _isOperation = true;
-    }
-
-    public void AddPolymorphicProperty(string typeName, string propertyName, string className, string interfaceName, SchemaField schemaField, SchemaType schemaType) {
-        var polymorphicPropertyKey = new PolymorphicPropertyKey(propertyName, typeName, schemaField);
-        if(!_polymorphicProperties.TryGetValue(polymorphicPropertyKey, out var existing)) {
-            existing = new List<PolymorphicProperty>();
-            _polymorphicProperties[polymorphicPropertyKey] = existing;
+            var fragmentInterfaceName = $"I{fieldMatch.DefinedByFragment.FragmentName.Name}{(fieldMatch.ConditionType != null ? $"_{fieldMatch.ConditionType}" : null)}";
+            _implementedInterfaces.Add(fragmentInterfaceName);
         }
 
-        existing.Add(new PolymorphicProperty(className, interfaceName, schemaType));
+        return includeInInterface;
     }
 
     private string GenerateInterface() {
@@ -90,11 +98,11 @@ public class TypeBuilder : ITypeBuilder {
 
         _stringBuilder.AppendLine(" {");
 
-        foreach(var property in _properties.Where(x => x.includeInInterface)) {
+        foreach(var property in _properties.Where(x => x.IncludeInInterface)) {
             GenerateProperty(property, true);
         }
 
-        foreach(var property in _polymorphicProperties.Keys)
+        foreach(var property in _polymorphicProperties.Keys.Where(x => x.IncludeInInterface))
             GeneratePolymorphicProperty(property, true);
 
         _stringBuilder.AppendLine("}");
@@ -164,9 +172,8 @@ public class TypeBuilder : ITypeBuilder {
         var typeName = GetActualType(property.SchemaField, property.TypeName);
         _stringBuilder.AppendLine($"\tprivate {typeName} Create{property.PropertyName}(JsonNode? data, JsonSerializerOptions serializerOptions) {{");
         
-        _stringBuilder.AppendLine("\t\tif(data == null) {");
-        _stringBuilder.AppendLine("\t\t\treturn null;");
-        _stringBuilder.AppendLine("\t\t}");
+        _stringBuilder.AppendLine("\t\tif(data == null)");
+        _stringBuilder.AppendLine("\t\t\treturn null!;");
 
         _stringBuilder.AppendLine();
 
@@ -191,10 +198,10 @@ public class TypeBuilder : ITypeBuilder {
         var typeName = GetActualType(property.SchemaField, property.TypeName);
         _stringBuilder.AppendLine($"\tprivate {(isScalarOrEnum ? null : "I")}{typeName} Create{property.PropertyName}(JsonNode? data, JsonSerializerOptions serializerOptions) {{");
         if(isScalarOrEnum) {
-            _stringBuilder.AppendLine($"\t\treturn data?.Deserialize<{property.TypeName}>(serializerOptions) ?? default;");
+            _stringBuilder.AppendLine($"\t\treturn data?.Deserialize<{property.TypeName}>(serializerOptions) ?? default!;");
         } else {
             _stringBuilder.AppendLine("\t\tif(data == null)");
-            _stringBuilder.AppendLine("\t\t\treturn null;");
+            _stringBuilder.AppendLine("\t\t\treturn null!;");
             _stringBuilder.AppendLine($"\t\treturn new {property.TypeName}(data!, serializerOptions);");
         }
 

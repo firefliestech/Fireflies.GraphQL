@@ -66,7 +66,9 @@
 
         if(!_cancellationToken.IsCancellationRequested && _subscribers.Any() && ReconnectDelay != null) {
             await Task.Delay(ReconnectDelay.Value);
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
             Task.Run(async () => await Reconnect());
+#pragma warning enable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
         }
     }
 
@@ -84,7 +86,9 @@
         switch(json["type"]!.GetValue<string>()) {
             case "connection_ack":
                 // To avoid deadlock
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                 Task.Run(() => _connectionAckCompletionSource!.SetResult());
+#pragma warning enable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                 break;
             case "data": {
                 var id = json["id"]!.GetValue<Guid>();
@@ -155,7 +159,9 @@
 
                 _connectionAckCompletionSource = new TaskCompletionSource();
 
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                 Task.Run(async () => await Receive());
+#pragma warning enable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                 await SendConnectionInit();
 
                 var winner = await Task.WhenAny(new[] {

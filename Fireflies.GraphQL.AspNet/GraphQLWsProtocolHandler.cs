@@ -54,7 +54,7 @@ internal class GraphQLWsProtocolHandler : WsProtocolHandlerBase, IWsProtocolHand
 
     protected override async Task ProcessInbound(byte[] bytes) {
         var request = JsonSerializer.Deserialize<JsonNode>(bytes, DefaultJsonSerializerSettings.DefaultSettings);
-        switch(request["type"].GetValue<string>()) {
+        switch(request?["type"]?.GetValue<string>()) {
             case "connection_init":
                 await ProcessConnectionInit(request).ConfigureAwait(false);
                 break;
