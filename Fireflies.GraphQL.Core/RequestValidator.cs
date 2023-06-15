@@ -1,5 +1,4 @@
-﻿using System.Net;
-using GraphQLParser.AST;
+﻿using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 using System.Reflection;
 using Fireflies.GraphQL.Abstractions;
@@ -8,6 +7,7 @@ using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Federation;
 using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.Utility.Reflection;
+using Fireflies.GraphQL.Core.Json;
 
 namespace Fireflies.GraphQL.Core;
 
@@ -17,13 +17,12 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
     private readonly IRequestContext _context;
     private readonly WrapperRegistry _wrapperRegistry;
     private readonly ScalarRegistry _scalarRegistry;
-    private readonly List<string> _errors = new();
+    private readonly List<GraphQLError> _errors = new();
     private readonly HashSet<string> _usedVariables = new();
     private readonly Stack<Type> _fieldStack = new();
     private OperationType _operationType;
 
-    public IEnumerable<string> Errors => _errors;
-    public HttpStatusCode StatusCode { get; private set; } = HttpStatusCode.BadRequest;
+    public IEnumerable<GraphQLError> Errors => _errors;
 
     public RequestValidator(GraphQLRequest request, GraphQLOptions options, IRequestContext context, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry) {
         _request = request;
@@ -41,7 +40,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
 
     private void ValidateVariables() {
         foreach(var unusedVariable in _request.Variables?.Keys.Except(_usedVariables) ?? Enumerable.Empty<string>()) {
-            _errors.Add($"Variable ${unusedVariable} is never used");
+            _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Variable ${unusedVariable} is never used"));
         }
     }
 
@@ -49,7 +48,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
         _usedVariables.Add(variable.Name.StringValue);
 
         if(!(_request.Variables?.ContainsKey(variable.Name.StringValue) ?? false))
-            _errors.Add($"Variable ${variable.Name.StringValue} is not defined");
+            _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Variable ${variable.Name.StringValue} is not defined"));
 
         return ValueTask.CompletedTask;
     }
@@ -58,7 +57,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
         _operationType = operationDefinition.Operation;
 
         if(operationDefinition.Operation == OperationType.Subscription && !context.ConnectionContext.IsWebSocket) {
-            _errors.Add($"Operation type \"{_operationType}\" is only allowed if connected over websocket");
+            _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Operation type \"{_operationType}\" is only allowed if connected over websocket"));
         }
 
         return base.VisitOperationDefinitionAsync(operationDefinition, context);
@@ -73,7 +72,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
                 return;
 
             if(queryType == null || queryType.Method.HasCustomAttribute<GraphQLInternalAttribute>()) {
-                _errors.Add($"Cannot query field \"{field.Name}\" on type \"{_operationType}\"");
+                _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Cannot query field \"{field.Name}\" on type \"{_operationType}\""));
                 return;
             }
 
@@ -81,8 +80,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
                 await AuthorizationHelper.Authorize(queryType.Type, field, _context).ConfigureAwait(false);
                 await AuthorizationHelper.Authorize(queryType.Method, field, _context).ConfigureAwait(false);
             } catch(GraphQLUnauthorizedException) {
-                _errors.Add($"Unauthorized access to query field \"{field.Name}\" on type \"Query\"");
-                StatusCode = HttpStatusCode.Unauthorized;
+                _errors.Add(new GraphQLError("GRAPHQL_UNAUTHORIZED", $"Unauthorized access to query field \"{field.Name}\" on type \"Query\""));
             }
 
             var returnType = queryType.Method.ReturnType.DiscardTask();
@@ -103,15 +101,14 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
 
             var member = currentType.GetGraphQLMemberInfo(field.Name.StringValue);
             if(member == null || member.DeclaringType == typeof(object) || member.HasCustomAttribute<GraphQLInternalAttribute>()) {
-                _errors.Add($"Cannot query field \"{field.Name}\" on type \"{currentTypeName}\"");
+                _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Cannot query field \"{field.Name}\" on type \"{currentTypeName}\""));
                 return;
             }
 
             try {
                 await AuthorizationHelper.Authorize(member, field, context).ConfigureAwait(false);
             } catch(GraphQLUnauthorizedException) {
-                _errors.Add($"Unauthorized access to query field \"{field.Name}\" on type \"{currentTypeName}\"");
-                StatusCode = HttpStatusCode.Unauthorized;
+                _errors.Add(new GraphQLError("GRAPHQL_UNAUTHORIZED", $"Unauthorized access to query field \"{field.Name}\" on type \"{currentTypeName}\""));
             }
 
             switch(member) {
@@ -126,7 +123,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
                     pushed = true;
                     break;
                 default:
-                    _errors.Add($"Cannot query field \"{field.Name}\" on type \"{currentTypeName}\". Unknown member type");
+                    _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Cannot query field \"{field.Name}\" on type \"{currentTypeName}\". Unknown member type"));
                     break;
             }
         }
@@ -178,7 +175,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
         var currentType = _fieldStack.Peek();
         var currentTypeName = currentType.GetGraphQLType().GraphQLName();
         if(!selections.Any() && currentType.IsClass && currentType != typeof(string) && !currentType.IsSubclassOf(typeof(GraphQLId)) && !_scalarRegistry.Contains(currentType)) {
-            _errors.Add($"Field of type \"{field.Name}\" of type \"{currentTypeName}\" must have a selection of sub fields");
+            _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Field of type \"{field.Name}\" of type \"{currentTypeName}\" must have a selection of sub fields"));
         }
 
         foreach(var selection in selections) {
@@ -192,7 +189,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
         foreach(var arg in field.Arguments ?? Enumerable.Empty<GraphQLArgument>()) {
             var matchingParameter = parameters.FirstOrDefault(x => x.Name == arg.Name);
             if(matchingParameter == null) {
-                _errors.Add($"Unknown argument \"{arg.Name}\" on field \"{field.Name.StringValue}\".");
+                _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Unknown argument \"{arg.Name}\" on field \"{field.Name.StringValue}\"."));
             } else {
                 remainingParameters.Remove(matchingParameter);
                 var argumentValidator = new ArgumentValidator(matchingParameter, context.ValueAccessor, _errors);
@@ -204,7 +201,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
         var unspecifiedParameters = remainingParameters.Where(rp => !rp.HasDefaultValue && !NullabilityChecker.IsNullable(rp));
 
         foreach(var unspecifiedParameter in unspecifiedParameters) {
-            _errors.Add($"Missing required argument \"{unspecifiedParameter.Name}\" on field \"{field.Name.StringValue}\".");
+            _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Missing required argument \"{unspecifiedParameter.Name}\" on field \"{field.Name.StringValue}\"."));
         }
     }
 
@@ -223,10 +220,10 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
 
     private class ArgumentValidator : ASTVisitor<IRequestContext> {
         private readonly ValueAccessor _valueAccessor;
-        private readonly List<string> _errors;
+        private readonly List<GraphQLError> _errors;
         private readonly Stack<Type> _stack = new();
 
-        public ArgumentValidator(ParameterInfo matchingParameter, ValueAccessor valueAccessor, List<string> errors) {
+        public ArgumentValidator(ParameterInfo matchingParameter, ValueAccessor valueAccessor, List<GraphQLError> errors) {
             _stack.Push(matchingParameter.ParameterType);
             _valueAccessor = valueAccessor;
             _errors = errors;
@@ -236,7 +233,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
             var currentType = _stack.Peek();
             var member = currentType.GetProperty(objectField.Name.StringValue, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if(member == null) {
-                _errors.Add($"Field with name \"{objectField.Name.StringValue}\" of type \"{currentType.GraphQLName()}\" does not exist");
+                _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Field with name \"{objectField.Name.StringValue}\" of type \"{currentType.GraphQLName()}\" does not exist"));
             } else {
                 var memberPropertyType = member.PropertyType.GetGraphQLBaseType();
                 _stack.Push(memberPropertyType);
@@ -293,7 +290,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
 
             if(variableValue == null) {
                 if(Nullable.GetUnderlyingType(expectedType) == null)
-                    _errors.Add($"Value for variable with name \"{variable.Name.StringValue}\" must not be null");
+                    _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Value for variable with name \"{variable.Name.StringValue}\" must not be null"));
                 return ValueTask.CompletedTask;
             }
 
@@ -331,11 +328,11 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
         }
 
         private void AddTypeError(GraphQLObjectField objectField, Type currentType, Type memberPropertyType) {
-            _errors.Add($"Value for field with name \"{objectField.Name.StringValue}\" of type \"{currentType.Name}\" must be of type {memberPropertyType.GetPrimitiveGraphQLName()}");
+            _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Value for field with name \"{objectField.Name.StringValue}\" of type \"{currentType.Name}\" must be of type {memberPropertyType.GetPrimitiveGraphQLName()}"));
         }
 
         private void AddTypeError(GraphQLVariable variable, Type memberPropertyType) {
-            _errors.Add($"Value for variable with name \"{variable.Name.StringValue}\" must be of type {memberPropertyType.GetPrimitiveGraphQLName()}");
+            _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Value for variable with name \"{variable.Name.StringValue}\" must be of type {memberPropertyType.GetPrimitiveGraphQLName()}"));
         }
     }
 }

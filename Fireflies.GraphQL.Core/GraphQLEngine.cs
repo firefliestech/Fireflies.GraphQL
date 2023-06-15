@@ -41,7 +41,6 @@ public class GraphQLEngine : ASTVisitor<IRequestContext> {
         await requestValidator.Validate(graphQLDocument!).ConfigureAwait(false);
         if(requestValidator.Errors.Any()) {
             requestContext.IncreaseExpectedOperations();
-            requestContext.ConnectionContext.StatusCode = requestValidator.StatusCode;
             await requestContext.PublishResult(GenerateValidationErrorResult(requestValidator.Errors)).ConfigureAwait(false);
         } else {
             requestContext.Writer = !requestContext.ConnectionContext.IsWebSocket ? _writerFactory.CreateResultWriter() : null;
@@ -70,10 +69,10 @@ public class GraphQLEngine : ASTVisitor<IRequestContext> {
         }
     }
 
-    private JsonWriter GenerateValidationErrorResult(IEnumerable<string> errors) {
+    private JsonWriter GenerateValidationErrorResult(IEnumerable<IGraphQLError> errors) {
         var errorWriter = _writerFactory.CreateResultWriter();
         foreach(var error in errors)
-            errorWriter.AddError("GRAPHQL_VALIDATION_FAILED", error);
+            errorWriter.AddError(error);
         return errorWriter;
     }
 

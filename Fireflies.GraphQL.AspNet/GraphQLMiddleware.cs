@@ -59,7 +59,6 @@ public class GraphQLMiddleware {
                 if(connectionContext.IsWebSocket) {
                     await connectionContext.WebSocket!.HandleResult(subResult);
                 } else {
-                    httpContext.Response.StatusCode = (int)connectionContext.StatusCode;
                     httpContext.Response.ContentType = "application/json";
                     await httpContext.Response.Body.WriteAsync(subResult.Result, 0, subResult.Result.Length).ConfigureAwait(false);
                 }

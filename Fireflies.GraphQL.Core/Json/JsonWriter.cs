@@ -21,6 +21,11 @@ public class JsonWriter : IErrorCollection {
         return error;
     }
 
+    public IGraphQLError AddError(IGraphQLError error) {
+        Errors.Add(error);
+        return error;
+    }
+
     public IGraphQLError AddError(IGraphQLPath path, string code, string message) {
         var error = new GraphQLError(path, code, message);
         Errors.Add(error);

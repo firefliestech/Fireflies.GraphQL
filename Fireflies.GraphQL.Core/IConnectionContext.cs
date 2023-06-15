@@ -1,5 +1,4 @@
-﻿using System.Net;
-using Fireflies.IoC.Abstractions;
+﻿using Fireflies.IoC.Abstractions;
 using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core;
@@ -12,7 +11,6 @@ public interface IConnectionContext : IASTVisitorContext {
     string QueryString { get; }
 
     IResultBuilder Results { get; }
-    HttpStatusCode StatusCode { get; set; }
 
     IConnectionContext CreateChildContext();
     IDependencyResolver CreateRequestContainer();
