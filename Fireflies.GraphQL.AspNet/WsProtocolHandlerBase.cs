@@ -20,7 +20,10 @@ internal abstract class WsProtocolHandlerBase {
     }
 
     public async void Process() {
-        _logger.Debug($"Connection from {_httpContext.Connection.RemoteIpAddress}:{_httpContext.Connection.RemotePort} to {_httpContext.Request.Path} opened");
+        var remoteIpAddress = _httpContext.Connection.RemoteIpAddress;
+        var remotePort = _httpContext.Connection.RemotePort;
+        var requestPath = _httpContext.Request.Path;
+        _logger.Debug($"Connection from {remoteIpAddress}:{remotePort} to {requestPath} opened");
 
         while(true) {
             try {
@@ -31,15 +34,15 @@ internal abstract class WsProtocolHandlerBase {
                 }
 
                 await ProcessInbound(bytes).ConfigureAwait(false);
-            } catch(WebSocketException wsex) {
+            } catch(WebSocketException) {
                 break;
             } catch(Exception ex) {
-                _logger.Error(ex, $"Error while running OnReceived connection. Path='{_httpContext.Request.Path}'");
+                _logger.Error(ex, $"Error while running OnReceived connection. Path='{requestPath}'");
                 break;
             }
         }
 
-        _logger.Debug($"Connection from {_httpContext.Connection.RemoteIpAddress}:{_httpContext.Connection.RemotePort} to {_httpContext.Request.Path} closed");
+        _logger.Debug($"Connection from {remoteIpAddress}:{remotePort} to {requestPath} closed");
         _connectionContext.Results.Done();
     }
 
