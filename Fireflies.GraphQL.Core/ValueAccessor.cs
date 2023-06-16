@@ -110,6 +110,8 @@ public class ValueAccessor {
                     context.Stack.Push(Convert.ChangeType(obj, returnType));
                 else
                     context.Stack.Push(obj);
+            } else {
+                context.Stack.Push(null);
             }
 
             return ValueTask.CompletedTask;
