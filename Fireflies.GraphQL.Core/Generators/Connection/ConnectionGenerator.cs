@@ -2,6 +2,7 @@
 using System.Reflection.Emit;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Abstractions.Connection;
+using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.Utility.Reflection;
@@ -89,6 +90,8 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
             TypeAttributes.AutoLayout,
             baseType);
 
+        baseType.CopyAttributes(a => connectionType.SetCustomAttribute(a));
+        
         var parameterTypes = new[] { typeof(IEnumerable<>).MakeGenericType(edgeType), typeof(int), typeof(string) };
         var baseConstructor = baseType.GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance).First();
 
@@ -118,6 +121,8 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
             TypeAttributes.AutoLayout,
             baseType);
 
+        baseType.CopyAttributes(a => edgeType.SetCustomAttribute(a));
+
         var baseConstructor = baseType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, new[] { nodeType })!;
 
         // Build constructor
@@ -130,6 +135,7 @@ public class ConnectionGenerator : ITypeExtenderGenerator {
         constructorIlGenerator.Emit(OpCodes.Call, baseConstructor);
         constructorIlGenerator.Emit(OpCodes.Ret);
 
-        return edgeType.CreateType()!;
+        var createdType = edgeType.CreateType()!;
+        return createdType;
     }
 }

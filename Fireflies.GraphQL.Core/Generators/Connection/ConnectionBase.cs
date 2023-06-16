@@ -1,9 +1,12 @@
-﻿namespace Fireflies.GraphQL.Core.Generators.Connection;
+﻿using Fireflies.GraphQL.Abstractions.Generator;
+
+namespace Fireflies.GraphQL.Core.Generators.Connection;
 
 public abstract class ConnectionBase {
 
 }
 
+[GraphQLNoWrapper]
 public class ConnectionBase<TEdge, TNode> : ConnectionBase where TEdge : EdgeBase<TNode> {
     private readonly IEnumerable<TEdge> _filteredEdges;
 

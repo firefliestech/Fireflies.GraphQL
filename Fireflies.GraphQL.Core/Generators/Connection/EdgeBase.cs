@@ -2,11 +2,13 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.Utility.Reflection;
 using Fireflies.Utility.Reflection.Fasterflect;
 
 namespace Fireflies.GraphQL.Core.Generators.Connection;
 
+[GraphQLNoWrapper]
 public abstract class EdgeBase<TBase> {
     protected EdgeBase(TBase node) {
         Node = node;
