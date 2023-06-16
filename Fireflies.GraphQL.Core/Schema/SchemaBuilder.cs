@@ -163,7 +163,13 @@ internal class SchemaBuilder {
 
     private IEnumerable<__Field> CreateOperationFields(IEnumerable<OperationDescriptor> operations, Func<FederationSchema, string?> typeNameSelector) {
         var localOperations = operations.Select(x => x.Method).Where(x => !x.HasCustomAttribute<GraphQLInternalAttribute>() && !x.HasCustomAttribute<GraphQLFederatedAttribute>())
-            .Select(query => new __Field(query) { Type = CreateType(query.ReturnType.DiscardTask(), true), Args = GetArguments(query).ToArray() });
+            .Select(method => {
+                var isNullable = IsNullable(method, out var returnType);
+                return new __Field(method) {
+                    Type = WrapNonNullable(isNullable, CreateType(returnType, true)),
+                    Args = GetArguments(method).ToArray()
+                };
+            });
 
         var federatedFields = new List<__Field>();
         foreach(var schema in _federationSchemas) {
@@ -301,15 +307,7 @@ internal class SchemaBuilder {
         var fields = new List<__Field>();
 
         foreach(var method in baseType.GetAllGraphQLMethods()) {
-            var returnType = method.ReturnType.DiscardTask();
-            var isNullable = false;
-            var underlyingType = Nullable.GetUnderlyingType(returnType);
-            if(underlyingType != null) {
-                returnType = underlyingType;
-                isNullable = true;
-            } else if(NullabilityChecker.IsNullable(method)) {
-                isNullable = true;
-            }
+            var isNullable = IsNullable(method, out var returnType);
 
             fields.Add(new __Field(method) {
                 Type = WrapNonNullable(isNullable, CreateType(returnType, true)),
@@ -331,6 +329,20 @@ internal class SchemaBuilder {
         }
 
         return fields;
+    }
+
+    private static bool IsNullable(MethodInfo method, out Type returnType) {
+        returnType = method.ReturnType.DiscardTask();
+        var isNullable = false;
+        var underlyingType = Nullable.GetUnderlyingType(returnType);
+        if(underlyingType != null) {
+            returnType = underlyingType;
+            isNullable = true;
+        } else if(NullabilityChecker.IsNullable(method)) {
+            isNullable = true;
+        }
+
+        return isNullable;
     }
 
     private List<__InputValue> GetArguments(MethodInfo method) {
