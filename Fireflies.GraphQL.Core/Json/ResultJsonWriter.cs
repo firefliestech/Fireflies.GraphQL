@@ -4,15 +4,19 @@ using Fireflies.GraphQL.Core.Scalar;
 namespace Fireflies.GraphQL.Core.Json;
 
 public class ResultJsonWriter : JsonWriter {
-    private bool _empty = true;
+    private bool _dataEmpty = true;
 
     public ResultJsonWriter(ScalarRegistry scalarRegistry) : base(scalarRegistry) {
         _writer.WriteStartObject();
     }
 
     public override async Task<byte[]> GetBuffer() {
-        if(!_empty)
+        if(!_dataEmpty)
             _writer.WriteEndObject();
+
+        // Values added from now on is not part of the data structure so
+        // EnsureData should never create any container object
+        _dataEmpty = false;
 
         if(Metadata.Federated)
             _writer.WriteBoolean("_federated", true);
@@ -63,7 +67,6 @@ public class ResultJsonWriter : JsonWriter {
                 var type = extension.Value.GetType();
                 WriteValue(extension.Key, extension.Value, type);
             }
-            
         }
 
         _writer.WriteEndObject();
@@ -115,10 +118,10 @@ public class ResultJsonWriter : JsonWriter {
     }
 
     private void EnsureData() {
-        if(!_empty)
+        if(!_dataEmpty)
             return;
 
         _writer.WriteStartObject("data");
-        _empty = false;
+        _dataEmpty = false;
     }
 }
