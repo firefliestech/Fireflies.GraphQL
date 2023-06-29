@@ -90,6 +90,8 @@ public class WhereGenerator : IMethodExtenderGenerator {
                     propertyType = typeof(StringWhere);
                 else if(graphQLType == typeof(GraphQLId))
                     propertyType = typeof(StringWhere);
+                else if(graphQLType == typeof(bool))
+                    propertyType = typeof(BooleanWhere);
                 else if(graphQLType == typeof(int))
                     propertyType = typeof(IntWhere);
                 else if(graphQLType == typeof(decimal))
