@@ -2,14 +2,14 @@
 
 namespace Fireflies.GraphQL.Core.Scalar;
 
-public class VersionScalarHandler : IScalarHandler {
-    public Type BaseType => typeof(Version);
+public class BooleanScalarHandler : IScalarHandler {
+    public Type BaseType => typeof(bool);
 
     public void Serialize(Utf8JsonWriter writer, object value) {
-        writer.WriteStringValue(((Version)value).ToString());
+        writer.WriteBooleanValue(Convert.ToBoolean(value));
     }
 
     public void Serialize(Utf8JsonWriter writer, string property, object value) {
-        writer.WriteString(property, ((Version)value).ToString());
+        writer.WriteBoolean(property, Convert.ToBoolean(value));
     }
 }

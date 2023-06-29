@@ -1,4 +1,6 @@
-﻿namespace Fireflies.GraphQL.Core.Scalar;
+﻿using Fireflies.GraphQL.Core.Extensions;
+
+namespace Fireflies.GraphQL.Core.Scalar;
 
 public class ScalarRegistry {
     private readonly Dictionary<Type, IScalarHandler> _handlers = new();

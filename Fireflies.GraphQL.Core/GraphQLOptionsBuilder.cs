@@ -37,8 +37,29 @@ public class GraphQLOptionsBuilder {
         var dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
         _moduleBuilder = dynamicAssembly.DefineDynamicModule("Main");
 
+        // Built in types
+        AddScalar<short>(new IntScalarHandler());
+        AddScalar<int>(new IntScalarHandler());
+        AddScalar<long>(new IntScalarHandler());
+        AddScalar<ushort>(new IntScalarHandler());
+        AddScalar<uint>(new IntScalarHandler());
+        AddScalar<ulong>(new IntScalarHandler());
+        AddScalar<byte>(new IntScalarHandler());
+        AddScalar<sbyte>(new IntScalarHandler());
+
+        AddScalar<bool>(new BooleanScalarHandler());
+
+        AddScalar<char>(new StringScalarHandler());
+        AddScalar<string>(new StringScalarHandler());
+
+        AddScalar<float>(new FloatScalarHandler());
+        AddScalar<double>(new FloatScalarHandler());
+        AddScalar<decimal>(new FloatScalarHandler());
+
+        // Commonly used .NET types
         AddScalar<DateTimeOffset>(new DateTimeScalarHandler());
         AddScalar<DateTime>(new DateTimeScalarHandler());
+        AddScalar<TimeSpan>(new TimeSpanScalarHandler());
         AddScalar<Version>(new VersionScalarHandler());
 
         _generatorRegistry = new GeneratorRegistry();
@@ -157,7 +178,11 @@ public class GraphQLOptionsBuilder {
                 }
             }
 
-            var schemaBuilder = new SchemaBuilder(options, wrapperRegistry, _scalarRegistry, federatedSchemas);
+            var typeRegistry = new TypeRegistry(wrapperRegistry, _scalarRegistry, options);
+            typeRegistry.Initialize();
+            builder.RegisterInstance(typeRegistry);
+
+            var schemaBuilder = new SchemaBuilder(options, wrapperRegistry, _scalarRegistry, federatedSchemas, typeRegistry);
             var schema = schemaBuilder.GenerateSchema();
             builder.RegisterInstance(schema);
         });

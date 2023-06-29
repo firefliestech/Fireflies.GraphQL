@@ -4,6 +4,8 @@ using System.Text.Json;
 namespace Fireflies.GraphQL.Core.Scalar;
 
 public class DateTimeScalarHandler : IScalarHandler {
+    public Type BaseType => typeof(DateTime);
+
     public void Serialize(Utf8JsonWriter writer, object value) {
         writer.WriteStringValue(((DateTimeOffset)value).ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", DateTimeFormatInfo.InvariantInfo));
     }

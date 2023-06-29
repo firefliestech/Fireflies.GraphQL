@@ -14,24 +14,18 @@ internal class SchemaBuilder {
     private readonly WrapperRegistry _wrapperRegistry;
     private readonly ScalarRegistry _scalarRegistry;
     private readonly List<FederationSchema> _federationSchemas;
-    private readonly HashSet<Type> _inputTypes = new();
-    private readonly HashSet<Type> _ignore = new();
-    private int _inputLevel;
+    private readonly TypeRegistry _typeRegistry;
 
     // ReSharper disable once UnusedMember.Global
-    public SchemaBuilder(GraphQLOptions options, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry, List<FederationSchema> federationSchemas) {
+    public SchemaBuilder(GraphQLOptions options, WrapperRegistry wrapperRegistry, ScalarRegistry scalarRegistry, List<FederationSchema> federationSchemas, TypeRegistry typeRegistry) {
         _options = options;
         _wrapperRegistry = wrapperRegistry;
         _scalarRegistry = scalarRegistry;
         _federationSchemas = federationSchemas;
-        _ignore.Add(typeof(__Schema));
+        _typeRegistry = typeRegistry;
     }
 
     public __Schema GenerateSchema() {
-        var allTypes = new HashSet<Type>();
-        foreach(var type in _options.AllOperations.Where(x => !x.Method.HasCustomAttribute<GraphQLFederatedAttribute>()))
-            FindAllTypes(allTypes, type.Type, true, false);
-
         __Type? queryType = null;
         if(_options.QueryOperations.Any()) {
             queryType = new __Type(null, CreateOperationFields(_options.QueryOperations.Where(qo => !qo.Name.StartsWith("__")), s => s.QueryType?.Name)) {
@@ -56,7 +50,7 @@ internal class SchemaBuilder {
             };
         }
 
-        var allTypesIncludingRootTypes = allTypes.Select(t => CreateType(t, false)).ToList();
+        var allTypesIncludingRootTypes = _typeRegistry.AllTypes.Select(t => CreateType(t, false)).ToList();
         if(queryType != null)
             allTypesIncludingRootTypes.Add(queryType);
         if(mutationType != null)
@@ -92,73 +86,6 @@ internal class SchemaBuilder {
         };
 
         return schema;
-    }
-
-    private void FindAllTypes(HashSet<Type> types, Type startingObject, bool isOperation, bool isInput) {
-        if(_ignore.Contains(startingObject))
-            return;
-
-        startingObject = _wrapperRegistry.GetWrapperOfSelf(startingObject);
-        startingObject = startingObject.GetGraphQLBaseType();
-
-        if(startingObject.IsCollection(out var elementType)) {
-            FindAllTypes(types, elementType, false, isInput);
-            return;
-        }
-
-        var underlyingType = Nullable.GetUnderlyingType(startingObject);
-        if(underlyingType != null)
-            startingObject = underlyingType;
-
-        if(!isOperation && !types.Add(startingObject))
-            return;
-
-        if(isInput)
-            _inputTypes.Add(startingObject);
-
-        if(!_scalarRegistry.IsValidGraphQLObjectType(startingObject))
-            return;
-
-        if(startingObject.IsInterface) {
-            foreach(var impl in ReflectionCache.GetAllClassesThatImplements(startingObject))
-                FindAllTypes(types, _wrapperRegistry.GetWrapperOfSelf(impl), false, isInput);
-        } else {
-            foreach(var interf in startingObject.GetInterfaces()) {
-                FindAllTypes(types, interf, false, isInput);
-            }
-        }
-
-        foreach(var method in startingObject.GetAllGraphQLMethods()) {
-            if(method.HasCustomAttribute<GraphQLInternalAttribute>())
-                continue;
-
-            foreach(var parameter in method.GetAllGraphQLParameters()) {
-                if(_ignore.Contains(parameter.ParameterType))
-                    continue;
-
-                _inputLevel++;
-                _inputTypes.Add(Nullable.GetUnderlyingType(parameter.ParameterType) ?? parameter.ParameterType);
-                FindAllTypes(types, parameter.ParameterType, false, true);
-                _inputLevel--;
-            }
-
-            var graphQLType = method.ReturnType.GetGraphQLType();
-            FindAllTypes(types, graphQLType, false, isInput);
-        }
-
-        if(!isOperation) {
-            foreach(var property in startingObject.GetAllGraphQLProperties()) {
-                if(_inputLevel > 0)
-                    _inputTypes.Add(Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType);
-                FindAllTypes(types, property.PropertyType, false, isInput);
-            }
-        }
-
-        if(startingObject.IsInterface) {
-            foreach(var implementingType in ReflectionCache.GetAllClassesThatImplements(startingObject)) {
-                types.Add(_wrapperRegistry.GetWrapperOfSelf(implementingType));
-            }
-        }
     }
 
     private IEnumerable<__Field> CreateOperationFields(IEnumerable<OperationDescriptor> operations, Func<FederationSchema, string?> typeNameSelector) {
@@ -251,7 +178,7 @@ internal class SchemaBuilder {
             };
         }
 
-        if(_inputTypes.Contains(elementType)) {
+        if(_typeRegistry.IsInputType(elementType)) {
             var inputValues = new List<__InputValue>();
 
             foreach(var property in elementType.GetAllGraphQLProperties()) {
@@ -348,7 +275,7 @@ internal class SchemaBuilder {
     private List<__InputValue> GetArguments(MethodInfo method) {
         var args = new List<__InputValue>();
         foreach(var parameter in method.GetAllGraphQLParameters()) {
-            if(_ignore.Contains(parameter.ParameterType))
+            if(_typeRegistry.ShouldIgnore(parameter.ParameterType))
                 continue;
 
             var propertyType = WrapNonNullable(NullabilityChecker.IsNullable(parameter), CreateType(parameter.ParameterType, true));

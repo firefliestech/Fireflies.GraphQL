@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Scalar;
@@ -85,41 +86,11 @@ public class JsonWriter : IErrorCollection {
             return;
         }
 
-        var typeCode = Type.GetTypeCode(Nullable.GetUnderlyingType(elementType) ?? elementType);
-        switch(typeCode) {
-            case TypeCode.Int16:
-            case TypeCode.Int32:
-            case TypeCode.Int64:
-            case TypeCode.UInt16:
-            case TypeCode.UInt32:
-            case TypeCode.UInt64:
-            case TypeCode.Byte:
-            case TypeCode.SByte:
-                _writer.WriteNumberValue((int)Convert.ChangeType(value, TypeCode.Int32));
-                break;
-
-            case TypeCode.Boolean:
-                _writer.WriteBooleanValue((bool)value);
-                break;
-
-            case TypeCode.Char:
-            case TypeCode.String:
-                _writer.WriteStringValue((string)value);
-                break;
-
-            case TypeCode.Single:
-            case TypeCode.Double:
-            case TypeCode.Decimal:
-                _writer.WriteNumberValue((decimal)Convert.ChangeType(value, TypeCode.Decimal));
-                break;
-
-            default:
-                if(_scalarRegistry.GetHandler(value.GetType(), out var handler)) {
-                    handler!.Serialize(_writer, value);
-                }
-
-                throw new ArgumentOutOfRangeException(nameof(typeCode));
+        if(_scalarRegistry.GetHandler(value.GetType(), out var handler)) {
+            handler!.Serialize(_writer, value);
         }
+
+        throw new ArgumentOutOfRangeException($"No scalar handler found for {elementType.Name}");
     }
 
     public virtual void WriteValue(string property, object value, Type elementType) {
@@ -128,49 +99,19 @@ public class JsonWriter : IErrorCollection {
             return;
         }
 
-        var typeCode = Type.GetTypeCode(Nullable.GetUnderlyingType(elementType) ?? elementType);
-        switch(typeCode) {
-            case TypeCode.Int16:
-            case TypeCode.Int32:
-            case TypeCode.Int64:
-            case TypeCode.UInt16:
-            case TypeCode.UInt32:
-            case TypeCode.UInt64:
-            case TypeCode.Byte:
-            case TypeCode.SByte:
-                _writer.WriteNumber(property, (int)Convert.ChangeType(value, TypeCode.Int32));
-                break;
+        var memberInfo = value.GetType();
 
-            case TypeCode.Boolean:
-                _writer.WriteBoolean(property, (bool)value);
-                break;
-
-            case TypeCode.Char:
-            case TypeCode.String:
-                _writer.WriteString(property, (string)value);
-                break;
-
-            case TypeCode.Single:
-            case TypeCode.Double:
-            case TypeCode.Decimal:
-                _writer.WriteNumber(property, (decimal)Convert.ChangeType(value, TypeCode.Decimal));
-                break;
-
-            default:
-                var memberInfo = value.GetType();
-
-                if(memberInfo.IsSubclassOf(typeof(GraphQLId))) {
-                    _writer.WriteString(property, value.ToString());
-                    break;
-                }
-
-                if(_scalarRegistry.GetHandler(memberInfo, out var handler)) {
-                    handler!.Serialize(_writer, property, value);
-                    break;
-                }
-
-                throw new ArgumentOutOfRangeException(nameof(typeCode));
+        if(memberInfo.IsSubclassOf(typeof(GraphQLId))) {
+            _writer.WriteString(property, value.ToString());
+            return;
         }
+
+        if(_scalarRegistry.GetHandler(memberInfo, out var handler)) {
+            handler!.Serialize(_writer, property, value);
+            return;
+        }
+
+        throw new ArgumentOutOfRangeException($"No scalar handler found for {elementType.Name}");
     }
 
     public virtual void WriteRaw(string fieldName, JsonNode jsonObject) {
