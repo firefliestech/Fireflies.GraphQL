@@ -81,9 +81,9 @@ public class WhereGenerator : IMethodExtenderGenerator {
                 continue;
             }
 
-            subType.IsCollection(out subType);
-            if(!_scalarRegistry.IsValidGraphQLObjectType(subType)) {
-                var graphQLType = subType.GetGraphQLBaseType();
+            var isList = subType.IsCollection(out subType);
+            if(_scalarRegistry.GetHandler(subType, out var handler)) {
+                var graphQLType = handler!.BaseType.GetGraphQLBaseType();
 
                 Type propertyType;
                 if(graphQLType == typeof(string))
@@ -96,16 +96,32 @@ public class WhereGenerator : IMethodExtenderGenerator {
                     propertyType = typeof(DecimalWhere);
                 else if(graphQLType == typeof(DateTime) || graphQLType == typeof(DateTimeOffset))
                     propertyType = typeof(DateTimeWhere);
-                else if(graphQLType.IsClass)
-                    propertyType = GenerateWhereType(graphQLType);
                 else
                     throw new ArgumentOutOfRangeException("subType.GetGraphQLType()");
 
+                if(isList)
+                    propertyType = GenerateCollectionWhere(propertyType);
+
                 DefineWhereProperty(propertyType, whereType, member);
+            } else {
+                var graphQLType = subType.GetGraphQLBaseType();
+                if(graphQLType.IsClass) {
+                    var propertyType = GenerateWhereType(graphQLType);
+                    if(isList)
+                        propertyType = GenerateCollectionWhere(propertyType);
+
+                    DefineWhereProperty(propertyType, whereType, member);
+                } else
+                    throw new ArgumentOutOfRangeException("subType.GetGraphQLType()");
             }
         }
 
         return whereType.CreateType()!;
+    }
+
+    private Type GenerateCollectionWhere(Type forType) {
+        var collectionType = _moduleBuilder.DefineType(forType.Name + "Collection", TypeAttributes.Class | TypeAttributes.Public, typeof(CollectionWhere<>).MakeGenericType(forType));
+        return collectionType.CreateType()!;
     }
 
     private static void DefineWhereProperty(Type propertyType, TypeBuilder whereType, MemberInfo member) {

@@ -1,9 +1,8 @@
 ﻿using GraphQLParser.AST;
-using GraphQLParser.Visitors;
 
 namespace Fireflies.GraphQL.Core.Generators.Where;
 
-internal class QueryableWhereBuilder<TElement> : ASTVisitor<IRequestContext> {
+internal class QueryableWhereBuilder<TElement> {
     private readonly ValueAccessor _valueAccessor;
     public IQueryable<TElement> Result { get; private set; }
 
@@ -12,11 +11,11 @@ internal class QueryableWhereBuilder<TElement> : ASTVisitor<IRequestContext> {
         Result = queryable;
     }
 
-    protected override ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IRequestContext context) {
-        var inner = new WhereExpressionBuilder<TElement>(objectField, _valueAccessor);
-        inner.VisitAsync(objectField.Value, context).GetAwaiter().GetResult();
-        if(inner.Result != null)
-            Result = Result.Where(inner.Result);
+    public ValueTask Build(ASTNode? node, IRequestContext context) {
+        var whereExpressionBuilder = new WhereExpressionBuilder<TElement>(_valueAccessor);
+        whereExpressionBuilder.VisitAsync(node, context).GetAwaiter().GetResult();
+        if(whereExpressionBuilder.Result != null)
+            Result = Result.Where(whereExpressionBuilder.Result);
 
         return ValueTask.CompletedTask;
     }

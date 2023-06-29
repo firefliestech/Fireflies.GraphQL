@@ -15,7 +15,7 @@ public static class WhereHelper {
 
         var asQueryable = taskResult.AsQueryable();
         var whereBuilder = new EnumerableWhereBuilder<TElement>(asQueryable, valueAccessor);
-        whereBuilder.VisitAsync(whereNode, graphQLContext).GetAwaiter().GetResult();
+        whereBuilder.Build(whereNode, graphQLContext).GetAwaiter().GetResult();
         return whereBuilder.Result;
     }
 
@@ -33,7 +33,7 @@ public static class WhereHelper {
             return taskResult;
 
         var whereBuilder = new QueryableWhereBuilder<TElement>(taskResult, valueAccessor);
-        whereBuilder.VisitAsync(whereNode, graphQLContext).GetAwaiter().GetResult();
+        whereBuilder.Build(whereNode, graphQLContext).GetAwaiter().GetResult();
         return whereBuilder.Result;
     }
 
