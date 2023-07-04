@@ -12,4 +12,8 @@ public class StringScalarHandler : IScalarHandler {
     public void Serialize(Utf8JsonWriter writer, string property, object value) {
         writer.WriteString(property, value.ToString());
     }
+
+    public object? Deserialize(object value, Type type) {
+        return value.ToString();
+    }
 }

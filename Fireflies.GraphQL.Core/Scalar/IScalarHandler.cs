@@ -6,4 +6,5 @@ public interface IScalarHandler {
     Type BaseType { get; }
     void Serialize(Utf8JsonWriter writer, object value);
     void Serialize(Utf8JsonWriter writer, string property, object value);
+    object? Deserialize(object value, Type type);
 }

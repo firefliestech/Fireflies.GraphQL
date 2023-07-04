@@ -12,4 +12,8 @@ public class FloatScalarHandler : IScalarHandler {
     public void Serialize(Utf8JsonWriter writer, string property, object value) {
         writer.WriteNumber(property, (decimal)Convert.ChangeType(value, TypeCode.Decimal));
     }
+
+    public object? Deserialize(object value, Type type) {
+        return Convert.ChangeType(value, type);
+    }
 }

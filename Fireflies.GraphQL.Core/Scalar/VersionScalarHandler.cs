@@ -12,4 +12,8 @@ public class VersionScalarHandler : IScalarHandler {
     public void Serialize(Utf8JsonWriter writer, string property, object value) {
         writer.WriteString(property, ((Version)value).ToString());
     }
+
+    public object? Deserialize(object value, Type type) {
+        return Version.Parse(value.ToString()!);
+    }
 }

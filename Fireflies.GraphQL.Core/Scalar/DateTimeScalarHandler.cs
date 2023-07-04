@@ -13,4 +13,8 @@ public class DateTimeScalarHandler : IScalarHandler {
     public void Serialize(Utf8JsonWriter writer, string property, object value) {
         writer.WriteString(property, ((DateTimeOffset)value).ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", DateTimeFormatInfo.InvariantInfo));
     }
+
+    public object? Deserialize(object? value, Type type) {
+        return DateTimeOffset.ParseExact(value.ToString()!, "yyyy-MM-dd'T'HH:mm:ss.fffzzz", CultureInfo.InvariantCulture);
+    }
 }

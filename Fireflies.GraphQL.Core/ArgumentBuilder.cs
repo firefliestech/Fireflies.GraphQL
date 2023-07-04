@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Fireflies.GraphQL.Core.Json;
+using Fireflies.GraphQL.Core.Scalar;
 using Fireflies.Utility.Reflection;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
@@ -13,6 +14,7 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
     private readonly MethodInfo _methodInfo;
     private readonly IRequestContext _requestContext;
     private readonly ResultContext _resultContext;
+    private readonly ScalarRegistry _scalarRegistry;
     private readonly Dictionary<string, ParameterInfo> _parameters;
 
     public Dictionary<string, object?> Values { get; set; } = new();
@@ -66,12 +68,15 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
                 return _requestContext.DependencyResolver.Resolve(x.ParameterType);
 
             if(Values.TryGetValue(x.Name!, out var result)) {
-                if(result != null && result.GetType().IsAssignableTo(x.ParameterType))
-                    return result;
+                if(result == null)
+                    return null;
 
-                if(result is JsonElement jsonElement) {
+                var scalarRegistry = _requestContext.DependencyResolver.Resolve<ScalarRegistry>();
+                if(scalarRegistry.GetHandler(x.ParameterType, out var handler))
+                    return handler!.Deserialize(result, x.ParameterType);
+
+                if(result is JsonElement jsonElement)
                     return jsonElement.Deserialize(x.ParameterType, DefaultJsonSerializerSettings.DefaultSettings);
-                }
 
                 return Convert.ChangeType(result, x.ParameterType);
             }
