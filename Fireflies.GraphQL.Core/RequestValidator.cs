@@ -192,9 +192,17 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
                 _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Unknown argument \"{arg.Name}\" on field \"{field.Name.StringValue}\"."));
             } else {
                 remainingParameters.Remove(matchingParameter);
-                var argumentValidator = new ArgumentValidator(matchingParameter, context.ValueAccessor, _errors);
-                await argumentValidator.VisitAsync(arg.Value, context).ConfigureAwait(false);
-                await VisitAsync(arg, context).ConfigureAwait(false);
+
+                if(arg.Value is GraphQLNullValue) {
+                    var isNullable = NullabilityChecker.IsNullable(matchingParameter);
+                    if(!isNullable) {
+                        _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Argument \"{arg.Name}\" on field \"{field.Name.StringValue}\" cant be null."));
+                    }
+                } else {
+                    var argumentValidator = new ArgumentValidator(matchingParameter, context.ValueAccessor, _errors);
+                    await argumentValidator.VisitAsync(arg.Value, context).ConfigureAwait(false);
+                    await VisitAsync(arg, context).ConfigureAwait(false);
+                }
             }
         }
 
@@ -279,7 +287,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
                 _stack.Pop();
             }
         }
-
+        
         protected override ValueTask VisitVariableAsync(GraphQLVariable variable, IRequestContext context) {
             var jsonElement = _valueAccessor.GetVariable(variable.Name.StringValue);
             if(jsonElement == null)
