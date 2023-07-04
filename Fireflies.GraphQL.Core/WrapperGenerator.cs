@@ -119,7 +119,7 @@ internal class WrapperGenerator {
                 methodIlGenerator.Emit(OpCodes.Ret); // Return
             }
 
-            var baseDescriptor = new BaseDescriptor() {
+            var baseDescriptor = new BaseDescriptor {
                 ReturnType = baseMethod.MethodInfo.ReturnType,
                 MemberInfo = baseMethod.MemberInfo,
                 ParameterTypes = parameterTypes,

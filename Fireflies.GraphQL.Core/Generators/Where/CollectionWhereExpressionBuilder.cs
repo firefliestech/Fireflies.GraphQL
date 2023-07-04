@@ -5,6 +5,10 @@ using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Core.Generators.Where;
 
+internal class CollectionWhereExpressionBuilder : WhereExpressionBuilder {
+    public MethodCallExpression Result { get; protected set; }
+}
+
 internal class CollectionWhereExpressionBuilder<TElement, TParentElementType> : CollectionWhereExpressionBuilder {
     private readonly ParameterExpression _parameter;
     private readonly ValueAccessor _valueAccessor;
@@ -19,8 +23,6 @@ internal class CollectionWhereExpressionBuilder<TElement, TParentElementType> : 
 
     protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IRequestContext context) {
         if(objectField.Name.StringValue.Equals(nameof(CollectionWhere<TElement>.Any), StringComparison.InvariantCultureIgnoreCase)) {
-            // blogs.Where(item => Enumerable.Any(item.Posts, item => item.Content.Contains("kalle"))
-
             var subWhereExpressionBuilder = new WhereExpressionBuilder<TElement>(_valueAccessor);
             await subWhereExpressionBuilder.VisitAsync(objectField.Value, context);
 
@@ -30,8 +32,4 @@ internal class CollectionWhereExpressionBuilder<TElement, TParentElementType> : 
             Result = expressionCall;
         }
     }
-}
-
-internal class CollectionWhereExpressionBuilder : WhereExpressionBuilder {
-    public MethodCallExpression Result { get; protected set; }
 }

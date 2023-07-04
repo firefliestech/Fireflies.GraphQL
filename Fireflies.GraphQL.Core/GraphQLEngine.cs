@@ -48,7 +48,7 @@ public class GraphQLEngine : ASTVisitor<IRequestContext> {
         }
     }
 
-    public async IAsyncEnumerable<(string Id, byte[] Result)> Results() {
+    public async IAsyncEnumerable<(string? Id, byte[] Result)> Results() {
         await foreach(var result in _connectionContext.Results.WithCancellation(_connectionContext.CancellationToken).ConfigureAwait(false)) {
             yield return result;
 

@@ -13,7 +13,7 @@ public class IntScalarHandler : IScalarHandler {
         writer.WriteNumber(property, (int)Convert.ChangeType(value, TypeCode.Int32));
     }
 
-    public object? Deserialize(object? value, Type type) {
+    public object? Deserialize(object value, Type type) {
         return Convert.ChangeType(value, type);
     }
 }

@@ -14,7 +14,6 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
     private readonly MethodInfo _methodInfo;
     private readonly IRequestContext _requestContext;
     private readonly ResultContext _resultContext;
-    private readonly ScalarRegistry _scalarRegistry;
     private readonly Dictionary<string, ParameterInfo> _parameters;
 
     public Dictionary<string, object?> Values { get; set; } = new();

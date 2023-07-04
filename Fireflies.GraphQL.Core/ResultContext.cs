@@ -11,7 +11,7 @@ public sealed record ResultContext : IASTVisitorContext {
     public ResultContext? ParentContext { get; }
     public CancellationToken CancellationToken => RequestContext.CancellationToken;
     public IRequestContext RequestContext { get; }
-    public JsonWriter? Writer { get; set; } = null!;
+    public JsonWriter Writer { get; set; } = null!;
 
     public FragmentAccessor FragmentAccessor => RequestContext.FragmentAccessor!;
     public ValueAccessor ValueAccessor => RequestContext.ValueAccessor!;
@@ -21,7 +21,7 @@ public sealed record ResultContext : IASTVisitorContext {
     public ResultContext(Type type, IRequestContext requestContext) {
         Type = type;
         RequestContext = requestContext;
-        Writer = requestContext.Writer;
+        Writer = requestContext.Writer!;
         Path = new();
     }
 

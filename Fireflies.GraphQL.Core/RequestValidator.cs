@@ -199,7 +199,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
                         _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Argument \"{arg.Name}\" on field \"{field.Name.StringValue}\" cant be null."));
                     }
                 } else {
-                    var argumentValidator = new ArgumentValidator(matchingParameter, context.ValueAccessor, _errors);
+                    var argumentValidator = new ArgumentValidator(matchingParameter, context.ValueAccessor!, _errors);
                     await argumentValidator.VisitAsync(arg.Value, context).ConfigureAwait(false);
                     await VisitAsync(arg, context).ConfigureAwait(false);
                 }

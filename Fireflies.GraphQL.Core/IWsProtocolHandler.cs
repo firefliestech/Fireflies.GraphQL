@@ -8,7 +8,7 @@ public interface IWsProtocolHandler {
     Task CloseAsync(WebSocketCloseStatus closeStatus, string? statusDescription, CancellationToken cancellationToken);
 
     void Process();
-    Task HandleResult((string Id, byte[] Result) subResult);
+    Task HandleResult((string? Id, byte[] Result) subResult);
     string? SubProtocol { get; }
     Task<JsonNode?> HandleFederatedResponse(byte[] bytes, string operationName, IRequestContext requestContext);
 }

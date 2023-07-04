@@ -31,7 +31,7 @@ internal class GraphQLWsProtocolHandler : WsProtocolHandlerBase, IWsProtocolHand
         _webSocket = await _httpContext.WebSockets.AcceptWebSocketAsync("graphql-ws").ConfigureAwait(false);
     }
 
-    public async Task HandleResult((string Id, byte[] Result) subResult) {
+    public async Task HandleResult((string? Id, byte[] Result) subResult) {
         var jsonObject = new JsonObject() {
             ["type"] = "data",
             ["id"] = subResult.Id,
