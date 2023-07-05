@@ -19,7 +19,7 @@ public class ValueAccessor {
     public Dictionary<string, object?> Variables => _visitor.Variables;
 
     public async Task<T?> GetValue<T>(ASTNode node) {
-        var unconvertedValue = await GetValue(node).ConfigureAwait(false);
+        var unconvertedValue = await GetValue(typeof(T), node).ConfigureAwait(false);
         if(unconvertedValue == null)
             return default;
 
@@ -29,7 +29,8 @@ public class ValueAccessor {
     public async Task<object?> GetValue(Type returnType, ASTNode node) {
         var visitorContext = new ValueVisitorContext(_context, returnType);
         await _visitor.VisitAsync(node, visitorContext).ConfigureAwait(false);
-        return Convert.ChangeType(visitorContext.Stack.Pop(), returnType);
+        var value = visitorContext.Stack.Pop();
+        return value;
     }
 
     public async Task<object?> GetValue(Type returnType, ASTNode node, object rootObject) {
@@ -37,12 +38,6 @@ public class ValueAccessor {
         visitorContext.Stack.Push(rootObject);
         await _visitor.VisitAsync(node, visitorContext).ConfigureAwait(false);
         return Convert.ChangeType(visitorContext.Stack.Pop(), returnType);
-    }
-
-    public async Task<object?> GetValue(ASTNode node) {
-        var visitorContext = new ValueVisitorContext(_context, typeof(object));
-        await _visitor.VisitAsync(node, visitorContext).ConfigureAwait(false);
-        return visitorContext.Stack.Pop();
     }
 
     public object? GetVariable(string variableName) {
@@ -93,7 +88,7 @@ public class ValueAccessor {
         }
 
         protected override ValueTask VisitEnumValueAsync(GraphQLEnumValue enumValue, ValueVisitorContext context) {
-            context.Stack.Push(Enum.Parse(context.ReturnType, enumValue.Name.StringValue));
+            context.Stack.Push(Enum.Parse(context.RootElementType, enumValue.Name.StringValue, true));
             return ValueTask.CompletedTask;
         }
 
@@ -105,7 +100,7 @@ public class ValueAccessor {
         protected override ValueTask VisitVariableAsync(GraphQLVariable variable, ValueVisitorContext context) {
             var obj = GetVariable(variable.Name.StringValue);
             if(obj != null) {
-                var returnType = Nullable.GetUnderlyingType(context.ReturnType) ?? context.ReturnType;
+                var returnType = Nullable.GetUnderlyingType(context.RootElementType) ?? context.RootElementType;
                 if(returnType.IsAssignableTo(typeof(IConvertible)))
                     context.Stack.Push(Convert.ChangeType(obj, returnType));
                 else
@@ -119,15 +114,22 @@ public class ValueAccessor {
 
         protected override async ValueTask VisitListValueAsync(GraphQLListValue listValue, ValueVisitorContext context) {
             var list = (IList)context.Stack.Peek()!;
-            var genericTypeArgument = list.GetType().GenericTypeArguments[0];
-            var isObject = Type.GetTypeCode(genericTypeArgument) == TypeCode.Object;
 
+            var elementType = list.GetType().GenericTypeArguments[0];
+            var isObject = !elementType.IsEnum && Type.GetTypeCode(elementType) == TypeCode.Object;
+            var stackBefore = context.Stack.Count;
             foreach(var value in listValue.Values) {
                 if(isObject)
-                    context.Stack.Push(Activator.CreateInstance(genericTypeArgument));
+                    context.Stack.Push(Activator.CreateInstance(elementType));
 
                 await VisitAsync(value, context);
-                list.Add(context.Stack.Pop());
+
+                if(context.Stack.Count > stackBefore) {
+                    var listEntry = context.Stack.Pop();
+                    list.Add(listEntry != null ? Convert.ChangeType(listEntry, elementType) : null);
+                } else {
+                    //TODO: Add logging, no value was added. Missing handler for graphql element?
+                }
             }
         }
 
@@ -162,13 +164,20 @@ public class ValueAccessor {
         private readonly IRequestContext _context;
 
         public CancellationToken CancellationToken => _context.CancellationToken;
-        public Type ReturnType { get; }
+        public Type RootElementType { get; }
         public Stack<object?> Stack { get; } = new();
         public ValueAccessor ValueAccessor => _context.ValueAccessor!;
 
-        public ValueVisitorContext(IRequestContext context, Type returnType) {
-            ReturnType = returnType;
+        public ValueVisitorContext(IRequestContext context, Type rootElementType) {
             _context = context;
+
+            if(rootElementType.IsCollection(out var elementType)) {
+                var list = Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType));
+                Stack.Push(list);
+                RootElementType = elementType;
+            } else {
+                RootElementType = rootElementType;
+            }
         }
     }
 }

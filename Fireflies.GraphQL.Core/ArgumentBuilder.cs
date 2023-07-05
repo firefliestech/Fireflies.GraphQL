@@ -71,13 +71,20 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
                     return null;
 
                 var scalarRegistry = _requestContext.DependencyResolver.Resolve<ScalarRegistry>();
-                if(scalarRegistry.GetHandler(x.ParameterType, out var handler))
+                var scalarTypeToLookup = Nullable.GetUnderlyingType(x.ParameterType) ?? x.ParameterType;
+                if(scalarRegistry.GetHandler(scalarTypeToLookup, out var handler))
                     return handler!.Deserialize(result, x.ParameterType);
 
                 if(result is JsonElement jsonElement)
                     return jsonElement.Deserialize(x.ParameterType, DefaultJsonSerializerSettings.DefaultSettings);
 
-                return Convert.ChangeType(result, x.ParameterType);
+                if(result.GetType().IsAssignableTo(x.ParameterType))
+                    return result;
+
+                if(result is IConvertible)
+                    return Convert.ChangeType(result, x.ParameterType);
+
+                throw new ArgumentException("Cant find a way to convert the value to the correct type");
             }
 
             if(x.HasDefaultValue)
@@ -98,7 +105,7 @@ internal class ArgumentBuilder : ASTVisitor<IRequestContext> {
             var value = Activator.CreateInstance(parameterInfo.ParameterType)!;
             Values[parameterInfo.Name!] = await context.ValueAccessor!.GetValue(parameterInfo.ParameterType, argument.Value, value).ConfigureAwait(false);
         } else {
-            Values[parameterInfo.Name!] = await context.ValueAccessor!.GetValue(argument.Value).ConfigureAwait(false);
+            Values[parameterInfo.Name!] = await context.ValueAccessor!.GetValue(parameterInfo.ParameterType, argument.Value).ConfigureAwait(false);
         }
     }
 }

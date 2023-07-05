@@ -52,7 +52,7 @@ internal class WhereExpressionBuilder<TElement> : WhereExpressionBuilder {
         } else {
             var operation = objectField.Name.StringValue;
             var memberPath = GetMemberPath<TElement>(_parameter);
-            var value = await _valueAccessor.GetValue(objectField.Value).ConfigureAwait(false);
+            var value = await _valueAccessor.GetValue(_parentTypes.Peek(), objectField.Value).ConfigureAwait(false);
 
             if(parentType.IsAssignableTo(typeof(string))) {
                 AppendResult(StringWhereExpressionHelper.CreateExpression(operation, memberPath, value));
