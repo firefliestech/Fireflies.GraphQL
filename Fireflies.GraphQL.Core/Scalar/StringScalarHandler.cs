@@ -14,6 +14,9 @@ public class StringScalarHandler : IScalarHandler {
     }
 
     public object? Deserialize(object value, Type type) {
+        if(value.GetType().IsAssignableTo(type))
+            return value;
+
         return value.ToString();
     }
 }

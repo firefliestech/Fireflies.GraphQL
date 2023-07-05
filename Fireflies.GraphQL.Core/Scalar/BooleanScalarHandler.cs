@@ -14,6 +14,9 @@ public class BooleanScalarHandler : IScalarHandler {
     }
 
     public object? Deserialize(object value, Type type) {
+        if(value.GetType().IsAssignableTo(type))
+            return value;
+
         return Convert.ChangeType(value, type);
     }
 }

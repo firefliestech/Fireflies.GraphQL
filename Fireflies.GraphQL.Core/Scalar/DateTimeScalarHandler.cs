@@ -14,7 +14,7 @@ public class DateTimeScalarHandler : IScalarHandler {
         writer.WriteString(property, ((DateTimeOffset)value).ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", DateTimeFormatInfo.InvariantInfo));
     }
 
-    public object? Deserialize(object? value, Type type) {
-        return DateTimeOffset.ParseExact(value.ToString()!, "yyyy-MM-dd'T'HH:mm:ss.fffzzz", CultureInfo.InvariantCulture);
+    public object? Deserialize(object value, Type type) {
+        return DateTimeOffset.Parse(value.ToString()!);
     }
 }
