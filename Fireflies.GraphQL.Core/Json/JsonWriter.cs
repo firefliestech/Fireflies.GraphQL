@@ -88,6 +88,7 @@ public class JsonWriter : IErrorCollection {
 
         if(_scalarRegistry.GetHandler(value.GetType(), out var handler)) {
             handler!.Serialize(_writer, value);
+            return;
         }
 
         throw new ArgumentOutOfRangeException($"No scalar handler found for {elementType.Name}");
