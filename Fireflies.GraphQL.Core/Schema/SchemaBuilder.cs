@@ -115,6 +115,9 @@ internal class SchemaBuilder {
         type = type.DiscardTask();
 
         var elementType = type.GetGraphQLBaseType();
+        if(_scalarRegistry.GetHandler(elementType, out var scalarHandler))
+            elementType = scalarHandler!.BaseType;
+
         if(elementType.IsEnum) {
             if(type.IsCollection(out _)) {
                 return new __Type(elementType) {

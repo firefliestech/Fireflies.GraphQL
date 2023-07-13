@@ -51,6 +51,7 @@ public class GraphQLOptionsBuilder {
 
         AddScalar<char>(new StringScalarHandler());
         AddScalar<string>(new StringScalarHandler());
+        AddScalar<object>(new ObjectScalarHandler());
 
         AddScalar<float>(new FloatScalarHandler());
         AddScalar<double>(new FloatScalarHandler());
