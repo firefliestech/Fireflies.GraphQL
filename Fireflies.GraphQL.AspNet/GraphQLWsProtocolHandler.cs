@@ -90,8 +90,10 @@ internal class GraphQLWsProtocolHandler : WsProtocolHandlerBase, IWsProtocolHand
         Task.Run(async () => {
             try {
                 await _engine.Execute(payload, requestContext).ConfigureAwait(false);
+            } catch(OperationCanceledException) {
+                // Noop
             } catch(Exception ex) {
-                _logger.Error(ex, $"Error while running engine.Execute on websocket connection. Path='{_httpContext.Request.Path}'");
+                _logger.Error(ex, $"Error while running engine for websocket connection. Path='{_httpContext.Request.Path}'");
             }
         });
 #pragma warning restore CS4014
