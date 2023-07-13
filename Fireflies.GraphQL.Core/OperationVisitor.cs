@@ -140,7 +140,7 @@ public class OperationVisitor : ASTVisitor<OperationContext> {
             subWriter.WriteStartObject();
             await WriteObject(graphQLField, data.Value, subWriter, context).ConfigureAwait(false);
             subWriter.WriteEndObject();
-        }).ConfigureAwait(false);
+        }, parallelOptions.MaxDegreeOfParallelism).ConfigureAwait(false);
 
         if(parallelOptions.SortResults) {
             foreach(var result in results.OrderBy(x => x.Key))

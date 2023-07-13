@@ -138,7 +138,7 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
             subContext.Path.Push(data.Index);
             await ExecuteSelection(field, jsonWriter, subContext);
             subContext.Path.Pop();
-        }).ConfigureAwait(false);
+        }, parallelOptions.MaxDegreeOfParallelism).ConfigureAwait(false);
 
         if(parallelOptions.SortResults) {
             foreach(var result in results.OrderBy(x => x.Key))

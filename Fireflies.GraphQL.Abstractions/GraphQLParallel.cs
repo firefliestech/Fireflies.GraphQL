@@ -6,6 +6,7 @@
 /// </remarks>
 public class GraphQLParallel : GraphQLAttribute {
     public bool SortResults { get; set; }
+    public int MaxDegreeOfParallelism { get; set; } = -1;
 
     public GraphQLParallel(bool sortResults = false) {
         SortResults = sortResults;
