@@ -289,12 +289,11 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
         }
         
         protected override ValueTask VisitVariableAsync(GraphQLVariable variable, IRequestContext context) {
-            var jsonElement = _valueAccessor.GetVariable(variable.Name.StringValue);
-            if(jsonElement == null)
-                return ValueTask.CompletedTask;
-
             var expectedType = _stack.Peek();
-            var variableValue = _valueAccessor.GetVariable(variable.Name.StringValue);
+            if(!_valueAccessor.TryGetVariable(variable.Name.StringValue, expectedType, out var variableValue)) {
+                _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Value for variable with name \"{variable.Name.StringValue}\" is not valid"));
+                return ValueTask.CompletedTask;
+            }
 
             if(variableValue == null) {
                 if(Nullable.GetUnderlyingType(expectedType) == null)

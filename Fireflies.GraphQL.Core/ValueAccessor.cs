@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Core.Extensions;
+using Fireflies.GraphQL.Core.Json;
 using GraphQLParser.AST;
 using GraphQLParser.Visitors;
 
@@ -10,13 +12,13 @@ public class ValueAccessor {
     private readonly IRequestContext _context;
     private readonly ValueVisitor _visitor;
 
-    internal ValueAccessor(Dictionary<string, object?>? variables, IRequestContext context) {
+    internal ValueAccessor(Dictionary<string, JsonElement?>? variables, IRequestContext context) {
         _context = context;
 
         _visitor = new ValueVisitor(variables);
     }
 
-    public Dictionary<string, object?> Variables => _visitor.Variables;
+    public Dictionary<string, JsonElement?> Variables => _visitor.Variables;
 
     public async Task<T?> GetValue<T>(ASTNode node) {
         var unconvertedValue = await GetValue(typeof(T), node).ConfigureAwait(false);
@@ -40,17 +42,17 @@ public class ValueAccessor {
         return Convert.ChangeType(visitorContext.Stack.Pop(), returnType);
     }
 
-    public object? GetVariable(string variableName) {
-        return _visitor.GetVariable(variableName);
+    public bool TryGetVariable(string variableName, Type expectedType, out object? value) {
+        return _visitor.TryGetVariable(variableName, expectedType, out value);
     }
 
     private class ValueVisitor : ASTVisitor<ValueVisitorContext> {
-        private readonly Dictionary<string, object?> _variables;
+        private readonly Dictionary<string, JsonElement?> _variables;
 
-        public Dictionary<string, object?> Variables => _variables;
+        public Dictionary<string, JsonElement?> Variables => _variables;
 
-        public ValueVisitor(Dictionary<string, object?>? variables) {
-            _variables = variables?.Select(x => new { x.Key, Value = x.Value == null ? null : ConvertToValue((JsonElement)x.Value) }).ToDictionary(x => x.Key, x => x.Value) ?? new Dictionary<string, object?>();
+        public ValueVisitor(Dictionary<string, JsonElement?>? variables) {
+            _variables = variables;
         }
 
         private object? ConvertToValue(JsonElement value) {
@@ -98,20 +100,12 @@ public class ValueAccessor {
         }
 
         protected override ValueTask VisitVariableAsync(GraphQLVariable variable, ValueVisitorContext context) {
-            var obj = GetVariable(variable.Name.StringValue);
-            if(obj != null) {
-                var returnType = Nullable.GetUnderlyingType(context.RootElementType) ?? context.RootElementType;
-                if(returnType.IsAssignableTo(typeof(IConvertible)))
-                    context.Stack.Push(Convert.ChangeType(obj, returnType));
-                else
-                    context.Stack.Push(obj);
-            } else {
-                context.Stack.Push(null);
-            }
+            var obj = GetVariable(variable.Name.StringValue, context.RootType);
+            context.Stack.Push(obj);
 
             return ValueTask.CompletedTask;
         }
-
+        
         protected override async ValueTask VisitListValueAsync(GraphQLListValue listValue, ValueVisitorContext context) {
             var list = (IList)context.Stack.Peek()!;
 
@@ -155,8 +149,23 @@ public class ValueAccessor {
             }
         }
 
-        public object? GetVariable(string variableName) {
-            return _variables.TryGetValue(variableName, out var value) ? value : null;
+        public object? GetVariable(string variableName, Type expectedType) {
+            if(_variables.TryGetValue(variableName, out var element)) {
+                var jsonElement = element!.Value;
+                return jsonElement.Deserialize(expectedType, DefaultJsonSerializerSettings.DefaultSettings);
+            }
+
+            return null;
+        }
+
+        public bool TryGetVariable(string variableName, Type expectedType, out object? value) {
+            try {
+                value = GetVariable(variableName, expectedType);
+                return true;
+            } catch(JsonException) {
+                value = null;
+                return false;
+            }
         }
     }
 
@@ -165,18 +174,20 @@ public class ValueAccessor {
 
         public CancellationToken CancellationToken => _context.CancellationToken;
         public Type RootElementType { get; }
+        public Type RootType { get; }
         public Stack<object?> Stack { get; } = new();
         public ValueAccessor ValueAccessor => _context.ValueAccessor!;
 
-        public ValueVisitorContext(IRequestContext context, Type rootElementType) {
+        public ValueVisitorContext(IRequestContext context, Type rootType) {
             _context = context;
 
-            if(rootElementType.IsCollection(out var elementType)) {
+            RootType = rootType;
+            if(rootType.IsCollection(out var elementType)) {
                 var list = Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType));
                 Stack.Push(list);
                 RootElementType = elementType;
             } else {
-                RootElementType = rootElementType;
+                RootElementType = rootType;
             }
         }
     }
