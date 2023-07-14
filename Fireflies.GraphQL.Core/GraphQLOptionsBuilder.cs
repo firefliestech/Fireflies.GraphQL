@@ -58,7 +58,7 @@ public class GraphQLOptionsBuilder {
         AddScalar<decimal>(new FloatScalarHandler());
 
         // Commonly used .NET types
-        AddScalar<DateTimeOffset>(new DateTimeScalarHandler());
+        AddScalar<DateTimeOffset>(new DateTimeOffsetScalarHandler());
         AddScalar<DateTime>(new DateTimeScalarHandler());
         AddScalar<TimeSpan>(new TimeSpanScalarHandler());
         AddScalar<Version>(new VersionScalarHandler());
