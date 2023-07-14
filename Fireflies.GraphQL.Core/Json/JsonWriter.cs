@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 using Fireflies.GraphQL.Abstractions;
 using Fireflies.GraphQL.Core.Scalar;
@@ -100,15 +99,20 @@ public class JsonWriter : IErrorCollection {
             return;
         }
 
-        var memberInfo = value.GetType();
+        var valueType = value.GetType();
 
-        if(memberInfo.IsSubclassOf(typeof(GraphQLId))) {
+        if(valueType.IsSubclassOf(typeof(GraphQLId))) {
             _writer.WriteString(property, value.ToString());
             return;
         }
 
-        if(_scalarRegistry.GetHandler(memberInfo, out var handler)) {
-            handler!.Serialize(_writer, property, value);
+        if(_scalarRegistry.GetHandler(valueType, out var valueHandler)) {
+            valueHandler!.Serialize(_writer, property, value);
+            return;
+        }
+
+        if(_scalarRegistry.GetHandler(elementType, out var elementHandler)) {
+            elementHandler!.Serialize(_writer, property, value);
             return;
         }
 

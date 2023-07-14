@@ -45,6 +45,9 @@ internal class TypeRegistry {
 
         startingObject = Nullable.GetUnderlyingType(startingObject) ?? startingObject;
 
+        if(_scalarRegistry.GetHandler(elementType, out var scalarHandler))
+            startingObject = scalarHandler!.BaseType;
+
         if(!isOperation) {
             var typeIsAlreadyAdded = !_allTypes.Add(startingObject);
             if(typeIsAlreadyAdded)
