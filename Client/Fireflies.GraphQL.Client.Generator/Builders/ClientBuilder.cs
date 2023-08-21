@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Collections;
+using System.Text;
 using GraphQLParser.AST;
 
 namespace Fireflies.GraphQL.Client.Generator.Builders;
@@ -33,7 +34,7 @@ public class ClientBuilder : ITypeBuilder {
         _classBuilder.AppendLine("\t\t_globalContext = globalContext;");
         _classBuilder.AppendLine("\t\tCreateWsClient();");
         _classBuilder.AppendLine("\t}");
-        
+
         _classBuilder.AppendLine();
 
         _classBuilder.AppendLine($"\tpublic {className}({className}Config config, IGraphQLGlobalContext globalContext) {{");
@@ -79,7 +80,7 @@ public class ClientBuilder : ITypeBuilder {
         _classBuilder.Append($"\tpublic GraphQLSubscriber<I{className}> {operationDefinition.Name}(");
         GenerateParameters(operationDefinition, _classBuilder);
         _classBuilder.AppendLine(") {");
-        
+
         await GenerateRequest(operationDefinition, context);
 
         _classBuilder.AppendLine($"\t\treturn _wsClient.CreateSubscriber<I{className}>(request, payload => new {className}(payload, _serializerSettings));");
@@ -147,31 +148,31 @@ public class ClientBuilder : ITypeBuilder {
             if(!first)
                 typeBuilder.Append(", ");
 
-            GraphQLNamedType? type;
-            var nullable = true;
-
-            switch(variable.Type) {
-                case GraphQLNonNullType nonNullType:
-                    type = (GraphQLNamedType)nonNullType.Type;
-                    nullable = false;
-                    break;
-                default:
-                    type = (GraphQLNamedType)variable.Type;
-                    break;
-            }
-
-            typeBuilder.Append(TypeMapper.FromGraphQL(type.Name.StringValue));
-            if(nullable)
-                typeBuilder.Append("?");
+            var typeName = GetTypeName(variable.Type);
+            typeBuilder.Append(typeName);
             typeBuilder.Append(" " + variable.Variable.Name.StringValue);
 
             first = false;
         }
     }
 
+    private static string GetTypeName(GraphQLType type) {
+        switch(type) {
+            case GraphQLNonNullType nonNullType:
+                var graphQLType = nonNullType.Type;
+                if(graphQLType is GraphQLListType listType)
+                    return $"IEnumerable<{GetTypeName(listType.Type)}>";
+
+                return TypeMapper.FromGraphQL(((GraphQLNamedType)graphQLType).Name.StringValue);
+
+            default:
+                return TypeMapper.FromGraphQL(((GraphQLNamedType)type).Name.StringValue) + "?";
+        }
+    }
+
     public Task Build() {
         _interfaceBuilder.AppendLine("}");
-        
+
         _classBuilder.AppendLine();
         _classBuilder.AppendLine("\tprivate async Task<JsonNode> Execute(JsonObject request) {");
         _classBuilder.AppendLine("\t\tvar content = new StringContent(request.ToJsonString(), Encoding.UTF8, \"text/text\");");

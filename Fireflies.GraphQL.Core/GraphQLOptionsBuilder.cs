@@ -41,9 +41,9 @@ public class GraphQLOptionsBuilder {
         AddScalar<short>(new IntScalarHandler());
         AddScalar<int>(new IntScalarHandler());
         AddScalar<long>(new IntScalarHandler());
-        AddScalar<ushort>(new IntScalarHandler());
-        AddScalar<uint>(new IntScalarHandler());
-        AddScalar<ulong>(new IntScalarHandler());
+        AddScalar<ushort>(new UIntScalarHandler());
+        AddScalar<uint>(new UIntScalarHandler());
+        AddScalar<ulong>(new UIntScalarHandler());
         AddScalar<byte>(new IntScalarHandler());
         AddScalar<sbyte>(new IntScalarHandler());
 

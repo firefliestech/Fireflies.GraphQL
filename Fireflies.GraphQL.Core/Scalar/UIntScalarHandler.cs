@@ -2,15 +2,15 @@
 
 namespace Fireflies.GraphQL.Core.Scalar;
 
-public class IntScalarHandler : IScalarHandler {
+public class UIntScalarHandler : IScalarHandler {
     public Type BaseType => typeof(int);
 
     public void Serialize(Utf8JsonWriter writer, object value) {
-        writer.WriteNumberValue((long)Convert.ChangeType(value, TypeCode.Int64));
+        writer.WriteNumberValue((long)Convert.ChangeType(value, TypeCode.UInt64));
     }
 
     public void Serialize(Utf8JsonWriter writer, string property, object value) {
-        writer.WriteNumber(property, (long)Convert.ChangeType(value, TypeCode.Int64));
+        writer.WriteNumber(property, (long)Convert.ChangeType(value, TypeCode.UInt64));
     }
 
     public object? Deserialize(object value, Type type) {
