@@ -18,6 +18,10 @@ public class ProjectInitHandler {
         var generatorSettings = new JsonObject {
             ["namespace"] = options.Namespace
         };
+
+        if(options.ServiceCollection)
+            generatorSettings["service-collection"] = true;
+
         await File.WriteAllTextAsync(generatorSettingsFile, generatorSettings.ToJsonString());
 
         return ResultCode.Success;
