@@ -18,7 +18,7 @@ public class ClientBuilder : ITypeBuilder {
         _classBuilder.AppendLine("\tprivate Action<WebSocketBuilder>? _webSocketConfigurator;");
         _classBuilder.AppendLine("\tprivate GraphQLWsClient _wsClient = null!;");
         _classBuilder.AppendLine("\tprivate IGraphQLGlobalContext _globalContext;");
-        _classBuilder.AppendLine("\tprivate JsonSerializerOptions _serializerSettings = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } };");
+        _classBuilder.AppendLine("\tprivate JsonSerializerOptions _serializerSettings = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter(), new GraphQLIntConverter() } };");
         _classBuilder.AppendLine();
         _classBuilder.AppendLine("\tprivate static readonly HttpClientHandler _httpHandler = new();");
         _classBuilder.AppendLine();

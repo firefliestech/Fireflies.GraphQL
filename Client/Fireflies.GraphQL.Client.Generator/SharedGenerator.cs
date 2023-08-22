@@ -24,7 +24,8 @@ public class SharedGenerator {
         typeBuilder.AppendLine("using System.Text;");
         typeBuilder.AppendLine("using System.Text.Json;");
         typeBuilder.AppendLine("using System.Text.Json.Nodes;");
-        
+        typeBuilder.AppendLine("using System.Text.Json.Serialization;");
+
         typeBuilder.AppendLine();
 
         typeBuilder.AppendLine($"namespace {_generatorSettings.Namespace};");

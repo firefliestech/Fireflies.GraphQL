@@ -4,7 +4,7 @@ public static class TypeMapper {
     public static string FromGraphQL(string name) {
         switch(name) {
             case "Int":
-                return "long";
+                return "GraphQLInt";
             case "Boolean":
                 return "bool";
             case "ID":
