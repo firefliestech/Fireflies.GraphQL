@@ -6,11 +6,11 @@ public class UIntScalarHandler : IScalarHandler {
     public Type BaseType => typeof(int);
 
     public void Serialize(Utf8JsonWriter writer, object value) {
-        writer.WriteNumberValue((long)Convert.ChangeType(value, TypeCode.UInt64));
+        writer.WriteNumberValue((ulong)Convert.ChangeType(value, TypeCode.UInt64));
     }
 
     public void Serialize(Utf8JsonWriter writer, string property, object value) {
-        writer.WriteNumber(property, (long)Convert.ChangeType(value, TypeCode.UInt64));
+        writer.WriteNumber(property, (ulong)Convert.ChangeType(value, TypeCode.UInt64));
     }
 
     public object? Deserialize(object value, Type type) {
