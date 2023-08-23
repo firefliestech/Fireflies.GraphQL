@@ -60,20 +60,25 @@ public class OperationVisitor : ASTVisitor<OperationContext> {
                     } else {
                         var fieldName = graphQLField.Alias?.Name.StringValue ?? graphQLField.Name.StringValue;
                         if(result is IEnumerable enumerable) {
-                            writer.WriteStartArray(fieldName);
+                            try {
+                                writer.WriteStartArray(fieldName);
 
-                            if(executeInParallel) {
-                                await ExecuteParallel(context, enumerable, writer, graphQLField, parallelAttribute!).ConfigureAwait(false);
-                            } else {
-                                await ExecuteSynchronously(context, enumerable, writer, graphQLField).ConfigureAwait(false);
+                                if(executeInParallel) {
+                                    await ExecuteParallel(context, enumerable, writer, graphQLField, parallelAttribute!).ConfigureAwait(false);
+                                } else {
+                                    await ExecuteSynchronously(context, enumerable, writer, graphQLField).ConfigureAwait(false);
+                                }
+                            } finally {
+                                writer.WriteEndArray();
                             }
-
-                            writer.WriteEndArray();
                         } else {
                             if(result != null) {
-                                writer.WriteStartObject(fieldName);
-                                await WriteObject(graphQLField, result, writer, context).ConfigureAwait(false);
-                                writer.WriteEndObject();
+                                try {
+                                    writer.WriteStartObject(fieldName);
+                                    await WriteObject(graphQLField, result, writer, context).ConfigureAwait(false);
+                                } finally {
+                                    writer.WriteEndObject();
+                                }
                             } else {
                                 writer.WriteNull(fieldName);
                             }

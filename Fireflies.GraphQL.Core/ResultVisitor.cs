@@ -78,10 +78,13 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
             if(fieldValue == null) {
                 context.Writer.WriteNull(fieldName);
             } else if(isCollection) {
-                context.Writer.WriteStartArray(fieldName);
-                foreach(var value in (IEnumerable)fieldValue)
-                    context.Writer.WriteValue(value, elementType);
-                context.Writer.WriteEndArray();
+                try {
+                    context.Writer.WriteStartArray(fieldName);
+                    foreach(var value in (IEnumerable)fieldValue)
+                        context.Writer.WriteValue(value, elementType);
+                } finally {
+                    context.Writer.WriteEndArray();
+                }
             } else {
                 context.Writer.WriteValue(fieldName, fieldValue, elementType);
             }
@@ -90,24 +93,29 @@ public class ResultVisitor : ASTVisitor<ResultContext> {
                 context.Writer.WriteNull(fieldName);
             } else {
                 if(isEnumerable) {
-                    context.Writer.WriteStartArray(fieldName);
-                    var methodInfo = memberInfo as MethodInfo;
-                    if(methodInfo != null && methodInfo.HasCustomAttribute<GraphQLParallel>(out var graphQLParallel)) {
-                        await ExecuteParallel(field, context, fieldValue, graphQLParallel!).ConfigureAwait(false);
-                    } else {
-                        await ExecuteSynchronously(field, context, fieldValue);
-                    }
+                    try {
+                        context.Writer.WriteStartArray(fieldName);
 
-                    context.Writer.WriteEndArray();
+                        var methodInfo = memberInfo as MethodInfo;
+                        if(methodInfo != null && methodInfo.HasCustomAttribute<GraphQLParallel>(out var graphQLParallel)) {
+                            await ExecuteParallel(field, context, fieldValue, graphQLParallel!).ConfigureAwait(false);
+                        } else {
+                            await ExecuteSynchronously(field, context, fieldValue);
+                        }
+                    } finally {
+                        context.Writer.WriteEndArray();
+                    }
                 } else {
-                    context.Writer.WriteStartObject(fieldName);
-                    var subResultContext = context.CreateChildContext(fieldValue);
+                    try {
+                        context.Writer.WriteStartObject(fieldName);
+                        var subResultContext = context.CreateChildContext(fieldValue);
 
-                    foreach(var subSelection in field.SelectionSet.Selections) {
-                        await VisitAsync(subSelection, subResultContext).ConfigureAwait(false);
+                        foreach(var subSelection in field.SelectionSet.Selections) {
+                            await VisitAsync(subSelection, subResultContext).ConfigureAwait(false);
+                        }
+                    } finally {
+                        context.Writer.WriteEndObject();
                     }
-
-                    context.Writer.WriteEndObject();
                 }
             }
         }
