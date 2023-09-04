@@ -55,20 +55,6 @@ public class ValueAccessor {
             _variables = variables;
         }
 
-        private object? ConvertToValue(JsonElement value) {
-            return value.ValueKind switch {
-                JsonValueKind.String => value.GetString(),
-                JsonValueKind.Number => value.GetDecimal(),
-                JsonValueKind.True => true,
-                JsonValueKind.False => false,
-                JsonValueKind.Undefined => null,
-                JsonValueKind.Null => null,
-                JsonValueKind.Object => value,
-                JsonValueKind.Array => value,
-                _ => null
-            };
-        }
-
         protected override ValueTask VisitBooleanValueAsync(GraphQLBooleanValue booleanValue, ValueVisitorContext context) {
             context.Stack.Push(booleanValue.BoolValue);
             return ValueTask.CompletedTask;
