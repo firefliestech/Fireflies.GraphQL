@@ -105,25 +105,20 @@ public class ValueAccessor {
 
             return ValueTask.CompletedTask;
         }
-        
+
         protected override async ValueTask VisitListValueAsync(GraphQLListValue listValue, ValueVisitorContext context) {
             var list = (IList)context.Stack.Peek()!;
-
             var elementType = list.GetType().GenericTypeArguments[0];
             var isObject = !elementType.IsEnum && Type.GetTypeCode(elementType) == TypeCode.Object;
-            var stackBefore = context.Stack.Count;
+            object? listEntry;
+
             foreach(var value in listValue.Values) {
                 if(isObject)
-                    context.Stack.Push(Activator.CreateInstance(elementType));
+                    listEntry = await context.ValueAccessor.GetValue(elementType, value, Activator.CreateInstance(elementType)!).ConfigureAwait(false);
+                else
+                    listEntry = await context.ValueAccessor.GetValue(elementType, value).ConfigureAwait(false);
 
-                await VisitAsync(value, context);
-
-                if(context.Stack.Count > stackBefore) {
-                    var listEntry = context.Stack.Pop();
-                    list.Add(listEntry != null ? Convert.ChangeType(listEntry, elementType) : null);
-                } else {
-                    //TODO: Add logging, no value was added. Missing handler for graphql element?
-                }
+                list.Add(listEntry != null ? Convert.ChangeType(listEntry, elementType) : null);
             }
         }
 
