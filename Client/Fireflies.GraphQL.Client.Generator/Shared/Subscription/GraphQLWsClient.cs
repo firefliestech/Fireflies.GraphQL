@@ -180,7 +180,7 @@
                 await DisposeAsync();
 
                 if(ReconnectDelay != null)
-                    Task.Delay(ReconnectDelay.Value);
+                    await Task.Delay(ReconnectDelay.Value);
                 else
                     throw;
             }
