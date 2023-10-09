@@ -132,6 +132,9 @@ public class ValueAccessor {
 
         public object? GetVariable(string variableName, Type expectedType) {
             if(_variables.TryGetValue(variableName, out var element)) {
+                if(element == null)
+                    return null;
+
                 var jsonElement = element!.Value;
                 return jsonElement.Deserialize(expectedType, DefaultJsonSerializerSettings.DefaultSettings);
             }

@@ -2,6 +2,7 @@
 using GraphQLParser.Visitors;
 using System.Reflection;
 using Fireflies.GraphQL.Abstractions;
+using Fireflies.GraphQL.Abstractions.Generator;
 using Fireflies.GraphQL.Core.Exceptions;
 using Fireflies.GraphQL.Core.Extensions;
 using Fireflies.GraphQL.Core.Federation;
@@ -229,32 +230,33 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
     private class ArgumentValidator : ASTVisitor<IRequestContext> {
         private readonly ValueAccessor _valueAccessor;
         private readonly List<GraphQLError> _errors;
-        private readonly Stack<Type> _stack = new();
+        private readonly Stack<(Type Type, bool IsNullable)> _stack = new();
 
         public ArgumentValidator(ParameterInfo matchingParameter, ValueAccessor valueAccessor, List<GraphQLError> errors) {
-            _stack.Push(matchingParameter.ParameterType);
+            _stack.Push((matchingParameter.ParameterType, NullabilityChecker.IsNullable(matchingParameter)));
+
             _valueAccessor = valueAccessor;
             _errors = errors;
         }
-
+        
         protected override async ValueTask VisitObjectFieldAsync(GraphQLObjectField objectField, IRequestContext context) {
             var currentType = _stack.Peek();
-            var member = currentType.GetProperty(objectField.Name.StringValue, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            var member = currentType.Type.GetProperty(objectField.Name.StringValue, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if(member == null) {
-                _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Field with name \"{objectField.Name.StringValue}\" of type \"{currentType.GraphQLName()}\" does not exist"));
+                _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Field with name \"{objectField.Name.StringValue}\" of type \"{currentType.Type.GraphQLName()}\" does not exist"));
             } else {
                 var memberPropertyType = member.PropertyType.GetGraphQLBaseType();
-                _stack.Push(memberPropertyType);
+                _stack.Push((memberPropertyType, NullabilityChecker.IsNullable(member)));
                 switch(objectField.Value) {
                     case GraphQLFalseBooleanValue:
                     case GraphQLTrueBooleanValue:
                     case GraphQLBooleanValue:
                         if(memberPropertyType != typeof(bool))
-                            AddTypeError(objectField, currentType, memberPropertyType);
+                            AddTypeError(objectField, currentType.Type, memberPropertyType);
                         break;
                     case GraphQLIntValue:
                         if(memberPropertyType != typeof(int))
-                            AddTypeError(objectField, currentType, memberPropertyType);
+                            AddTypeError(objectField, currentType.Type, memberPropertyType);
                         break;
                     case GraphQLListValue:
                         // TODO: Handle?
@@ -269,7 +271,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
                         break;
                     case GraphQLStringValue:
                         if(memberPropertyType != typeof(string))
-                            AddTypeError(objectField, currentType, memberPropertyType);
+                            AddTypeError(objectField, currentType.Type, memberPropertyType);
                         break;
                     case GraphQLVariable:
                         // TODO: Handle?
@@ -279,7 +281,7 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
                         break;
                     case GraphQLFloatValue:
                         if(memberPropertyType != typeof(decimal))
-                            AddTypeError(objectField, currentType, memberPropertyType);
+                            AddTypeError(objectField, currentType.Type, memberPropertyType);
                         break;
                 }
 
@@ -290,27 +292,27 @@ internal class RequestValidator : ASTVisitor<IRequestContext> {
         
         protected override ValueTask VisitVariableAsync(GraphQLVariable variable, IRequestContext context) {
             var expectedType = _stack.Peek();
-            if(!_valueAccessor.TryGetVariable(variable.Name.StringValue, expectedType, out var variableValue)) {
+            if(!_valueAccessor.TryGetVariable(variable.Name.StringValue, expectedType.Type, out var variableValue)) {
                 _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Value for variable with name \"{variable.Name.StringValue}\" is not valid"));
                 return ValueTask.CompletedTask;
             }
 
             if(variableValue == null) {
-                if(Nullable.GetUnderlyingType(expectedType) == null)
+                if(!expectedType.IsNullable)
                     _errors.Add(new GraphQLError("GRAPHQL_VALIDATION_FAILED", $"Value for variable with name \"{variable.Name.StringValue}\" must not be null"));
                 return ValueTask.CompletedTask;
             }
 
             var valueType = variableValue.GetType();
-            if(IsNumber(expectedType)) {
+            if(IsNumber(expectedType.Type)) {
                 if(!IsNumber(valueType))
-                    AddTypeError(variable, expectedType);
-            } else if(expectedType == typeof(string)) {
+                    AddTypeError(variable, expectedType.Type);
+            } else if(expectedType.Type == typeof(string)) {
                 if(valueType != typeof(string))
-                    AddTypeError(variable, expectedType);
-            } else if(expectedType == typeof(bool)) {
+                    AddTypeError(variable, expectedType.Type);
+            } else if(expectedType.Type == typeof(bool)) {
                 if(valueType != typeof(bool))
-                    AddTypeError(variable, expectedType);
+                    AddTypeError(variable, expectedType.Type);
             }
 
             return ValueTask.CompletedTask;
