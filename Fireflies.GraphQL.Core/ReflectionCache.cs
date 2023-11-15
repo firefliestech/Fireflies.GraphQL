@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using Fireflies.Utility.Reflection;
 using Fireflies.Utility.Reflection.Fasterflect;
+using MethodInvoker = Fireflies.Utility.Reflection.Fasterflect.MethodInvoker;
 
 namespace Fireflies.GraphQL.Core;
 
@@ -25,7 +26,7 @@ public static class ReflectionCache {
             AppDomain.CurrentDomain
                 .GetAssemblies()
                 .Where(x => includeDynamic || !x.IsDynamic)
-                .SelectMany(x => x.GetTypes())
+                .SelectMany(x => x.GetExportedTypes())
                 .Where(x => x.IsClass && x.IsAssignableTo(baseType) && !x.IsAbstract)
                 .ToArray());
     }
