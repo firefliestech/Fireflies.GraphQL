@@ -7,13 +7,13 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Autofac" Version="7.1.0" />
-		<PackageReference Include="Fireflies.Logging.NLog" Version="1.2.3" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+		<PackageReference Include="Autofac" Version="8.0.0" />
+		<PackageReference Include="Fireflies.Logging.NLog" Version="1.2.5" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.2">
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		  <PrivateAssets>all</PrivateAssets>
 		</PackageReference>
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.2" />
 	</ItemGroup>
 
 	<ItemGroup>
