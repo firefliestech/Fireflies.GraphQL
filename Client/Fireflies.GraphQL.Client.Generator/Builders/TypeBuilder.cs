@@ -151,7 +151,7 @@ public class TypeBuilder : ITypeBuilder {
     private void GeneratePropertySetters(bool dataMayBeNull) {
         foreach(var property in _properties)
             GeneratePropertySetter(property.SchemaField.Name, property.PropertyName, property.SchemaField.IsEnumerable(), dataMayBeNull);
-        
+
         foreach(var property in _polymorphicProperties.Keys)
             GeneratePropertySetter(property.SchemaField.Name, property.PropertyName, property.SchemaField.IsEnumerable(), dataMayBeNull);
     }
@@ -171,7 +171,7 @@ public class TypeBuilder : ITypeBuilder {
 
         var typeName = GetActualType(property.SchemaField, property.TypeName);
         _stringBuilder.AppendLine($"\tprivate {typeName} Create{property.PropertyName}(JsonNode? data, JsonSerializerOptions serializerOptions) {{");
-        
+
         _stringBuilder.AppendLine("\t\tif(data == null)");
         _stringBuilder.AppendLine("\t\t\treturn null!;");
 
@@ -198,7 +198,11 @@ public class TypeBuilder : ITypeBuilder {
         var typeName = GetActualType(property.SchemaField, property.TypeName);
         _stringBuilder.AppendLine($"\tprivate {(isScalarOrEnum ? null : "I")}{typeName} Create{property.PropertyName}(JsonNode? data, JsonSerializerOptions serializerOptions) {{");
         if(isScalarOrEnum) {
-            _stringBuilder.AppendLine($"\t\treturn data?.Deserialize<{property.TypeName}>(serializerOptions) ?? default!;");
+            if(property.SchemaField.IsNullable()) {
+                _stringBuilder.AppendLine($"\t\treturn data?.Deserialize<{property.TypeName}>(serializerOptions) ?? null;");
+            } else {
+                _stringBuilder.AppendLine($"\t\treturn data?.Deserialize<{property.TypeName}>(serializerOptions) ?? default!;");
+            }
         } else {
             _stringBuilder.AppendLine("\t\tif(data == null)");
             _stringBuilder.AppendLine("\t\t\treturn null!;");
